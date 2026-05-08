@@ -1,0 +1,104 @@
+<div id="burger-menu-container">
+    <button id="burger-btn">
+        <span class="icon">☰</span> <span id="lbl-menu-btn">Menü</span>
+    </button>
+    <div id="burger-dropdown">
+        <button id="menu-lang" class="menu-item">
+            <span class="icon" id="lang-flag">🇬🇧</span> <span id="lang-text">English</span>
+        </button>
+        <div class="menu-separator"></div>
+
+        <button id="menu-home" class="menu-item">
+            <span class="icon">🏠</span> <span id="lbl-menu-home">Zum Start (Lemgo)</span>
+        </button>
+        <button id="menu-help" class="menu-item">
+            <span class="icon" id="icon-help">🕹️</span> <span id="lbl-menu-help">Steuerung ein/ausblenden</span>
+        </button>
+        <button id="menu-toggle-ui" class="menu-item">
+            <span class="icon" id="icon-ui">👁️</span> <span id="lbl-menu-ui">UI ausblenden</span>
+        </button>
+        <button id="menu-reset" class="menu-item">
+            <span class="icon">🔄</span> <span id="lbl-menu-reset">Kamera Reset</span>
+        </button>
+        <div class="menu-separator"></div>
+        <div class="menu-item" style="pointer-events: none; color: var(--text-secondary); padding-bottom: 2px; font-size: 11px; text-transform: uppercase; font-weight: 600;">Steuerungs-Modus</div>
+        <button id="mock-ctrl-fps" class="menu-item active" style="color: var(--col-cyan);">
+            <span class="icon">🖱️</span> Ego-Shooter
+        </button>
+        <button id="mock-ctrl-drag" class="menu-item" style="opacity: 0.5;">
+            <span class="icon">👆</span> Drag & Look (In Dev)
+        </button>
+        <div class="menu-separator"></div>
+        <a href="https://kreativ.institute/de" target="_blank" class="menu-item link">
+            <span class="icon">ℹ️</span> <span id="lbl-menu-imprint">Impressum</span>
+        </a>
+    </div>
+</div>
+
+<div id="info-modal-overlay" class="hidden">
+    <div class="info-card aeroglass-panel">
+        <button id="info-close-btn">✕</button>
+        <h2 id="info-title">Info Titel</h2>
+        <div id="info-body">Beschreibungstext hier...</div>
+        <a id="info-link" href="#" target="_blank" class="info-action-btn">Link öffnen</a>
+    </div>
+</div>
+
+<div id="gsplat-controls" class="header">
+    <div class="branding">
+        <a href="https://www.th-owl.de" target="_blank" rel="noopener noreferrer" class="logo-link">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1twSqYJmam-lJoeNXwBNKkyXk7L5TC1ERYA&s" alt="Logo" class="logo">
+        </a>
+        <div class="title-container">
+            <span class="title" id="lbl-welcome">Willkommen zum interaktiven Campus der TH OWL</span>
+            <span class="subtitle">
+                <span id="lbl-location-intro">Du befindest dich derzeit</span> <span id="location-prefix">auf dem</span> <a id="current-location-link" href="#" target="_blank" rel="noopener noreferrer">Campus</a>
+            </span>
+        </div>
+    </div>
+    
+    <div class="right-controls">
+        <button id="btn-switch-campus" class="unified-btn">
+            <span class="icon">🚀</span> <span id="switch-campus-text">Zum Campus Detmold</span>
+        </button>
+
+        <div class="quality-buttons pc-only">
+            <button id="btn-low" class="unified-btn" data-tooltip="Low">Low</button>
+            <button id="btn-medium" class="unified-btn active" data-tooltip="Medium">Medium</button>
+            <button id="btn-high" class="unified-btn" data-tooltip="High">High</button>
+            <button id="btn-ultra" class="unified-btn" data-tooltip="Ultra">Ultra</button>
+        </div>
+        
+        <div class="quality-buttons mobile-only">
+            <button id="btn-mob-low" class="unified-btn active" data-tooltip="Low">Low</button>
+            <button id="btn-mob-med" class="unified-btn" data-tooltip="Medium">Medium</button>
+        </div>
+    </div>
+</div>
+
+<div id="controls-card" class="aeroglass-panel collapsed">
+    <div id="controls-header">
+        <span class="header-title" id="lbl-controls-title">Steuerung</span>
+        <span class="header-icon">▼</span>
+    </div>
+    
+    <div id="controls-content">
+        <div class="control-group">
+            <h4 class="col-blue" id="lbl-desktop">Desktop (Maus & Tastatur)</h4>
+            <ul id="ctrl-list-desktop">
+                <li>Laden...</li>
+            </ul>
+        </div>
+        
+        <div class="control-group">
+            <h4 class="col-green" id="lbl-touch">Touch Geräte</h4>
+            <ul id="ctrl-list-touch">
+                <li>Laden...</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div id="gsplat-footer">
+    <div id="splat-count">Loading...</div>
+</div>

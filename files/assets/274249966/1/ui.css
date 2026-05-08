@@ -1,0 +1,195 @@
+:root {
+    /* Farben */
+    --bg-primary: rgba(20, 20, 25, 0.35);
+    --bg-glass: rgba(30, 30, 35, 0.75); 
+    --bg-button: rgba(60, 60, 68, 0.9);
+    --text-primary: rgba(235, 235, 245, 0.9);
+    --text-secondary: rgba(235, 235, 245, 0.7);
+    --text-bright: rgba(255, 255, 255, 1);
+    --col-cyan: #00E5FF;
+    --col-red: #FF4757;
+    --col-amber: #FFC107;
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --spacing-md: 10px;
+    --blur-strong: blur(12px);
+    --shadow-ui: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --logo-height: 38px;
+}
+
+body {
+    margin: 0; padding: 0; font-family: var(--font-family);
+    overflow: hidden; user-select: none; -webkit-user-select: none;
+    background-color: transparent;
+}
+
+.mobile-only { display: none !important; }
+.pc-only { display: flex !important; }
+
+/* === GLOBALE KLICK-RETTUNG === */
+#gsplat-controls, #burger-menu-container, #controls-card, #poi-sidebar, #poi-navbar {
+    pointer-events: none !important;
+}
+/* Nur die echten Buttons und Inhalte sind klickbar */
+.logo-link, .title-container a, .unified-btn, 
+#burger-btn, #controls-header, #controls-content,
+#poi-sidebar-toggle, .poi-header, .poi-item,
+#poi-prev-btn, #poi-next-btn, #poi-play-btn, #poi-current-title {
+    pointer-events: auto !important;
+}
+
+/* WICHTIG: Dropdown blockiert im unsichtbaren Zustand keine Klicks mehr! */
+#burger-dropdown { pointer-events: none !important; }
+#burger-menu-container.open #burger-dropdown { pointer-events: auto !important; }
+#burger-menu-container.open .menu-item { pointer-events: auto !important; }
+
+#info-modal-overlay.hidden { display: none !important; pointer-events: none !important; }
+/* ============================= */
+
+/* --- TOOLTIPS --- */
+[data-tooltip] { position: relative; }
+[data-tooltip]::after {
+    content: attr(data-tooltip); position: absolute; bottom: -35px; left: 50%; transform: translateX(-50%);
+    background: var(--bg-glass); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px;
+    white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.2s ease; box-shadow: var(--shadow-ui); z-index: 10000;
+}
+[data-tooltip]:hover::after { opacity: 1; bottom: -40px; }
+
+/* --- AKKORDEON --- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.15); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
+
+details.sublevel-accordion { margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 10px; }
+details.sublevel-accordion > summary { padding: 6px 0; cursor: pointer; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; color: var(--text-secondary); transition: color 0.2s; list-style: none; }
+details.sublevel-accordion > summary:hover, details.sublevel-accordion[open] > summary { color: white; }
+.arrow-icon { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid currentColor; transition: transform 0.3s; display: inline-block; margin-left: 10px; }
+details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
+.sublevel-list { display: flex; flex-direction: column; max-height: 150px; overflow-y: auto; padding-right: 5px; }
+.sublevel-btn { background: transparent; border: none; border-left: 2px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 0 6px 6px 0; color: var(--text-secondary); cursor: pointer; text-align: left; font-size: 13px; width: 100%; transition: 0.2s; margin-bottom: 2px; pointer-events: auto !important; }
+.sublevel-btn:hover { background: rgba(255,255,255,0.05); border-left-color: white; color: white; }
+
+/* --- HEADER / CONTROLS (Dein Original-Layout) --- */
+#gsplat-controls {
+    position: absolute; top: var(--spacing-md); left: 50%; transform: translateX(-50%);
+    width: 90%; max-width: 1000px; padding: var(--spacing-md) 12px;
+    background: var(--bg-primary); backdrop-filter: var(--blur-strong); -webkit-backdrop-filter: var(--blur-strong);
+    border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: var(--shadow-ui);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; z-index: 1000;
+}
+
+.branding { display: flex; align-items: center; gap: 10px; flex: 1; }
+.logo-link { line-height: 0; }
+.logo { height: var(--logo-height); opacity: 0.9; }
+.title-container { display: flex; flex-direction: column; justify-content: space-between; height: var(--logo-height); }
+.title { color: var(--text-primary); font-size: 15px; font-weight: 500; line-height: 1; }
+.subtitle { color: var(--text-secondary); font-size: 13px; font-weight: 400; line-height: 1; }
+.subtitle a { color: var(--text-secondary); text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.3); }
+
+.right-controls { display: flex; align-items: center; gap: 15px; flex: 1; justify-content: flex-end; }
+.quality-buttons { display: flex; align-items: center; gap: 6px; }
+
+.unified-btn {
+    background: rgba(60, 60, 68, 0.9); border: 1px solid rgba(100, 100, 110, 0.4);
+    color: var(--text-primary); padding: 6px 12px; border-radius: 6px;
+    cursor: pointer; font-size: 13px; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+}
+.unified-btn:hover { background: rgba(80, 80, 90, 0.95); border-color: rgba(120, 120, 135, 0.6); }
+.unified-btn.active { background: rgba(90, 90, 100, 0.95); border-color: rgba(140, 140, 155, 0.6); color: white; font-weight: 600; }
+#btn-switch-campus { padding: 6px 16px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);}
+
+/* --- BURGER MENU --- */
+#burger-menu-container { position: absolute; top: 10px; right: 10px; z-index: 2000; display: flex; flex-direction: column; align-items: flex-end; }
+#burger-btn { padding: 6px 16px; background: var(--bg-primary); backdrop-filter: var(--blur-strong); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; color: var(--text-secondary); font-size: 11px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; height: 32px; }
+#burger-btn:hover, #burger-btn.active { background: rgba(80, 80, 90, 0.95); color: white; border-color: rgba(255, 255, 255, 0.3); }
+
+#burger-dropdown { margin-top: 8px; width: 220px; background: var(--bg-glass); backdrop-filter: var(--blur-strong); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 6px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); opacity: 0; transform: translateY(-10px); transition: 0.2s; display: flex; flex-direction: column; gap: 2px; }
+#burger-menu-container.open #burger-dropdown { opacity: 1; transform: translateY(0); }
+.menu-item { background: transparent; border: none; color: var(--text-primary); padding: 10px 12px; text-align: left; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; }
+.menu-item:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+.menu-item .icon { width: 22px; text-align: center; display: inline-block; font-size: 14px; }
+.menu-separator { height: 1px; background: rgba(255, 255, 255, 0.1); margin: 4px 0; }
+
+/* --- CONTROLS --- */
+#controls-card { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 550px; background: var(--bg-glass); backdrop-filter: var(--blur-strong); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); color: var(--text-primary); overflow: hidden; transition: all 0.3s ease; z-index: 1006; }
+#controls-header { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 10px; cursor: pointer; background: rgba(255, 255, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-weight: 600; font-size: 14px; text-transform: uppercase;}
+#controls-card.collapsed #controls-content { max-height: 0; opacity: 0; padding: 0; }
+#controls-card.collapsed .header-icon { transform: rotate(-90deg); }
+#controls-card.collapsed { border-color: rgba(255,255,255,0.1); }
+#controls-content { display: flex; flex-wrap: wrap; justify-content: space-between; padding: 20px; gap: 20px; max-height: 400px; opacity: 1; }
+.control-group ul { list-style: none; padding: 0; margin: 0; }
+.control-group li { font-size: 13px; margin-bottom: 6px; color: var(--text-secondary); }
+.col-blue { color: #4facfe; margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase;}
+.col-green { color: #43e97b; margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase;}
+
+/* --- POI SIDEBAR (SAUBERE ANIMATION) --- */
+#poi-sidebar {
+    position: absolute; top: 100px; left: 10px; bottom: 140px;
+    width: 220px; background: var(--bg-glass); backdrop-filter: var(--blur-strong);
+    border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column;
+    z-index: 1005; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    transform: translateX(0); /* Zeigt es default an */
+}
+#poi-sidebar.collapsed { transform: translateX(-240px); }
+
+#poi-sidebar-toggle {
+    position: absolute; top: 50%; right: -24px; transform: translateY(-50%);
+    width: 24px; height: 60px; background: var(--bg-glass); backdrop-filter: var(--blur-strong);
+    border: 1px solid rgba(255, 255, 255, 0.15); border-left: none; border-radius: 0 8px 8px 0;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); transition: all 0.2s;
+}
+#poi-sidebar-toggle:hover { background: rgba(60, 60, 70, 0.9); color: white; }
+#poi-sidebar-toggle::after { content: ''; display: block; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-right: 7px solid currentColor; transition: transform 0.3s; }
+#poi-sidebar.collapsed #poi-sidebar-toggle::after { transform: rotate(180deg); }
+
+.poi-header { padding: 15px; font-weight: 600; color: var(--text-bright); border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; letter-spacing: 1px; font-size: 12px; }
+#poi-items { flex: 1; overflow-y: auto; padding: 10px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+.poi-item { padding: 10px; margin-bottom: 4px; border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 13px; transition: all 0.2s; display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
+.poi-item:hover { background: rgba(255,255,255,0.1); color: white; }
+.poi-item.active { background: linear-gradient(90deg, rgba(255, 71, 87, 0.2) 0%, transparent 100%); color: var(--text-bright); border-left: 3px solid var(--col-red); }
+
+/* --- TOUR NAVBAR (DUNKLES PILL DESIGN, KEIN ROT) --- */
+#poi-navbar {
+    position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
+    background: rgba(40, 40, 45, 0.95); backdrop-filter: var(--blur-strong);
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 40px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); display: flex; align-items: center; padding: 6px 10px; gap: 8px; z-index: 1005;
+}
+#poi-prev-btn, #poi-next-btn, #poi-play-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none; 
+    background: rgba(255,255,255,0.15); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; transition: background 0.2s ease, transform 0.1s ease; z-index: 1; padding: 0;
+}
+#poi-prev-btn:hover, #poi-next-btn:hover, #poi-play-btn:hover { background: rgba(255,255,255,0.25); }
+#poi-prev-btn:active, #poi-next-btn:active, #poi-play-btn:active { transform: scale(0.95); }
+#poi-play-btn.playing { color: var(--col-amber); }
+#poi-current-title { padding: 0 10px; min-width: 150px; text-align: center; font-size: 14px; color: var(--text-bright); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; }
+
+/* VERHINDERT DIE ALTEN ROTEN HOVER EFFEKTE */
+#poi-prev-btn::before, #poi-next-btn::before, #poi-play-btn::before { display: none !important; }
+
+/* --- MOBILE SPECIFIC --- */
+@media (max-width: 1100px) {
+    #gsplat-controls { flex-wrap: wrap; justify-content: center; gap: 12px; }
+    .right-controls { width: 100%; justify-content: space-between; }
+}
+
+@media (max-width: 600px) {
+    .pc-only { display: none !important; }
+    .mobile-only { display: flex !important; }
+    #gsplat-controls { top: 45px; padding: 4px 8px; gap: 4px; border-radius: 12px; width: 95%; }
+    .title { display: none; }
+    .branding { gap: 0; }
+    #controls-card { width: 95%; bottom: 20px; }
+    .unified-btn { padding: 6px 10px; font-size: 11px; }
+    #burger-btn { padding: 6px 12px; }
+    #burger-menu-container { top: 6px; right: 6px; }
+    
+    /* FIX: Die Sidebar fährt auf dem Handy jetzt zu 100% sauber aus! */
+    #poi-sidebar { top: 100px; bottom: auto; height: 300px; width: 220px; left: 0; transform: translateX(0); } 
+    #poi-sidebar.collapsed { transform: translateX(-230px); }
+    
+    #poi-navbar { bottom: 90px; width: 85%; justify-content: space-between; padding: 6px 12px;}
+}
+
+#gsplat-footer { position: absolute; bottom: 10px; right: 10px; padding: 6px 12px; background: var(--bg-primary); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-secondary); font-size: 11px; pointer-events: none; z-index: 999; }
