@@ -473,29 +473,7 @@ UI.prototype._initBurgerMenu = function() {
         };
     }
 
-    this.ctrlModeBtn = document.getElementById('menu-ctrl-toggle');
-    if (!this.ctrlModeBtn) {
-        this.ctrlModeBtn = document.createElement('button');
-        this.ctrlModeBtn.id = 'menu-ctrl-toggle';
-        this.ctrlModeBtn.className = 'menu-item';
-        this._isDragMode = false;
-        var ctrlText = self.dict[self.currentLang].menuToggleControl;
-        this.ctrlModeBtn.innerHTML = `<span>🕹️</span> ${ctrlText}`;
-        
-        if (resetBtn) resetBtn.parentNode.insertBefore(this.ctrlModeBtn, resetBtn);
-        else if (burgerDropdown) burgerDropdown.appendChild(this.ctrlModeBtn);
-
-        this.ctrlModeBtn.onclick = function() {
-            self._isDragMode = !self._isDragMode;
-            var mode = self._isDragMode ? 'drag' : 'joystick';
-            self.app.fire('controls:setMode', mode);
-            
-            var newText = self.currentLang === 'de' ? 
-                (self._isDragMode ? 'Steuerung: Joystick' : 'Steuerung: Drag/Orbit') : 
-                (self._isDragMode ? 'Controls: Joystick' : 'Controls: Drag/Orbit');
-            this.innerHTML = `<span>🕹️</span> ${newText}`;
-        };
-    }
+    // Removed ctrlModeBtn completely per user request
 
     if (langBtn) {
         langBtn.onclick = function(e) {
@@ -628,13 +606,7 @@ UI.prototype._translateDynamic = function() {
         tourBtn.innerHTML = `<span>🗺️</span> ${btnText}`;
     }
 
-    var ctrlBtn = document.getElementById('menu-ctrl-toggle');
-    if (ctrlBtn) {
-        var newText = this.currentLang === 'de' ? 
-            (this._isDragMode ? 'Steuerung: Joystick' : 'Steuerung: Drag/Orbit') : 
-            (this._isDragMode ? 'Controls: Joystick' : 'Controls: Drag/Orbit');
-        ctrlBtn.innerHTML = `<span>🕹️</span> ${newText}`;
-    }
+    // Removed dynamic translation for ctrlBtn
 };
 UI.prototype._onLevelSwitchEvent = function(levelId) {
     if (!this.isJumpingBack && this._currentLevelId && this._currentLevelId !== levelId) {

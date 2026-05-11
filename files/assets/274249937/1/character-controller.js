@@ -24,7 +24,7 @@ CharacterController.prototype.initialize = function() {
     this.lastX = null;
     this.lastY = null;
     this.isDragging = false;
-    this.controlMode = 'joystick'; // 'joystick' or 'drag'
+    this.controlMode = 'drag'; // Default to drag
     this.mouseX = 0;
     this.mouseY = 0;
 

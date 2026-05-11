@@ -36,8 +36,8 @@ LevelManager.attributes.add('collisionMeshes', { type: 'entity', array: true, ti
 // --- NEU: Kamera Speed Settings ---
 LevelManager.attributes.add('outdoorSpeed', { type: 'number', default: 15, title: 'Outdoor Speed' });
 LevelManager.attributes.add('outdoorFastSpeed', { type: 'number', default: 35, title: 'Outdoor Fast Speed (Shift)' });
-LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 3, title: 'Indoor Speed' });
-LevelManager.attributes.add('indoorFastSpeed', { type: 'number', default: 8, title: 'Indoor Fast Speed (Shift)' });
+LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 1.5, title: 'Indoor Speed' });
+LevelManager.attributes.add('indoorFastSpeed', { type: 'number', default: 4, title: 'Indoor Fast Speed (Shift)' });
 
 LevelManager.prototype.initialize = function() {
     this.cameraEntity = this.app.root.findByName('Camera');
@@ -57,6 +57,8 @@ LevelManager.prototype.initialize = function() {
     this._dynamicColliderEntity = null;
     this._dynamicColliderAsset = null;
     this._collisionReady = false;
+
+    this._debugMode = false;
 
     this.levelConfig = [
         { 
@@ -617,8 +619,31 @@ LevelManager.prototype.initialize = function() {
 
     if (!this.mainSplatEntity) return console.error("Main Splat Entity fehlt!");
 
-    // Collision Debugging: Press 'C' to toggle collision mesh visibility
+    // Debug Mode: Press 'P' to toggle gravity and show position
     this.app.keyboard.on(pc.EVENT_KEYDOWN, function(e) {
+        if (e.key === pc.KEY_P) {
+            this._debugMode = !this._debugMode;
+            var playerRig = this.app.root.findByName('Character_Controller');
+            if (playerRig && playerRig.rigidbody) {
+                if (this._debugMode) {
+                    playerRig.rigidbody.linearFactor = pc.Vec3.ZERO;
+                    playerRig.rigidbody.angularFactor = pc.Vec3.ZERO;
+                    playerRig.rigidbody.linearVelocity = pc.Vec3.ZERO;
+                    // Enable layout tool if present
+                    if (this.app.root.script && this.app.root.script.layoutTool) {
+                        this.app.root.script.layoutTool.enabled = true;
+                    }
+                } else {
+                    playerRig.rigidbody.linearFactor = pc.Vec3.ONE;
+                    playerRig.rigidbody.angularFactor = pc.Vec3.ZERO;
+                    if (this.app.root.script && this.app.root.script.layoutTool) {
+                        this.app.root.script.layoutTool.enabled = false;
+                    }
+                }
+            }
+            console.log('[DebugMode] Gravity ' + (this._debugMode ? 'OFF' : 'ON'));
+        }
+        
         if (e.key === pc.KEY_C && this._dynamicColliderEntity && this._dynamicColliderEntity.render) {
             this._dynamicColliderEntity.render.enabled = !this._dynamicColliderEntity.render.enabled;
             console.log('[Collision] Visibility toggled to:', this._dynamicColliderEntity.render.enabled);
