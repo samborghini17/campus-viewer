@@ -390,11 +390,9 @@ class CameraControls extends Script {
         const double = +(this._state.touches > 1);
         const desktopPan = +(this._state.shift || this._state.mouse[1]);
         const mobileJoystick = +this._flyMobileInput.layout.endsWith('joystick');
-        // --- NEUE SPEED LOGIK: Verwendet Indoor / Outdoor Settings ---
-        const currentSpeed = this._mode === 'fly' ? this.indoorSpeed : this.outdoorSpeed;
-        const currentFastSpeed = this._mode === 'fly' ? this.indoorFastSpeed : this.outdoorFastSpeed;
-        const moveMult = (this._state.shift ? currentFastSpeed : this._state.ctrl ? this.moveSlowSpeed : currentSpeed) * dt;
-        // -------------------------------------------------------------
+        
+        const moveMult = (this._state.shift ? this.moveFastSpeed : this._state.ctrl ? this.moveSlowSpeed : this.moveSpeed) * dt;
+        
         const zoomMult = this.zoomSpeed * 60 * dt;
         const zoomTouchMult = zoomMult * this.zoomPinchSens;
         const rotateMult = this.rotateSpeed * 60 * dt;

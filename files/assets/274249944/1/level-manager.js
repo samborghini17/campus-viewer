@@ -36,8 +36,8 @@ LevelManager.attributes.add('collisionMeshes', { type: 'entity', array: true, ti
 // --- NEU: Kamera Speed Settings ---
 LevelManager.attributes.add('outdoorSpeed', { type: 'number', default: 15, title: 'Outdoor Speed' });
 LevelManager.attributes.add('outdoorFastSpeed', { type: 'number', default: 35, title: 'Outdoor Fast Speed (Shift)' });
-LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 1.5, title: 'Indoor Speed' });
-LevelManager.attributes.add('indoorFastSpeed', { type: 'number', default: 4, title: 'Indoor Fast Speed (Shift)' });
+LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 0.8, title: 'Indoor Speed' });
+LevelManager.attributes.add('indoorFastSpeed', { type: 'number', default: 2.0, title: 'Indoor Fast Speed (Shift)' });
 
 LevelManager.prototype.initialize = function() {
     this.cameraEntity = this.app.root.findByName('Camera');
@@ -991,7 +991,11 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
                 playerRig.rigidbody.enabled = true;
                 playerRig.rigidbody.activate();
             }
-            if (playerRig && playerRig.collision) playerRig.collision.enabled = true;
+            if (playerRig && playerRig.script && playerRig.script['character-controller']) {
+                var charCtrl = playerRig.script['character-controller'];
+                charCtrl.speed = this.indoorSpeed;
+                charCtrl.fastSpeed = this.indoorFastSpeed;
+            }
         } else {
             // INDOOR WITHOUT COLLISION: Fly camera, no physics
             console.log('[LevelMgr] Mode: FLY (indoor, no collision)');

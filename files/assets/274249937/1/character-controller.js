@@ -166,7 +166,7 @@ CharacterController.prototype.update = function(dt) {
     // Verhindert das Einfrieren der Physik
     this.entity.rigidbody.activate(); 
 
-    var moveSpeed = this.app.keyboard.isPressed(pc.KEY_SHIFT) ? this.speed * 2.0 : this.speed;
+    var moveSpeed = this.app.keyboard.isPressed(pc.KEY_SHIFT) && this.fastSpeed ? this.fastSpeed : this.app.keyboard.isPressed(pc.KEY_SHIFT) ? this.speed * 2.0 : this.speed;
     if (moveDir.lengthSq() > 0) {
         moveDir.normalize().scale(moveSpeed);
     }

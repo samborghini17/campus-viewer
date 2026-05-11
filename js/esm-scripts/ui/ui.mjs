@@ -359,9 +359,36 @@ UI.prototype.initialize = function() {
         }
     };
     if (this.cssAsset) {
-        var style = document.createElement('style');
-        style.textContent = this.cssAsset.resource;
-        document.head.appendChild(style);
+        if (typeof this.cssAsset.resource === 'string') {
+            if (this.cssAsset.resource.trim().startsWith('import ') || this.cssAsset.resource.includes('__vite__createHotContext')) {
+                console.log('UI: CSS resource is a Vite JS wrapper. Appending link element instead.');
+                var link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.type = 'text/css';
+                link.href = this.cssAsset.getFileUrl();
+                document.head.appendChild(link);
+            } else {
+                console.log('UI: CSS resource is string. Adding style tag.');
+                var style = document.createElement('style');
+                style.textContent = this.cssAsset.resource;
+                document.head.appendChild(style);
+            }
+        } else if (this.cssAsset.resource instanceof HTMLElement) {
+            console.log('UI: CSS resource is HTMLElement. Appending directly.');
+            document.head.appendChild(this.cssAsset.resource);
+        } else if (this.cssAsset.getFileUrl) {
+            var url = this.cssAsset.getFileUrl();
+            console.log('UI: CSS resource not found, appending link for URL:', url);
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = url;
+            document.head.appendChild(link);
+        } else {
+            console.log('UI: CSS asset missing resource and getFileUrl:', this.cssAsset);
+        }
+    } else {
+        console.log('UI: No cssAsset provided!');
     }
     if (this.htmlAsset) {
         this.uiContainer.innerHTML = this.htmlAsset.resource;
