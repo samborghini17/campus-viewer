@@ -86,11 +86,6 @@ CharacterController.prototype.setStartRotation = function(rot) {
 };
 
 CharacterController.prototype.onMouseDown = function(e) {
-    // Request Pointer Lock for a true FPS feel
-    if (this.app.mouse && !pc.Mouse.isPointerLocked()) {
-        this.app.mouse.enablePointerLock();
-    }
-
     if (this.controlMode === 'drag' && e.button === pc.MOUSEBUTTON_LEFT) {
         this.isDragging = true;
         this.lastX = e.x;
@@ -112,15 +107,6 @@ CharacterController.prototype.onMouseMove = function(e) {
 
     if (!this.camera) return;
 
-    // Use Pointer Lock deltas if locked
-    if (pc.Mouse.isPointerLocked()) {
-        this.pitch -= e.dy * this.lookSens;
-        this.yaw -= e.dx * this.lookSens;
-        this.pitch = pc.math.clamp(this.pitch, -90, 90);
-        this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);
-        return;
-    }
-
     if (this.controlMode === 'drag') {
         if (this.isDragging && this.lastX !== null && this.lastY !== null) {
             var dx = e.x - this.lastX;
@@ -140,11 +126,27 @@ CharacterController.prototype.onMouseMove = function(e) {
 CharacterController.prototype.update = function(dt) {
     if (!this.entity.rigidbody || !this.camera) return;
 
-    // Pointer Lock mode rotation is handled in onMouseMove
-    // The old 'joystick' mode was actually a screen-center relative rotation which the user disliked
-    if (this.controlMode === 'joystick' && !pc.Mouse.isPointerLocked()) {
-        // Fallback for when pointer is not locked but mode is joystick
-        // (e.g. user just entered the level or escaped the lock)
+    // Virtual Joystick logic
+    if (this.controlMode === 'joystick') {
+        // Prevent rotation if mouse hasn't moved yet (starts at 0,0)
+        if (this.mouseX !== 0 || this.mouseY !== 0) {
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+            // Normalize coordinates to -1 to 1 relative to center
+            var nx = (this.mouseX / w) * 2 - 1;
+            var ny = (this.mouseY / h) * 2 - 1;
+            
+            // Add deadzone in center
+            var deadzone = 0.15;
+            if (Math.abs(nx) > deadzone) {
+                this.yaw -= Math.sign(nx) * (Math.abs(nx) - deadzone) * this.lookSens * 8; // Reduced speed
+            }
+            if (Math.abs(ny) > deadzone) {
+                this.pitch -= Math.sign(ny) * (Math.abs(ny) - deadzone) * this.lookSens * 8;
+            }
+            this.pitch = pc.math.clamp(this.pitch, -90, 90);
+            this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);
+        }
     }
 
     // Flatten forward/right to horizontal plane for ground walking

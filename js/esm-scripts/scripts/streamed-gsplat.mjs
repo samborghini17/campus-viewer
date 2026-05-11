@@ -163,21 +163,6 @@ class StreamedGsplat extends Script {
     }
     update() {
         this.app.fire('ui:updateStats', this.app.stats.frame.gsplats || 0);
-
-        // Performance Optimization: 70m Distance Culling
-        if (this.entity.gsplat) {
-            const cam = this.app.root.findByName('Camera') || this.app.root.findByName('View');
-            if (cam) {
-                const dist = this.entity.getPosition().distance(cam.getPosition());
-                const isFar = dist > 70;
-                // Use a small buffer to prevent flickering
-                if (isFar && this.entity.gsplat.enabled) {
-                    this.entity.gsplat.enabled = false;
-                } else if (!isFar && !this.entity.gsplat.enabled) {
-                    this.entity.gsplat.enabled = true;
-                }
-            }
-        }
     }
     onDestroy() {
         this.cleanup();
