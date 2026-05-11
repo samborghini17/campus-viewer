@@ -36,8 +36,8 @@ LevelManager.attributes.add('collisionMeshes', { type: 'entity', array: true, ti
 // --- NEU: Kamera Speed Settings ---
 LevelManager.attributes.add('outdoorSpeed', { type: 'number', default: 15, title: 'Outdoor Speed' });
 LevelManager.attributes.add('outdoorFastSpeed', { type: 'number', default: 35, title: 'Outdoor Fast Speed (Shift)' });
-LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 0.8, title: 'Indoor Speed' });
-LevelManager.attributes.add('indoorFastSpeed', { type: 'number', default: 2.0, title: 'Indoor Fast Speed (Shift)' });
+LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 0.4, title: 'Indoor Speed' });
+LevelManager.attributes.add('indoorFastSpeed', { type: 'number', default: 0.8, title: 'Indoor Fast Speed (Shift)' });
 
 LevelManager.prototype.initialize = function() {
     this.cameraEntity = this.app.root.findByName('Camera');
@@ -59,6 +59,21 @@ LevelManager.prototype.initialize = function() {
     this._collisionReady = false;
 
     this._debugMode = false;
+    this._gravityEnabled = true;
+
+    // DEBUG KEYS: P = Toggle Gravity, C = Toggle Collision Visibility
+    this.app.keyboard.on(pc.EVENT_KEYDOWN, function(e) {
+        if (e.key === pc.KEY_P) {
+            this._gravityEnabled = !this._gravityEnabled;
+            var g = this._gravityEnabled ? -9.81 : 0;
+            this.app.systems.rigidbody.gravity.set(0, g, 0);
+            console.log('[Debug] Gravity toggled to:', g);
+        }
+        if (e.key === pc.KEY_C && this._dynamicColliderEntity && this._dynamicColliderEntity.render) {
+            this._dynamicColliderEntity.render.enabled = !this._dynamicColliderEntity.render.enabled;
+            console.log('[Collision] Visibility toggled to:', this._dynamicColliderEntity.render.enabled);
+        }
+    }, this);
 
     this.levelConfig = [
         { 
