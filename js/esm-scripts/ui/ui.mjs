@@ -595,7 +595,7 @@ UI.prototype._initBurgerMenu = function() {
     }
 
     // --- Culling Toggle ---
-    this._cullingEnabled = true;
+    this._cullingEnabled = false;
     var cullingBtn = document.getElementById('menu-culling-toggle');
     if (cullingBtn) {
         cullingBtn.onclick = function() {

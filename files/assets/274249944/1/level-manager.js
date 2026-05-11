@@ -61,8 +61,8 @@ LevelManager.prototype.initialize = function() {
 
     this._debugMode = false;
 
-    // Distance culling for indoor levels
-    this._cullingEnabled = true;
+    // Distance culling for indoor levels (DISABLED by default - enable via menu or K key)
+    this._cullingEnabled = false;
     this._cullDistance = this.defaultCullDistance || 70;
     this._culledEntities = [];
     this._isIndoorLevel = false;
@@ -864,6 +864,9 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     // --- Destroy previous dynamic collision ---
     this.destroyDynamicCollider();
 
+    // --- Clear any culled entities from previous level ---
+    this._showAllCulled();
+
     // --- Legacy static colliders (fallback) ---
     var colliderEntity = this.getColliderByName(data.collider); 
     if (this.currentCollider) this.currentCollider.enabled = false;
@@ -1063,7 +1066,7 @@ LevelManager.prototype._isOutdoorLevel = function(levelId) {
 };
 
 LevelManager.prototype.update = function(dt) {
-    // Distance culling - only for indoor levels
+    // Distance culling - only for indoor levels, disabled by default
     if (!this._cullingEnabled || this._isOutdoorLevel(this.currentLevelId)) return;
     
     var data = this.getConfigById(this.currentLevelId);
@@ -1072,21 +1075,20 @@ LevelManager.prototype.update = function(dt) {
     var cam = this.cameraEntity;
     if (!cam) return;
     var camPos = cam.getPosition();
-    var cullDist = this._cullDistance;
-    var cullDistSq = cullDist * cullDist;
+    var cullDistSq = this._cullDistance * this._cullDistance;
     
-    // Cull gsplat children based on distance
+    // Cull gsplat children based on squared distance (performance)
     if (this.mainSplatEntity) {
         var children = this.mainSplatEntity.children;
         for (var i = 0; i < children.length; i++) {
             var child = children[i];
             if (!child || !child.gsplat) continue;
             var childPos = child.getPosition();
-            var distSq = camPos.distance(childPos);
-            distSq = distSq * distSq;
-            // Note: comparing actual distance, not squared for readability
-            var dist = camPos.distance(childPos);
-            if (dist > cullDist) {
+            var dx = camPos.x - childPos.x;
+            var dy = camPos.y - childPos.y;
+            var dz = camPos.z - childPos.z;
+            var distSq = dx * dx + dy * dy + dz * dz;
+            if (distSq > cullDistSq) {
                 if (child.enabled) {
                     child.enabled = false;
                     if (this._culledEntities.indexOf(child) === -1) {

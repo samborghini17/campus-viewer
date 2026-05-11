@@ -2,7 +2,7 @@ var CharacterController = pc.createScript('character-controller');
 
 CharacterController.attributes.add('camera', { type: 'entity', title: 'Camera (Auto-Find)' });
 CharacterController.attributes.add('speed', { type: 'number', default: 0.4 });
-CharacterController.attributes.add('lookSens', { type: 'number', default: 0.08 });
+CharacterController.attributes.add('lookSens', { type: 'number', default: 0.04 });
 
 CharacterController.prototype.initialize = function() {
     // AUTO-FIND: Sucht die Kamera, falls das Feld im Editor leer ist
