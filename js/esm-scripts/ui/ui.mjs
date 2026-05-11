@@ -328,7 +328,14 @@ UI.prototype.initialize = function() {
             flyDesktop: '<li><b>WASD / Pfeile</b>: Laufen / Fliegen</li><li><b>Q / E</b>: Runter / Hoch</li><li>• <b>Shift</b>: Schneller</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>Maus (Ziehen)</b>: Umsehen (Kopf drehen)</li>',
             flyTouch: '<li>• <b>1 Finger</b>: Umsehen</li><li>• <b>2 Finger</b>: Vorwärts laufen</li>',
             orbitDesktop: '<li><b>Linke Taste</b> Drehen (Orbit)</li><li><b>Mausrad</b> Zoomen</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Frei bewegen (Pan)</li><li>• <b>Q/E</b>: Runter/Hoch</li><li>• <b>Shift</b>: Schneller</li>',
-            orbitTouch: '<li>• <b>1 Finger</b> Drehen</li><li>• <b>2 Finger</b> Zoom/Pan</li>'
+            orbitTouch: '<li>• <b>1 Finger</b> Drehen</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
+            ctrlFps: 'FPS (Klick zum Umsehen)',
+            ctrlDrag: 'Drag & Look',
+            toolsHeader: 'Werkzeuge',
+            cullingOn: 'Culling: AN',
+            cullingOff: 'Culling: AUS',
+            cullDist: 'Culling-Distanz',
+            debugMode: 'Debug Modus'
         },
         en: {
             menuBtn: 'Menu',
@@ -355,7 +362,14 @@ UI.prototype.initialize = function() {
             flyDesktop: '<li><b>WASD / Arrows</b>: Walk / Fly</li><li><b>Q / E</b>: Down / Up</li><li>• <b>Shift</b>: Faster</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>Mouse (Drag)</b>: Look around</li>',
             flyTouch: '<li>• <b>1 Finger</b>: Look around</li><li>• <b>2 Finger</b>: Walk forward</li>',
             orbitDesktop: '<li><b>Left Click</b> Rotate (Orbit)</li><li><b>Mouse Wheel</b> Zoom</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Move freely (Pan)</li><li>• <b>Q/E</b>: Down/Up</li><li>• <b>Shift</b>: Faster</li>',
-            orbitTouch: '<li>• <b>1 Finger</b> Rotate</li><li>• <b>2 Finger</b> Zoom/Pan</li>'
+            orbitTouch: '<li>• <b>1 Finger</b> Rotate</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
+            ctrlFps: 'FPS (Click to Look)',
+            ctrlDrag: 'Drag & Look',
+            toolsHeader: 'Tools',
+            cullingOn: 'Culling: ON',
+            cullingOff: 'Culling: OFF',
+            cullDist: 'Culling Distance',
+            debugMode: 'Debug Mode'
         }
     };
     if (this.cssAsset) {
@@ -563,16 +577,72 @@ UI.prototype._initBurgerMenu = function() {
         mockFps.onclick = function() {
             mockFps.classList.add('active');
             mockFps.style.opacity = '1';
+            mockFps.style.color = 'var(--col-cyan)';
             mockDrag.classList.remove('active');
             mockDrag.style.opacity = '0.5';
-            self.app.fire('controls:setMode', 'joystick');
+            mockDrag.style.color = '';
+            self.app.fire('controls:setMode', 'fps');
         };
         mockDrag.onclick = function() {
             mockDrag.classList.add('active');
             mockDrag.style.opacity = '1';
+            mockDrag.style.color = 'var(--col-cyan)';
             mockFps.classList.remove('active');
             mockFps.style.opacity = '0.5';
+            mockFps.style.color = '';
             self.app.fire('controls:setMode', 'drag');
+        };
+    }
+
+    // --- Culling Toggle ---
+    this._cullingEnabled = true;
+    var cullingBtn = document.getElementById('menu-culling-toggle');
+    if (cullingBtn) {
+        cullingBtn.onclick = function() {
+            self._cullingEnabled = !self._cullingEnabled;
+            var lbl = document.getElementById('lbl-culling');
+            if (lbl) {
+                lbl.innerText = self._cullingEnabled 
+                    ? (self.currentLang === 'de' ? 'Culling: AN' : 'Culling: ON')
+                    : (self.currentLang === 'de' ? 'Culling: AUS' : 'Culling: OFF');
+            }
+            cullingBtn.style.color = self._cullingEnabled ? 'var(--col-cyan)' : '';
+            cullingBtn.style.opacity = self._cullingEnabled ? '1' : '0.5';
+            self.app.fire('culling:toggle', self._cullingEnabled);
+        };
+    }
+
+    // --- Culling Distance Slider ---
+    var cullSlider = document.getElementById('culling-distance-slider');
+    var cullLabel = document.getElementById('lbl-cull-dist');
+    if (cullSlider) {
+        cullSlider.addEventListener('input', function(e) {
+            var val = parseInt(e.target.value) || 70;
+            if (cullLabel) {
+                cullLabel.innerText = (self.currentLang === 'de' ? 'Culling-Distanz: ' : 'Culling Distance: ') + val + 'm';
+            }
+            self.app.fire('culling:setDistance', val);
+        });
+        // Stop propagation to prevent canvas interactions
+        ['mousedown', 'touchstart'].forEach(function(ev) {
+            cullSlider.addEventListener(ev, function(e) { e.stopPropagation(); });
+        });
+    }
+
+    // --- Debug Mode Toggle ---
+    this._debugEnabled = false;
+    var debugBtn = document.getElementById('menu-debug-toggle');
+    if (debugBtn) {
+        debugBtn.onclick = function() {
+            self._debugEnabled = !self._debugEnabled;
+            debugBtn.style.opacity = self._debugEnabled ? '1' : '0.5';
+            debugBtn.style.color = self._debugEnabled ? 'var(--col-cyan)' : '';
+            // Simulate P key press for debug toggle
+            var lm = self.app.root.findByName('LevelManager');
+            if (lm && lm.script && lm.script.levelManager) {
+                lm.script.levelManager._debugMode = self._debugEnabled;
+            }
+            console.log('[UI] Debug mode:', self._debugEnabled);
         };
     }
 };
@@ -633,7 +703,20 @@ UI.prototype._translateDynamic = function() {
         tourBtn.innerHTML = `<span>🗺️</span> ${btnText}`;
     }
 
-    // Removed dynamic translation for ctrlBtn
+    // Dynamic translations for new elements
+    var fpsLbl = document.getElementById('lbl-ctrl-fps');
+    if (fpsLbl) fpsLbl.innerText = d.ctrlFps || 'FPS';
+    var dragLbl = document.getElementById('lbl-ctrl-drag');
+    if (dragLbl) dragLbl.innerText = d.ctrlDrag || 'Drag & Look';
+    var toolsHdr = document.getElementById('lbl-tools-header');
+    if (toolsHdr) toolsHdr.innerText = d.toolsHeader || 'Tools';
+    var cullingLbl = document.getElementById('lbl-culling');
+    if (cullingLbl) cullingLbl.innerText = this._cullingEnabled ? (d.cullingOn || 'Culling: ON') : (d.cullingOff || 'Culling: OFF');
+    var cullDistLbl = document.getElementById('lbl-cull-dist');
+    var cullSlider = document.getElementById('culling-distance-slider');
+    if (cullDistLbl && cullSlider) cullDistLbl.innerText = (d.cullDist || 'Culling Distance') + ': ' + cullSlider.value + 'm';
+    var debugLbl = document.getElementById('lbl-debug');
+    if (debugLbl) debugLbl.innerText = d.debugMode || 'Debug Mode';
 };
 UI.prototype._onLevelSwitchEvent = function(levelId) {
     if (!this.isJumpingBack && this._currentLevelId && this._currentLevelId !== levelId) {

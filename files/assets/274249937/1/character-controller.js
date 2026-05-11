@@ -1,8 +1,8 @@
 var CharacterController = pc.createScript('character-controller');
 
 CharacterController.attributes.add('camera', { type: 'entity', title: 'Camera (Auto-Find)' });
-CharacterController.attributes.add('speed', { type: 'number', default: 0.75 });
-CharacterController.attributes.add('lookSens', { type: 'number', default: 0.15 });
+CharacterController.attributes.add('speed', { type: 'number', default: 0.4 });
+CharacterController.attributes.add('lookSens', { type: 'number', default: 0.08 });
 
 CharacterController.prototype.initialize = function() {
     // AUTO-FIND: Sucht die Kamera, falls das Feld im Editor leer ist
@@ -15,7 +15,10 @@ CharacterController.prototype.initialize = function() {
         if (this.entity.rigidbody.mass === 0) this.entity.rigidbody.mass = 1;
         this.entity.rigidbody.angularFactor = pc.Vec3.ZERO;
         this.entity.rigidbody.restitution = 0; // Prevent bouncing on polygon edges
-        this.entity.rigidbody.friction = 0;
+        this.entity.rigidbody.friction = 0.5;
+    }
+    if (this.entity.collision) {
+        this.entity.collision.enabled = true;
     }
 
     this.pitch = 0;
@@ -24,14 +27,24 @@ CharacterController.prototype.initialize = function() {
     this.lastX = null;
     this.lastY = null;
     this.isDragging = false;
-    this.controlMode = 'drag'; // Default to drag
-    this.mouseX = 0;
-    this.mouseY = 0;
+    this.controlMode = 'fps'; // Default to FPS (Pointer Lock)
+    this._pointerLocked = false;
+    this._debugGravityOff = false;
+    this._debugHud = null;
 
     // Bind mouse handlers
     this._onMouseMove = this.onMouseMove.bind(this);
     this._onMouseDown = this.onMouseDown.bind(this);
     this._onMouseUp = this.onMouseUp.bind(this);
+
+    // Pointer Lock change handler
+    this._onPointerLockChange = this._handlePointerLockChange.bind(this);
+    document.addEventListener('pointerlockchange', this._onPointerLockChange);
+    document.addEventListener('mozpointerlockchange', this._onPointerLockChange);
+
+    // Raw mouse move for Pointer Lock (bypasses PlayCanvas mouse system)
+    this._onRawMouseMove = this._handleRawMouseMove.bind(this);
+    document.addEventListener('mousemove', this._onRawMouseMove);
 
     // Register enable/disable callbacks
     this.on('enable', this._enableMouse, this);
@@ -42,12 +55,107 @@ CharacterController.prototype.initialize = function() {
         this.lastX = null;
         this.lastY = null;
         this.isDragging = false;
+        
+        // Exit pointer lock when switching away from FPS
+        if (mode !== 'fps' && this._pointerLocked) {
+            document.exitPointerLock();
+        }
+        console.log('[CharCtrl] Mode switched to:', mode);
     }, this);
 
     this.on('destroy', function() {
         this._disableMouse();
+        document.removeEventListener('pointerlockchange', this._onPointerLockChange);
+        document.removeEventListener('mozpointerlockchange', this._onPointerLockChange);
+        document.removeEventListener('mousemove', this._onRawMouseMove);
+        this._removeDebugHud();
     }, this);
+
+    // Create debug HUD
+    this._createDebugHud();
+
+    // Force enable on initialize
+    this._enableMouse();
+
+    console.log('[CharCtrl] Initialized - mode:', this.controlMode, 'speed:', this.speed);
 };
+
+// --- POINTER LOCK (FPS MODE) ---
+
+CharacterController.prototype._handlePointerLockChange = function() {
+    this._pointerLocked = (
+        document.pointerLockElement === this.app.graphicsDevice.canvas ||
+        document.mozPointerLockElement === this.app.graphicsDevice.canvas
+    );
+    console.log('[CharCtrl] Pointer lock:', this._pointerLocked);
+};
+
+CharacterController.prototype._handleRawMouseMove = function(e) {
+    if (!this.camera || !this.enabled) return;
+    if (this.controlMode !== 'fps' || !this._pointerLocked) return;
+
+    var dx = e.movementX || 0;
+    var dy = e.movementY || 0;
+
+    this.yaw -= dx * this.lookSens;
+    this.pitch -= dy * this.lookSens;
+    this.pitch = pc.math.clamp(this.pitch, -89, 89);
+    this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);
+};
+
+CharacterController.prototype._requestPointerLock = function() {
+    var canvas = this.app.graphicsDevice.canvas;
+    if (canvas.requestPointerLock) {
+        canvas.requestPointerLock();
+    } else if (canvas.mozRequestPointerLock) {
+        canvas.mozRequestPointerLock();
+    }
+};
+
+// --- DEBUG HUD ---
+
+CharacterController.prototype._createDebugHud = function() {
+    this._debugHud = document.createElement('div');
+    this._debugHud.id = 'debug-hud';
+    Object.assign(this._debugHud.style, {
+        position: 'fixed',
+        bottom: '60px',
+        left: '10px',
+        backgroundColor: 'rgba(0,0,0,0.75)',
+        color: '#00ff88',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        padding: '8px 12px',
+        borderRadius: '6px',
+        zIndex: '10000',
+        pointerEvents: 'none',
+        display: 'none',
+        lineHeight: '1.6',
+        border: '1px solid rgba(0,255,136,0.3)'
+    });
+    document.body.appendChild(this._debugHud);
+};
+
+CharacterController.prototype._removeDebugHud = function() {
+    if (this._debugHud && this._debugHud.parentNode) {
+        this._debugHud.parentNode.removeChild(this._debugHud);
+    }
+};
+
+CharacterController.prototype._updateDebugHud = function() {
+    if (!this._debugHud) return;
+    var pos = this.entity.getPosition();
+    var camAngles = this.camera ? this.camera.getLocalEulerAngles() : { x: 0, y: 0, z: 0 };
+    this._debugHud.innerHTML = 
+        '<b style="color:#ff0">🛠 DEBUG MODE</b><br>' +
+        'Pos: [' + pos.x.toFixed(2) + ', ' + pos.y.toFixed(2) + ', ' + pos.z.toFixed(2) + ']<br>' +
+        'Rot: [' + camAngles.x.toFixed(0) + ', ' + camAngles.y.toFixed(0) + ', ' + camAngles.z.toFixed(0) + ']<br>' +
+        'Gravity: ' + (this._debugGravityOff ? '<span style="color:#f00">OFF (G held)</span>' : '<span style="color:#0f0">ON</span>') + '<br>' +
+        'Mode: ' + this.controlMode + ' | Speed: ' + this.speed.toFixed(2) + '<br>' +
+        '<span style="color:#888">P=copy pos | G=no gravity | C=collider</span>';
+};
+
+// --- MOUSE INPUT ---
 
 CharacterController.prototype._enableMouse = function() {
     if (this._mouseActive) return;
@@ -72,6 +180,10 @@ CharacterController.prototype._disableMouse = function() {
         this.isDragging = false;
         console.log('[CharCtrl] Mouse input disabled');
     }
+    // Exit pointer lock
+    if (this._pointerLocked) {
+        document.exitPointerLock();
+    }
 };
 
 // DER WICHTIGE FIX FÜR DEINE WERTE: 
@@ -86,7 +198,12 @@ CharacterController.prototype.setStartRotation = function(rot) {
 };
 
 CharacterController.prototype.onMouseDown = function(e) {
-    if (this.controlMode === 'drag' && e.button === pc.MOUSEBUTTON_LEFT) {
+    if (this.controlMode === 'fps' && e.button === pc.MOUSEBUTTON_LEFT) {
+        // Request pointer lock on click for FPS mode
+        if (!this._pointerLocked) {
+            this._requestPointerLock();
+        }
+    } else if (this.controlMode === 'drag' && e.button === pc.MOUSEBUTTON_LEFT) {
         this.isDragging = true;
         this.lastX = e.x;
         this.lastY = e.y;
@@ -102,18 +219,16 @@ CharacterController.prototype.onMouseUp = function(e) {
 };
 
 CharacterController.prototype.onMouseMove = function(e) {
-    this.mouseX = e.x;
-    this.mouseY = e.y;
-
     if (!this.camera) return;
 
+    // Drag mode: click+drag to look (PlayCanvas mouse events)
     if (this.controlMode === 'drag') {
         if (this.isDragging && this.lastX !== null && this.lastY !== null) {
             var dx = e.x - this.lastX;
             var dy = e.y - this.lastY;
             this.pitch -= dy * this.lookSens;
             this.yaw -= dx * this.lookSens;
-            this.pitch = pc.math.clamp(this.pitch, -90, 90);
+            this.pitch = pc.math.clamp(this.pitch, -89, 89);
             this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);
         }
         if (this.isDragging) {
@@ -121,31 +236,37 @@ CharacterController.prototype.onMouseMove = function(e) {
             this.lastY = e.y;
         }
     }
+    // FPS mode uses raw mouse events via _handleRawMouseMove (Pointer Lock)
 };
 
 CharacterController.prototype.update = function(dt) {
     if (!this.entity.rigidbody || !this.camera) return;
 
-    // Virtual Joystick logic
-    if (this.controlMode === 'joystick') {
-        // Prevent rotation if mouse hasn't moved yet (starts at 0,0)
-        if (this.mouseX !== 0 || this.mouseY !== 0) {
-            var w = window.innerWidth;
-            var h = window.innerHeight;
-            // Normalize coordinates to -1 to 1 relative to center
-            var nx = (this.mouseX / w) * 2 - 1;
-            var ny = (this.mouseY / h) * 2 - 1;
-            
-            // Add deadzone in center
-            var deadzone = 0.15;
-            if (Math.abs(nx) > deadzone) {
-                this.yaw -= Math.sign(nx) * (Math.abs(nx) - deadzone) * this.lookSens * 8; // Reduced speed
-            }
-            if (Math.abs(ny) > deadzone) {
-                this.pitch -= Math.sign(ny) * (Math.abs(ny) - deadzone) * this.lookSens * 8;
-            }
-            this.pitch = pc.math.clamp(this.pitch, -90, 90);
-            this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);
+    // --- DEBUG: Hold G to disable gravity ---
+    var gPressed = this.app.keyboard.isPressed(pc.KEY_G);
+    if (gPressed && !this._debugGravityOff) {
+        this._debugGravityOff = true;
+        this.app.systems.rigidbody.gravity.set(0, 0, 0);
+        this.entity.rigidbody.linearVelocity = new pc.Vec3(
+            this.entity.rigidbody.linearVelocity.x,
+            0,
+            this.entity.rigidbody.linearVelocity.z
+        );
+    } else if (!gPressed && this._debugGravityOff) {
+        this._debugGravityOff = false;
+        this.app.systems.rigidbody.gravity.set(0, -9.81, 0);
+    }
+
+    // --- DEBUG: Show/hide HUD when debug mode is active in level manager ---
+    var levelMgrDebug = false;
+    var lm = this.app.root.findByName('LevelManager');
+    if (lm && lm.script && lm.script.levelManager) {
+        levelMgrDebug = lm.script.levelManager._debugMode;
+    }
+    if (this._debugHud) {
+        this._debugHud.style.display = (levelMgrDebug || this._debugGravityOff) ? 'block' : 'none';
+        if (levelMgrDebug || this._debugGravityOff) {
+            this._updateDebugHud();
         }
     }
 
@@ -163,22 +284,41 @@ CharacterController.prototype.update = function(dt) {
     if (this.app.keyboard.isPressed(pc.KEY_D) || this.app.keyboard.isPressed(pc.KEY_RIGHT)) moveDir.add(flatRight);
     if (this.app.keyboard.isPressed(pc.KEY_A) || this.app.keyboard.isPressed(pc.KEY_LEFT)) moveDir.sub(flatRight);
 
-    // Verhindert das Einfrieren der Physik
+    // Vertical movement when gravity is off (debug fly)
+    if (this._debugGravityOff) {
+        if (this.app.keyboard.isPressed(pc.KEY_E)) moveDir.y += 1;
+        if (this.app.keyboard.isPressed(pc.KEY_Q)) moveDir.y -= 1;
+    }
+
+    // Prevent physics sleep
     this.entity.rigidbody.activate(); 
 
-    var moveSpeed = this.app.keyboard.isPressed(pc.KEY_SHIFT) && this.fastSpeed ? this.fastSpeed : this.app.keyboard.isPressed(pc.KEY_SHIFT) ? this.speed * 2.0 : this.speed;
+    var moveSpeed = this.app.keyboard.isPressed(pc.KEY_SHIFT) && this.fastSpeed ? this.fastSpeed : this.app.keyboard.isPressed(pc.KEY_SHIFT) ? this.speed * 2.5 : this.speed;
+    
     if (moveDir.lengthSq() > 0) {
         moveDir.normalize().scale(moveSpeed);
     }
 
-    // Preserve Y velocity (gravity) while controlling XZ from input
+    // DIRECT velocity application (no lerp!) - prevents barrier jumping
     var currentVel = this.entity.rigidbody.linearVelocity;
     var targetVel = new pc.Vec3();
-    targetVel.x = pc.math.lerp(currentVel.x, moveDir.x, dt * 10);
-    targetVel.z = pc.math.lerp(currentVel.z, moveDir.z, dt * 10);
-    targetVel.y = currentVel.y; // Let gravity handle Y
+    targetVel.x = moveDir.x;
+    targetVel.z = moveDir.z;
 
-    // Jumping removed per user request
+    if (this._debugGravityOff) {
+        targetVel.y = moveDir.y; // Direct vertical control when flying
+    } else {
+        targetVel.y = currentVel.y; // Let gravity handle Y
+    }
+
+    // Clamp maximum horizontal velocity to prevent flying through walls
+    var maxHorizontalSpeed = moveSpeed * 1.2;
+    var hSpeed = Math.sqrt(targetVel.x * targetVel.x + targetVel.z * targetVel.z);
+    if (hSpeed > maxHorizontalSpeed && hSpeed > 0) {
+        var scale = maxHorizontalSpeed / hSpeed;
+        targetVel.x *= scale;
+        targetVel.z *= scale;
+    }
 
     this.entity.rigidbody.linearVelocity = targetVel;
 };

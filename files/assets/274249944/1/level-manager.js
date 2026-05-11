@@ -36,8 +36,9 @@ LevelManager.attributes.add('collisionMeshes', { type: 'entity', array: true, ti
 // --- NEU: Kamera Speed Settings ---
 LevelManager.attributes.add('outdoorSpeed', { type: 'number', default: 15, title: 'Outdoor Speed' });
 LevelManager.attributes.add('outdoorFastSpeed', { type: 'number', default: 35, title: 'Outdoor Fast Speed (Shift)' });
-LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 0.8, title: 'Indoor Speed' });
-LevelManager.attributes.add('indoorFastSpeed', { type: 'number', default: 2.0, title: 'Indoor Fast Speed (Shift)' });
+LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 0.4, title: 'Indoor Speed' });
+LevelManager.attributes.add('indoorFastSpeed', { type: 'number', default: 1.2, title: 'Indoor Fast Speed (Shift)' });
+LevelManager.attributes.add('defaultCullDistance', { type: 'number', default: 70, title: 'Default Indoor Cull Distance (m)' });
 
 LevelManager.prototype.initialize = function() {
     this.cameraEntity = this.app.root.findByName('Camera');
@@ -59,6 +60,12 @@ LevelManager.prototype.initialize = function() {
     this._collisionReady = false;
 
     this._debugMode = false;
+
+    // Distance culling for indoor levels
+    this._cullingEnabled = true;
+    this._cullDistance = this.defaultCullDistance || 70;
+    this._culledEntities = [];
+    this._isIndoorLevel = false;
 
     this.levelConfig = [
         { 
@@ -619,35 +626,48 @@ LevelManager.prototype.initialize = function() {
 
     if (!this.mainSplatEntity) return console.error("Main Splat Entity fehlt!");
 
-    // Debug Mode: Press 'P' to toggle gravity and show position
+    // Debug Mode: Press 'P' to copy position, press 'C' to toggle collider visibility
     this.app.keyboard.on(pc.EVENT_KEYDOWN, function(e) {
         if (e.key === pc.KEY_P) {
             this._debugMode = !this._debugMode;
+            // Log + copy current position
+            var cam = this.cameraEntity;
             var playerRig = this.app.root.findByName('Character_Controller');
-            if (playerRig && playerRig.rigidbody) {
-                if (this._debugMode) {
-                    playerRig.rigidbody.linearFactor = pc.Vec3.ZERO;
-                    playerRig.rigidbody.angularFactor = pc.Vec3.ZERO;
-                    playerRig.rigidbody.linearVelocity = pc.Vec3.ZERO;
-                    // Enable layout tool if present
-                    if (this.app.root.script && this.app.root.script.layoutTool) {
-                        this.app.root.script.layoutTool.enabled = true;
-                    }
-                } else {
-                    playerRig.rigidbody.linearFactor = pc.Vec3.ONE;
-                    playerRig.rigidbody.angularFactor = pc.Vec3.ZERO;
-                    if (this.app.root.script && this.app.root.script.layoutTool) {
-                        this.app.root.script.layoutTool.enabled = false;
-                    }
-                }
+            var pos = playerRig ? playerRig.getPosition() : (cam ? cam.getPosition() : new pc.Vec3());
+            var rot = cam ? cam.getLocalEulerAngles() : new pc.Vec3();
+            var posStr = '[' + pos.x.toFixed(2) + ', ' + pos.y.toFixed(2) + ', ' + pos.z.toFixed(2) + ']';
+            var rotStr = '[' + rot.x.toFixed(0) + ', ' + rot.y.toFixed(0) + ', ' + rot.z.toFixed(0) + ']';
+            console.log('%c[Debug] Position: ' + posStr + ' Rotation: ' + rotStr, 'color: #00ff88; font-weight: bold;');
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText('cameraStart: ' + posStr + ',\ncameraStartRot: ' + rotStr + ',');
+                console.log('[Debug] Position copied to clipboard!');
             }
-            console.log('[DebugMode] Gravity ' + (this._debugMode ? 'OFF' : 'ON'));
+            console.log('[DebugMode] ' + (this._debugMode ? 'ON' : 'OFF'));
         }
         
         if (e.key === pc.KEY_C && this._dynamicColliderEntity && this._dynamicColliderEntity.render) {
             this._dynamicColliderEntity.render.enabled = !this._dynamicColliderEntity.render.enabled;
             console.log('[Collision] Visibility toggled to:', this._dynamicColliderEntity.render.enabled);
         }
+
+        // Toggle culling with 'K'
+        if (e.key === pc.KEY_K) {
+            this._cullingEnabled = !this._cullingEnabled;
+            console.log('[Culling] ' + (this._cullingEnabled ? 'ENABLED' : 'DISABLED'));
+            if (!this._cullingEnabled) {
+                // Show everything when culling is disabled
+                this._showAllCulled();
+            }
+        }
+    }, this);
+
+    // Culling toggle from UI
+    this.app.on('culling:toggle', function(enabled) {
+        this._cullingEnabled = enabled;
+        if (!enabled) this._showAllCulled();
+    }, this);
+    this.app.on('culling:setDistance', function(dist) {
+        this._cullDistance = dist;
     }, this);
 
     this.loadLevel('lemgo', true);
@@ -989,12 +1009,19 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
             this._setCharControllerActive(playerRig, true);
             if (playerRig && playerRig.rigidbody) {
                 playerRig.rigidbody.enabled = true;
+                playerRig.rigidbody.type = pc.BODYTYPE_DYNAMIC;
                 playerRig.rigidbody.activate();
+            }
+            if (playerRig && playerRig.collision) {
+                playerRig.collision.enabled = true;
             }
             if (playerRig && playerRig.script && playerRig.script['character-controller']) {
                 var charCtrl = playerRig.script['character-controller'];
                 charCtrl.speed = this.indoorSpeed;
                 charCtrl.fastSpeed = this.indoorFastSpeed;
+                // Re-enable mouse input explicitly
+                charCtrl._enableMouse();
+                console.log('[LevelMgr] CharCtrl speed set to:', this.indoorSpeed, '/ fast:', this.indoorFastSpeed);
             }
         } else {
             // INDOOR WITHOUT COLLISION: Fly camera, no physics
@@ -1004,8 +1031,8 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
                 controls.enabled = true; 
                 controls.enableOrbit = false; 
                 controls.enableFly = true; 
-                controls.moveSpeed = this.indoorSpeed;
-                controls.moveFastSpeed = this.indoorFastSpeed;
+                controls.moveSpeed = 3;  // Higher speed for free-fly (no physics)
+                controls.moveFastSpeed = 8;
             }
             this._setCharControllerActive(playerRig, false);
             if (playerRig && playerRig.rigidbody) playerRig.rigidbody.enabled = false;
@@ -1019,4 +1046,60 @@ LevelManager.prototype.switchLevel = function(id) {
     this.overlay.style.opacity = '1';
     this.overlay.style.pointerEvents = 'auto';
     setTimeout(function() { self.loadLevel(id, false); }, 800);
+};
+
+// --- DISTANCE CULLING FOR INDOOR LEVELS ---
+
+LevelManager.prototype._showAllCulled = function() {
+    // Re-show any entities that were culled
+    this._culledEntities.forEach(function(e) {
+        if (e && !e._destroyed) e.enabled = true;
+    });
+    this._culledEntities = [];
+};
+
+LevelManager.prototype._isOutdoorLevel = function(levelId) {
+    return levelId === 'lemgo' || levelId === 'detmold' || levelId === 'lemgo-max';
+};
+
+LevelManager.prototype.update = function(dt) {
+    // Distance culling - only for indoor levels
+    if (!this._cullingEnabled || this._isOutdoorLevel(this.currentLevelId)) return;
+    
+    var data = this.getConfigById(this.currentLevelId);
+    if (!data || data.mode === 'orbit') return; // Skip outdoor/orbit modes
+    
+    var cam = this.cameraEntity;
+    if (!cam) return;
+    var camPos = cam.getPosition();
+    var cullDist = this._cullDistance;
+    var cullDistSq = cullDist * cullDist;
+    
+    // Cull gsplat children based on distance
+    if (this.mainSplatEntity) {
+        var children = this.mainSplatEntity.children;
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+            if (!child || !child.gsplat) continue;
+            var childPos = child.getPosition();
+            var distSq = camPos.distance(childPos);
+            distSq = distSq * distSq;
+            // Note: comparing actual distance, not squared for readability
+            var dist = camPos.distance(childPos);
+            if (dist > cullDist) {
+                if (child.enabled) {
+                    child.enabled = false;
+                    if (this._culledEntities.indexOf(child) === -1) {
+                        this._culledEntities.push(child);
+                    }
+                }
+            } else {
+                if (!child.enabled) {
+                    child.enabled = true;
+                    var idx = this._culledEntities.indexOf(child);
+                    if (idx !== -1) this._culledEntities.splice(idx, 1);
+                }
+            }
+        }
+    }
 };

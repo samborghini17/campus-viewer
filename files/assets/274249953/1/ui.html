@@ -23,10 +23,22 @@
         <div class="menu-separator"></div>
         <div class="menu-item" style="pointer-events: none; color: var(--text-secondary); padding-bottom: 2px; font-size: 11px; text-transform: uppercase; font-weight: 600;">Steuerungs-Modus</div>
         <button id="mock-ctrl-fps" class="menu-item active" style="color: var(--col-cyan);">
-            <span class="icon">🖱️</span> Ego-Shooter
+            <span class="icon">🎯</span> <span id="lbl-ctrl-fps">FPS (Klick zum Umsehen)</span>
         </button>
         <button id="mock-ctrl-drag" class="menu-item" style="opacity: 0.5;">
-            <span class="icon">👆</span> Drag & Look (In Dev)
+            <span class="icon">👆</span> <span id="lbl-ctrl-drag">Drag & Look</span>
+        </button>
+        <div class="menu-separator"></div>
+        <div class="menu-item" style="pointer-events: none; color: var(--text-secondary); padding-bottom: 2px; font-size: 11px; text-transform: uppercase; font-weight: 600;" id="lbl-tools-header">Werkzeuge</div>
+        <button id="menu-culling-toggle" class="menu-item active" style="color: var(--col-cyan);">
+            <span class="icon">✂️</span> <span id="lbl-culling">Culling: AN</span>
+        </button>
+        <div id="culling-slider-container" class="menu-item" style="flex-direction: column; align-items: stretch; padding: 4px 12px;">
+            <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 2px;" id="lbl-cull-dist">Culling-Distanz: 70m</label>
+            <input type="range" id="culling-distance-slider" min="10" max="200" value="70" step="5" style="width: 100%; accent-color: var(--col-cyan);">
+        </div>
+        <button id="menu-debug-toggle" class="menu-item" style="opacity: 0.5;">
+            <span class="icon">🛠️</span> <span id="lbl-debug">Debug Modus</span>
         </button>
         <div class="menu-separator"></div>
         <a href="https://kreativ.institute/de" target="_blank" class="menu-item link">
