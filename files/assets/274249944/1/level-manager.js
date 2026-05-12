@@ -627,6 +627,7 @@ LevelManager.prototype.initialize = function() {
     if (!this.mainSplatEntity) return console.error("Main Splat Entity fehlt!");
 
     // Debug Mode: Press 'P' to copy position, press 'C' to toggle collider visibility
+    // Screenshot: Press 'F2' to take a screenshot
     this.app.keyboard.on(pc.EVENT_KEYDOWN, function(e) {
         if (e.key === pc.KEY_P) {
             this._debugMode = !this._debugMode;
@@ -659,6 +660,11 @@ LevelManager.prototype.initialize = function() {
                 this._showAllCulled();
             }
         }
+
+        // Screenshot with F2
+        if (e.key === pc.KEY_F2) {
+            this._takeScreenshot();
+        }
     }, this);
 
     // Culling toggle from UI
@@ -668,6 +674,20 @@ LevelManager.prototype.initialize = function() {
     }, this);
     this.app.on('culling:setDistance', function(dist) {
         this._cullDistance = dist;
+    }, this);
+
+    // Screenshot event from UI
+    this.app.on('screenshot:take', function() {
+        this._takeScreenshot();
+    }, this);
+
+    // Adaptive quality event from UI
+    this._adaptiveQuality = false;
+    this._adaptiveTarget = 30; // target FPS
+    this._adaptiveTimer = 0;
+    this.app.on('quality:adaptive:toggle', function(enabled) {
+        this._adaptiveQuality = enabled;
+        console.log('[Quality] Adaptive:', enabled);
     }, this);
 
     this.loadLevel('lemgo', true);
@@ -889,14 +909,16 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
 
     if (this.envSplatEntity && this.envSplatEntity.script && this.envSplatEntity.script.streamedGsplat) {
         if (data.envUrl) {
-            this.envSplatEntity.enabled = true;
-            
-            if (sr) this.envSplatEntity.setLocalEulerAngles(sr[0], sr[1], sr[2]);
-            if (sp) this.envSplatEntity.setLocalPosition(sp[0], sp[1], sp[2]);
-            this.envSplatEntity.syncHierarchy();
+            if (isStart && id === 'lemgo') {
+                console.log('[LevelMgr] Skipping env splat for initial lemgo');
+            } else {
+                this.envSplatEntity.enabled = true;
+                
+                if (sr) this.envSplatEntity.setLocalEulerAngles(sr[0], sr[1], sr[2]);
+                if (sp) this.envSplatEntity.setLocalPosition(sp[0], sp[1], sp[2]);
+                this.envSplatEntity.syncHierarchy();
 
-            var envScript = this.envSplatEntity.script.streamedGsplat;
-            if (!isStart || id !== 'lemgo') {
+                var envScript = this.envSplatEntity.script.streamedGsplat;
                 setTimeout(function() {
                     if (typeof envScript.replaceSplat === 'function') {
                         envScript.replaceSplat(data.envUrl);
@@ -905,7 +927,6 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
                     }
                 }, 100);
             }
-
         } else {
             this.envSplatEntity.enabled = false; 
         }
@@ -986,9 +1007,12 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
         }
     }
 
+    var canvas = this.app.graphicsDevice.canvas;
+
     if (mode === 'orbit') {
         // OUTDOOR: Orbit + fly camera, no physics
         console.log('[LevelMgr] Mode: ORBIT (outdoor)');
+        canvas.style.cursor = 'grab';
         this.app.systems.rigidbody.gravity.set(0, 0, 0);
         if (controls) { 
             controls.enabled = true; 
@@ -1007,6 +1031,7 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
         if (hasCollider) {
             // INDOOR WITH COLLISION: Character controller + gravity
             console.log('[LevelMgr] Mode: WALK (indoor with collision)');
+            canvas.style.cursor = 'default';
             this.app.systems.rigidbody.gravity.set(0, -9.81, 0);
             if (controls) controls.enabled = false; 
             this._setCharControllerActive(playerRig, true);
@@ -1029,6 +1054,7 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
         } else {
             // INDOOR WITHOUT COLLISION: Fly camera, no physics
             console.log('[LevelMgr] Mode: FLY (indoor, no collision)');
+            canvas.style.cursor = 'default';
             this.app.systems.rigidbody.gravity.set(0, 0, 0);
             if (controls) { 
                 controls.enabled = true; 
@@ -1051,6 +1077,65 @@ LevelManager.prototype.switchLevel = function(id) {
     setTimeout(function() { self.loadLevel(id, false); }, 800);
 };
 
+// --- SCREENSHOT MODE ---
+
+LevelManager.prototype._takeScreenshot = function() {
+    var self = this;
+    // Hide all UI
+    var uiElements = document.querySelectorAll('#gsplat-controls, #poi-sidebar, .aeroglass-panel, #fps-crosshair, #fps-hint, #debug-hud');
+    var visibility = [];
+    uiElements.forEach(function(el) {
+        visibility.push(el.style.display);
+        el.style.display = 'none';
+    });
+
+    // Wait a frame for UI to hide, then capture
+    setTimeout(function() {
+        var canvas = self.app.graphicsDevice.canvas;
+        try {
+            var dataUrl = canvas.toDataURL('image/png');
+            var link = document.createElement('a');
+            link.download = 'campus-viewer-' + self.currentLevelId + '-' + Date.now() + '.png';
+            link.href = dataUrl;
+            link.click();
+            console.log('[Screenshot] Saved!');
+        } catch (e) {
+            console.error('[Screenshot] Failed:', e);
+        }
+        // Restore UI
+        uiElements.forEach(function(el, i) {
+            el.style.display = visibility[i];
+        });
+    }, 100);
+};
+
+// --- ADAPTIVE QUALITY ---
+// Monitors FPS and adjusts LOD distance to maintain target framerate
+
+LevelManager.prototype._updateAdaptiveQuality = function(dt) {
+    if (!this._adaptiveQuality) return;
+    this._adaptiveTimer += dt;
+    if (this._adaptiveTimer < 1.0) return; // Check once per second
+    this._adaptiveTimer = 0;
+
+    var fps = 1.0 / dt;
+    var splatScript = this.mainSplatEntity ? this.mainSplatEntity.script.streamedGsplat : null;
+    if (!splatScript) return;
+
+    var currentLod = splatScript.lodBaseDistance || 10;
+    if (fps < this._adaptiveTarget - 5) {
+        // FPS too low: reduce quality (lower LOD distance)
+        var newLod = Math.max(2, currentLod * 0.85);
+        splatScript.lodBaseDistance = newLod;
+        console.log('[Adaptive] FPS:', fps.toFixed(0), '→ LOD reduced to:', newLod.toFixed(1));
+    } else if (fps > this._adaptiveTarget + 10 && currentLod < 25) {
+        // FPS has headroom: increase quality
+        var newLod = Math.min(25, currentLod * 1.1);
+        splatScript.lodBaseDistance = newLod;
+        console.log('[Adaptive] FPS:', fps.toFixed(0), '→ LOD increased to:', newLod.toFixed(1));
+    }
+};
+
 // --- DISTANCE CULLING FOR INDOOR LEVELS ---
 
 LevelManager.prototype._showAllCulled = function() {
@@ -1066,6 +1151,22 @@ LevelManager.prototype._isOutdoorLevel = function(levelId) {
 };
 
 LevelManager.prototype.update = function(dt) {
+    // Adaptive quality monitoring
+    this._updateAdaptiveQuality(dt);
+
+    // Orbit mode: switch cursor between grab/grabbing on mousedown
+    if (this.currentLevelId) {
+        var data = this.getConfigById(this.currentLevelId);
+        if (data && data.mode === 'orbit') {
+            var canvas = this.app.graphicsDevice.canvas;
+            if (this.app.mouse.isPressed(pc.MOUSEBUTTON_LEFT)) {
+                canvas.style.cursor = 'grabbing';
+            } else {
+                canvas.style.cursor = 'grab';
+            }
+        }
+    }
+
     // Distance culling - only for indoor levels, disabled by default
     if (!this._cullingEnabled || this._isOutdoorLevel(this.currentLevelId)) return;
     

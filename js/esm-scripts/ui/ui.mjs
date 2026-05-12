@@ -329,13 +329,16 @@ UI.prototype.initialize = function() {
             flyTouch: '<li>• <b>1 Finger</b>: Umsehen</li><li>• <b>2 Finger</b>: Vorwärts laufen</li>',
             orbitDesktop: '<li><b>Linke Taste</b> Drehen (Orbit)</li><li><b>Mausrad</b> Zoomen</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Frei bewegen (Pan)</li><li>• <b>Q/E</b>: Runter/Hoch</li><li>• <b>Shift</b>: Schneller</li>',
             orbitTouch: '<li>• <b>1 Finger</b> Drehen</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
-            ctrlFps: 'FPS (Klick zum Umsehen)',
+            ctrlFps: 'Rechtsklick-Umsehen',
             ctrlDrag: 'Drag & Look',
             toolsHeader: 'Werkzeuge',
             cullingOn: 'Culling: AN',
             cullingOff: 'Culling: AUS',
             cullDist: 'Culling-Distanz',
-            debugMode: 'Debug Modus'
+            debugMode: 'Debug Modus',
+            screenshot: 'Screenshot (F2)',
+            adaptiveOn: 'Auto-Qualit\u00e4t: AN',
+            adaptiveOff: 'Auto-Qualit\u00e4t: AUS'
         },
         en: {
             menuBtn: 'Menu',
@@ -363,13 +366,16 @@ UI.prototype.initialize = function() {
             flyTouch: '<li>• <b>1 Finger</b>: Look around</li><li>• <b>2 Finger</b>: Walk forward</li>',
             orbitDesktop: '<li><b>Left Click</b> Rotate (Orbit)</li><li><b>Mouse Wheel</b> Zoom</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Move freely (Pan)</li><li>• <b>Q/E</b>: Down/Up</li><li>• <b>Shift</b>: Faster</li>',
             orbitTouch: '<li>• <b>1 Finger</b> Rotate</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
-            ctrlFps: 'FPS (Click to Look)',
+            ctrlFps: 'Right-Click Look',
             ctrlDrag: 'Drag & Look',
             toolsHeader: 'Tools',
             cullingOn: 'Culling: ON',
             cullingOff: 'Culling: OFF',
             cullDist: 'Culling Distance',
-            debugMode: 'Debug Mode'
+            debugMode: 'Debug Mode',
+            screenshot: 'Screenshot (F2)',
+            adaptiveOn: 'Auto Quality: ON',
+            adaptiveOff: 'Auto Quality: OFF'
         }
     };
     if (this.cssAsset) {
@@ -645,6 +651,32 @@ UI.prototype._initBurgerMenu = function() {
             console.log('[UI] Debug mode:', self._debugEnabled);
         };
     }
+
+    // --- Screenshot Button ---
+    var screenshotBtn = document.getElementById('menu-screenshot');
+    if (screenshotBtn) {
+        screenshotBtn.onclick = function() {
+            self.app.fire('screenshot:take');
+        };
+    }
+
+    // --- Adaptive Quality Toggle ---
+    this._adaptiveEnabled = false;
+    var adaptiveBtn = document.getElementById('menu-adaptive-quality');
+    if (adaptiveBtn) {
+        adaptiveBtn.onclick = function() {
+            self._adaptiveEnabled = !self._adaptiveEnabled;
+            adaptiveBtn.style.opacity = self._adaptiveEnabled ? '1' : '0.5';
+            adaptiveBtn.style.color = self._adaptiveEnabled ? 'var(--col-cyan)' : '';
+            var lbl = document.getElementById('lbl-adaptive');
+            if (lbl) {
+                lbl.innerText = self._adaptiveEnabled 
+                    ? (self.currentLang === 'de' ? 'Auto-Qualit\u00e4t: AN' : 'Auto Quality: ON')
+                    : (self.currentLang === 'de' ? 'Auto-Qualit\u00e4t: AUS' : 'Auto Quality: OFF');
+            }
+            self.app.fire('quality:adaptive:toggle', self._adaptiveEnabled);
+        };
+    }
 };
 UI.prototype._applyTranslations = function() {
     var d = this.dict[this.currentLang];
@@ -717,6 +749,10 @@ UI.prototype._translateDynamic = function() {
     if (cullDistLbl && cullSlider) cullDistLbl.innerText = (d.cullDist || 'Culling Distance') + ': ' + cullSlider.value + 'm';
     var debugLbl = document.getElementById('lbl-debug');
     if (debugLbl) debugLbl.innerText = d.debugMode || 'Debug Mode';
+    var screenshotLbl = document.getElementById('lbl-screenshot');
+    if (screenshotLbl) screenshotLbl.innerText = d.screenshot || 'Screenshot (F2)';
+    var adaptiveLbl = document.getElementById('lbl-adaptive');
+    if (adaptiveLbl) adaptiveLbl.innerText = this._adaptiveEnabled ? (d.adaptiveOn || 'Auto Quality: ON') : (d.adaptiveOff || 'Auto Quality: OFF');
 };
 UI.prototype._onLevelSwitchEvent = function(levelId) {
     if (!this.isJumpingBack && this._currentLevelId && this._currentLevelId !== levelId) {
