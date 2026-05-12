@@ -7,7 +7,7 @@ CharacterController.attributes.add('lookSens', { type: 'number', default: 0.04 }
 CharacterController.prototype.initialize = function() {
     // AUTO-FIND: Sucht die Kamera, falls das Feld im Editor leer ist
     if (!this.camera) this.camera = this.app.root.findByName('Camera');
-    if (this.camera) this.camera.setLocalPosition(0, 0.7, 0); // Player height 0.7m
+    if (this.camera) this.camera.setLocalPosition(0, 1.6, 0); // Player height 1.6m (eye level)
 
     // AUTO-FIX PHYSIK: Garantiert, dass du dich bewegen kannst
     if (this.entity.rigidbody) {
@@ -69,10 +69,12 @@ CharacterController.prototype.initialize = function() {
         document.removeEventListener('mozpointerlockchange', this._onPointerLockChange);
         document.removeEventListener('mousemove', this._onRawMouseMove);
         this._removeDebugHud();
+        this._removeFpsUI();
     }, this);
 
-    // Create debug HUD
+    // Create debug HUD and FPS UI
     this._createDebugHud();
+    this._createFpsUI();
 
     // Force enable on initialize
     this._enableMouse();
@@ -88,6 +90,7 @@ CharacterController.prototype._handlePointerLockChange = function() {
         document.mozPointerLockElement === this.app.graphicsDevice.canvas
     );
     console.log('[CharCtrl] Pointer lock:', this._pointerLocked);
+    this._updateFpsUI();
 };
 
 CharacterController.prototype._handleRawMouseMove = function(e) {
@@ -96,6 +99,10 @@ CharacterController.prototype._handleRawMouseMove = function(e) {
 
     var dx = e.movementX || 0;
     var dy = e.movementY || 0;
+
+    // Fix for the "spinning at the sides" bug: ignore massive delta spikes that 
+    // can occur when the cursor hits the screen bounds before the browser centers it.
+    if (Math.abs(dx) > 150 || Math.abs(dy) > 150) return;
 
     this.yaw -= dx * this.lookSens;
     this.pitch -= dy * this.lookSens;
@@ -109,6 +116,55 @@ CharacterController.prototype._requestPointerLock = function() {
         canvas.requestPointerLock();
     } else if (canvas.mozRequestPointerLock) {
         canvas.mozRequestPointerLock();
+    }
+};
+
+// --- FPS UI (CROSSHAIR & HINTS) ---
+
+CharacterController.prototype._createFpsUI = function() {
+    this._crosshair = document.createElement('div');
+    this._crosshair.id = 'fps-crosshair';
+    Object.assign(this._crosshair.style, {
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: '4px', height: '4px', backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: '50%', pointerEvents: 'none', zIndex: '1000', display: 'none',
+        boxShadow: '0 0 3px rgba(0,0,0,0.8)'
+    });
+    
+    this._fpsHint = document.createElement('div');
+    this._fpsHint.id = 'fps-hint';
+    Object.assign(this._fpsHint.style, {
+        position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
+        color: 'white', fontFamily: 'sans-serif', fontSize: '13px', letterSpacing: '0.5px',
+        backgroundColor: 'rgba(0,0,0,0.6)', padding: '6px 14px', borderRadius: '20px',
+        pointerEvents: 'none', zIndex: '1000', display: 'none', backdropFilter: 'blur(4px)',
+        border: '1px solid rgba(255,255,255,0.1)'
+    });
+    
+    document.body.appendChild(this._crosshair);
+    document.body.appendChild(this._fpsHint);
+};
+
+CharacterController.prototype._removeFpsUI = function() {
+    if (this._crosshair && this._crosshair.parentNode) this._crosshair.parentNode.removeChild(this._crosshair);
+    if (this._fpsHint && this._fpsHint.parentNode) this._fpsHint.parentNode.removeChild(this._fpsHint);
+};
+
+CharacterController.prototype._updateFpsUI = function() {
+    if (!this._crosshair || !this._fpsHint) return;
+    if (this.controlMode === 'fps') {
+        this._crosshair.style.display = 'block';
+        this._fpsHint.style.display = 'block';
+        if (this._pointerLocked) {
+            this._fpsHint.innerHTML = 'Drücke <b>ESC</b> für Maus';
+            this._crosshair.style.backgroundColor = 'rgba(0, 255, 136, 0.9)'; // Cyan/green when active
+        } else {
+            this._fpsHint.innerHTML = 'Klicke zum Umsehen (FPS)';
+            this._crosshair.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        }
+    } else {
+        this._crosshair.style.display = 'none';
+        this._fpsHint.style.display = 'none';
     }
 };
 
@@ -198,6 +254,10 @@ CharacterController.prototype.setStartRotation = function(rot) {
 };
 
 CharacterController.prototype.onMouseDown = function(e) {
+    // Only engage controls if the click was directly on the canvas.
+    // This prevents interfering with the UI (burger menu, etc.)
+    if (e.event && e.event.target !== this.app.graphicsDevice.canvas) return;
+
     if (this.controlMode === 'fps' && e.button === pc.MOUSEBUTTON_LEFT) {
         // Request pointer lock on click for FPS mode
         if (!this._pointerLocked) {
