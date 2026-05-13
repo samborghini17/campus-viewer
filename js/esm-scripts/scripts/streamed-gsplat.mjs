@@ -40,28 +40,39 @@ class StreamedGsplat extends Script {
     }
     loadSplat(url, isChild) {
         if (!url) return;
-        const asset = new Asset(isChild ? 'Env_Asset' : 'Main_Asset', 'gsplat', {
-            url: url
-        });
-        this.app.assets.add(asset);
-        this.app.assets.load(asset);
-        this._assets.push(asset);
-        asset.ready((a)=>{
-            if (!this.entity || !this.entity.enabled) return;
-            let targetEntity = this.entity;
-            if (isChild) {
-                targetEntity = new Entity('EnvironmentGsplat');
-                this.entity.addChild(targetEntity);
-                this._children.push(targetEntity);
-            } else {
-                if (this.entity.gsplat) this.entity.removeComponent('gsplat');
-            }
-            targetEntity.addComponent('gsplat', {
-                unified: true,
-                asset: a
+        try {
+            const asset = new Asset(isChild ? 'Env_Asset' : 'Main_Asset', 'gsplat', {
+                url: url
             });
-            this._applyPreset();
-        });
+            this.app.assets.add(asset);
+            this.app.assets.load(asset);
+            this._assets.push(asset);
+            asset.ready((a)=>{
+                try {
+                    if (!this.entity || !this.entity.enabled) return;
+                    let targetEntity = this.entity;
+                    if (isChild) {
+                        targetEntity = new Entity('EnvironmentGsplat');
+                        this.entity.addChild(targetEntity);
+                        this._children.push(targetEntity);
+                    } else {
+                        if (this.entity.gsplat) this.entity.removeComponent('gsplat');
+                    }
+                    targetEntity.addComponent('gsplat', {
+                        unified: true,
+                        asset: a
+                    });
+                    this._applyPreset();
+                } catch (e) {
+                    console.error('[StreamedGsplat] Error in asset ready callback:', e);
+                }
+            });
+            asset.on('error', (err)=>{
+                console.error('[StreamedGsplat] Failed to load splat asset:', url, err);
+            });
+        } catch (e) {
+            console.error('[StreamedGsplat] Error initiating splat load:', e);
+        }
     }
     _getCurrentLod() {
         // MOBILE OVERRIDE: Echte LOD-Entfernungen statt Pixelierung
@@ -178,10 +189,14 @@ class StreamedGsplat extends Script {
         this._children = [];
     }
     replaceSplat(newUrl) {
-        this.cleanup();
-        this.splatUrl = newUrl;
-        this.environmentUrl = null;
-        if (this.splatUrl) this.loadSplat(this.splatUrl, false);
+        try {
+            this.cleanup();
+            this.splatUrl = newUrl;
+            this.environmentUrl = null;
+            if (this.splatUrl) this.loadSplat(this.splatUrl, false);
+        } catch (e) {
+            console.error('[StreamedGsplat] Error replacing splat:', e);
+        }
     }
     constructor(...args){
         super(...args), /** @attribute {string} */ _define_property(this, "splatUrl", 'https://github.com/samborghini17/splat-host/blob/main/lemgo-max/lod-meta.json'), /** @attribute {string} */ _define_property(this, "environmentUrl", ''), /** @attribute {number} */ _define_property(this, "ultraLodBaseDistance", 150.0), /** @attribute {number} */ _define_property(this, "ultraLodMultiplier", 2.0), /** @attribute {number} */ _define_property(this, "highLodBaseDistance", 80.0), /** @attribute {number} */ _define_property(this, "highLodMultiplier", 2.0), /** @attribute {number} */ _define_property(this, "mediumLodBaseDistance", 15.0), /** @attribute {number} */ _define_property(this, "mediumLodMultiplier", 2.0), /** @attribute {number} */ _define_property(this, "lowLodBaseDistance", 5.0), /** @attribute {number} */ _define_property(this, "lowLodMultiplier", 2.0), /** @attribute {number[]} */ _define_property(this, "ultraLodRange", [

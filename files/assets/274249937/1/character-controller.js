@@ -3,7 +3,7 @@ var CharacterController = pc.createScript('character-controller');
 CharacterController.attributes.add('camera', { type: 'entity', title: 'Camera (Auto-Find)' });
 CharacterController.attributes.add('speed', { type: 'number', default: 0.4 });
 CharacterController.attributes.add('lookSens', { type: 'number', default: 0.15 });
-CharacterController.attributes.add('cameraHeight', { type: 'number', default: 1.6 });
+CharacterController.attributes.add('cameraHeight', { type: 'number', default: 1.5 });
 
 CharacterController.prototype.initialize = function() {
     // AUTO-FIND camera

@@ -260,8 +260,8 @@ LevelManager.prototype.initialize = function() {
         },
         { 
             id: 'smartfactory-innen', 
-            url: 'https://samborghini17.github.io/smartfactory-innen/lod-meta.json', 
-            envUrl: 'https://samborghini17.github.io/smartfactory-innen/environment.sog', 
+            url: 'https://samborghini17.github.io/splat-host/smartfactory-innen/lod-meta.json', 
+            envUrl: 'https://samborghini17.github.io/splat-host/smartfactory-innen/environment.sog', 
             splatPos: [0.00, 0.00, 0.00], 
             splatRot: [-90, 0, 0], 
             cameraStart: [-12.40, 1.55, -6.54], 
@@ -711,7 +711,7 @@ LevelManager.prototype.resetCamera = function(hasCollider) {
     var data = this.getConfigById(this.currentLevelId);
     if (!data) return;
 
-    var startPos = data.cameraStart ? new pc.Vec3(data.cameraStart[0], data.cameraStart[1], data.cameraStart[2]) : new pc.Vec3(0, 1.7, 0);
+    var startPos = data.cameraStart ? new pc.Vec3(data.cameraStart[0], data.cameraStart[1], data.cameraStart[2]) : new pc.Vec3(0, 1.6, 0);
     var startRot = null;
     if (data.cameraStartRot) {
         startRot = new pc.Vec3(data.cameraStartRot[0], data.cameraStartRot[1], data.cameraStartRot[2]);
@@ -901,7 +901,11 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     var sr = data.splatRot || data.rotation;
 
     if (splatScript && (!isStart || id !== 'lemgo')) {
-        splatScript.replaceSplat(data.url);
+        try {
+            splatScript.replaceSplat(data.url);
+        } catch (e) {
+            console.error('[LevelMgr] Failed to replace main splat:', e);
+        }
     }
     if (sr) this.mainSplatEntity.setLocalEulerAngles(sr[0], sr[1], sr[2]);
     if (sp) this.mainSplatEntity.setLocalPosition(sp[0], sp[1], sp[2]);
@@ -920,10 +924,14 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
 
                 var envScript = this.envSplatEntity.script.streamedGsplat;
                 setTimeout(function() {
-                    if (typeof envScript.replaceSplat === 'function') {
-                        envScript.replaceSplat(data.envUrl);
-                    } else {
-                        envScript.splatUrl = data.envUrl;
+                    try {
+                        if (typeof envScript.replaceSplat === 'function') {
+                            envScript.replaceSplat(data.envUrl);
+                        } else {
+                            envScript.splatUrl = data.envUrl;
+                        }
+                    } catch (e) {
+                        console.error('[LevelMgr] Failed to replace environment splat:', e);
                     }
                 }, 100);
             }
@@ -947,32 +955,41 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     }
 
     // --- Dynamic collision loading ---
-    var hasLegacyCollider = (data.collider != null && colliderEntity != null);
-    var hasDynamicCollider = COLLIDER_MAP.hasOwnProperty(id);
+    try {
+        var hasLegacyCollider = (data.collider != null && colliderEntity != null);
+        var hasDynamicCollider = COLLIDER_MAP.hasOwnProperty(id);
 
-    if (hasDynamicCollider && !hasLegacyCollider) {
-        // Start in fly mode while collision loads
-        this.setCameraMode(data.mode, data.bounds, false);
-        this.resetCamera(false);
+        if (hasDynamicCollider && !hasLegacyCollider) {
+            // Start in fly mode while collision loads
+            this.setCameraMode(data.mode, data.bounds, false);
+            this.resetCamera(false);
 
-        this.loadCollisionFromUrl(id, sp, sr, function(success) {
-            if (success && self.currentLevelId === id) {
-                // Collision loaded + physics settled - now enable walking
-                self.setCameraMode(data.mode, data.bounds, true);
-                // Teleport player to start AFTER gravity is on
-                self.resetCamera(true);
-                console.log('[Collision] Player placed, gravity active');
-            }
-            // Reveal scene
-            self._finishReveal(isStart);
-        });
-    } else {
-        // Legacy collider or no collider at all
-        this.setCameraMode(data.mode, data.bounds, hasLegacyCollider);
-        this.resetCamera(hasLegacyCollider);
-        this._finishReveal(isStart);
+            this.loadCollisionFromUrl(id, sp, sr, function(success) {
+                if (success && self.currentLevelId === id) {
+                    // Collision loaded + physics settled - now enable walking
+                    try {
+                        self.setCameraMode(data.mode, data.bounds, true);
+                        // Teleport player to start AFTER gravity is on
+                        self.resetCamera(true);
+                    } catch (e) {
+                        console.error('[LevelMgr] Error setting camera mode after collision load:', e);
+                    }
+                    console.log('[Collision] Player placed, gravity active');
+                }
+                // Reveal scene
+                self._finishReveal(isStart);
+            });
+        } else {
+            // Legacy collider or no collider at all
+            this.setCameraMode(data.mode, data.bounds, hasLegacyCollider);
+            this.resetCamera(hasLegacyCollider);
+            this._finishReveal(isStart);
+        }
+    } catch (e) {
+        console.error('[LevelMgr] Critical error in loadLevel logic:', e);
+        this._finishReveal(isStart); // Failsafe reveal
     }
-};
+}
 
 LevelManager.prototype._finishReveal = function(isStart) {
     var self = this;
@@ -1048,7 +1065,7 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
                 charCtrl.speed = this.indoorSpeed;
                 charCtrl.fastSpeed = this.indoorFastSpeed;
                 // Re-enable mouse input explicitly
-                charCtrl._enableMouse();
+                // charCtrl._enableMouse(); // Obsolete method removed to fix rendering crash
                 console.log('[LevelMgr] CharCtrl speed set to:', this.indoorSpeed, '/ fast:', this.indoorFastSpeed);
             }
         } else {
