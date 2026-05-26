@@ -3,7 +3,8 @@ var CharacterController = pc.createScript('character-controller');
 CharacterController.attributes.add('camera', { type: 'entity', title: 'Camera (Auto-Find)' });
 CharacterController.attributes.add('speed', { type: 'number', default: 0.4 });
 CharacterController.attributes.add('lookSens', { type: 'number', default: 0.15 });
-CharacterController.attributes.add('cameraHeight', { type: 'number', default: 1.5 });
+CharacterController.attributes.add('cameraHeight', { type: 'number', default: 1.35 });
+CharacterController.attributes.add('gravityEnabled', { type: 'boolean', default: true });
 
 CharacterController.prototype.initialize = function() {
     // AUTO-FIND camera
@@ -197,9 +198,11 @@ CharacterController.prototype.update = function(dt) {
     // Always enforce camera height (level-manager resets it to 0,0,0 on teleport)
     this._applyCameraHeight();
 
-    // --- DEBUG: Hold G to disable gravity ---
+    // --- FLY MODE / GRAVITY LOGIC ---
     var gPressed = this.app.keyboard.isPressed(pc.KEY_G);
-    if (gPressed && !this._debugGravityOff) {
+    var flyActive = !this.gravityEnabled || gPressed;
+
+    if (flyActive && !this._debugGravityOff) {
         this._debugGravityOff = true;
         this.app.systems.rigidbody.gravity.set(0, 0, 0);
         this.entity.rigidbody.linearVelocity = new pc.Vec3(
@@ -207,12 +210,12 @@ CharacterController.prototype.update = function(dt) {
             0,
             this.entity.rigidbody.linearVelocity.z
         );
-    } else if (!gPressed && this._debugGravityOff) {
+    } else if (!flyActive && this._debugGravityOff) {
         this._debugGravityOff = false;
         this.app.systems.rigidbody.gravity.set(0, -9.81, 0);
     }
 
-    // --- DEBUG: Show/hide HUD when debug mode is active ---
+    // --- DEBUG: Show/hide HUD when debug mode is active in level manager ---
     var levelMgrDebug = false;
     var lm = this.app.root.findByName('LevelManager');
     if (lm && lm.script && lm.script.levelManager) {

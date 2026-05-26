@@ -1045,44 +1045,32 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
     } else {
         if (flyCam) flyCam.enabled = false; 
 
-        if (hasCollider) {
-            // INDOOR WITH COLLISION: Character controller + gravity
-            console.log('[LevelMgr] Mode: WALK (indoor with collision)');
-            canvas.style.cursor = 'default';
-            this.app.systems.rigidbody.gravity.set(0, -9.81, 0);
-            if (controls) controls.enabled = false; 
-            this._setCharControllerActive(playerRig, true);
-            if (playerRig && playerRig.rigidbody) {
-                playerRig.rigidbody.enabled = true;
-                playerRig.rigidbody.type = pc.BODYTYPE_DYNAMIC;
-                playerRig.rigidbody.activate();
+        // INDOOR: Always use Character Controller (shooter mode)
+        console.log('[LevelMgr] Mode: WALK/FLY (indoor, collider: ' + hasCollider + ')');
+        canvas.style.cursor = 'default';
+        if (controls) controls.enabled = false; 
+        
+        this._setCharControllerActive(playerRig, true);
+        if (playerRig && playerRig.rigidbody) {
+            playerRig.rigidbody.enabled = true;
+            playerRig.rigidbody.type = pc.BODYTYPE_DYNAMIC;
+            playerRig.rigidbody.activate();
+        }
+        if (playerRig && playerRig.collision) {
+            playerRig.collision.enabled = true;
+        }
+
+        if (playerRig && playerRig.script && playerRig.script['character-controller']) {
+            var charCtrl = playerRig.script['character-controller'];
+            charCtrl.speed = this.indoorSpeed;
+            charCtrl.fastSpeed = this.indoorFastSpeed;
+            charCtrl.gravityEnabled = hasCollider; // Fly freely if no collider
+            
+            if (hasCollider) {
+                this.app.systems.rigidbody.gravity.set(0, -9.81, 0);
+            } else {
+                this.app.systems.rigidbody.gravity.set(0, 0, 0);
             }
-            if (playerRig && playerRig.collision) {
-                playerRig.collision.enabled = true;
-            }
-            if (playerRig && playerRig.script && playerRig.script['character-controller']) {
-                var charCtrl = playerRig.script['character-controller'];
-                charCtrl.speed = this.indoorSpeed;
-                charCtrl.fastSpeed = this.indoorFastSpeed;
-                // Re-enable mouse input explicitly
-                // charCtrl._enableMouse(); // Obsolete method removed to fix rendering crash
-                console.log('[LevelMgr] CharCtrl speed set to:', this.indoorSpeed, '/ fast:', this.indoorFastSpeed);
-            }
-        } else {
-            // INDOOR WITHOUT COLLISION: Fly camera, no physics
-            console.log('[LevelMgr] Mode: FLY (indoor, no collision)');
-            canvas.style.cursor = 'default';
-            this.app.systems.rigidbody.gravity.set(0, 0, 0);
-            if (controls) { 
-                controls.enabled = true; 
-                controls.enableOrbit = false; 
-                controls.enableFly = true; 
-                controls.moveSpeed = 3;  // Higher speed for free-fly (no physics)
-                controls.moveFastSpeed = 8;
-            }
-            this._setCharControllerActive(playerRig, false);
-            if (playerRig && playerRig.rigidbody) playerRig.rigidbody.enabled = false;
-            if (playerRig && playerRig.collision) playerRig.collision.enabled = false;
         }
     }
 };
