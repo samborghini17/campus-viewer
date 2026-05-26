@@ -427,6 +427,40 @@ UI.prototype.initialize = function() {
     this.app.on('level:switch', this._onLevelSwitchEvent, this);
     this.on('destroy', this.onDestroy, this);
     this._updateContent('lemgo');
+
+    // Pointer Lock Hints Logic
+    var self = this;
+    document.addEventListener('pointerlockchange', function() {
+        var isLocked = !!document.pointerLockElement;
+        var unlockHint = document.getElementById('pointer-unlock-hint');
+        var lockHint = document.getElementById('pointer-lock-hint');
+        if (unlockHint) {
+            if (isLocked) {
+                unlockHint.classList.remove('hidden');
+                if (lockHint) lockHint.classList.add('hidden');
+            } else {
+                unlockHint.classList.add('hidden');
+                // Only show lock hint if we are still in FPS mode
+                var fpsBtn = document.getElementById('mock-ctrl-fps');
+                if (fpsBtn && fpsBtn.classList.contains('active')) {
+                    if (lockHint) lockHint.classList.remove('hidden');
+                }
+            }
+        }
+    });
+
+    this.app.on('controls:setMode', function(mode) {
+        var lockHint = document.getElementById('pointer-lock-hint');
+        var unlockHint = document.getElementById('pointer-unlock-hint');
+        if (mode === 'fps') {
+            if (!document.pointerLockElement && lockHint) {
+                lockHint.classList.remove('hidden');
+            }
+        } else {
+            if (lockHint) lockHint.classList.add('hidden');
+            if (unlockHint) unlockHint.classList.add('hidden');
+        }
+    });
 };
 UI.prototype._initElements = function() {
     var self = this;

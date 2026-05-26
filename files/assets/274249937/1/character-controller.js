@@ -43,25 +43,33 @@ CharacterController.prototype.initialize = function() {
 
     this._onCanvasMouseDown = function(e) {
         if (!self.enabled) return;
-        // Right click (button 2) → start looking
-        if (e.button === 2 && self.controlMode === 'fps') {
-            self._isLooking = true;
-            self.lastX = e.clientX;
-            self.lastY = e.clientY;
-            self._canvas.style.cursor = 'crosshair';
-            e.preventDefault();
+        
+        // FPS Mode: Request pointer lock on click (left or right)
+        if (self.controlMode === 'fps') {
+            if (document.pointerLockElement !== self._canvas) {
+                self._canvas.requestPointerLock();
+                e.preventDefault();
+            }
         }
-        // Left click (button 0) + drag mode
-        if (e.button === 0 && self.controlMode === 'drag') {
+        // Drag mode: Left click drag
+        else if (self.controlMode === 'drag' && e.button === 0) {
             self.isDragging = true;
             self.lastX = e.clientX;
             self.lastY = e.clientY;
         }
     };
+    
     this._onDocMouseMove = function(e) {
         if (!self.enabled || !self.camera) return;
-        if ((self.controlMode === 'fps' && self._isLooking) ||
-            (self.controlMode === 'drag' && self.isDragging)) {
+        
+        if (self.controlMode === 'fps' && document.pointerLockElement === self._canvas) {
+            var dx = e.movementX || 0;
+            var dy = e.movementY || 0;
+            self.yaw -= dx * self.lookSens;
+            self.pitch -= dy * self.lookSens;
+            self.pitch = pc.math.clamp(self.pitch, -89, 89);
+            self.camera.setLocalEulerAngles(self.pitch, self.yaw, 0);
+        } else if (self.controlMode === 'drag' && self.isDragging) {
             if (self.lastX === null) { self.lastX = e.clientX; self.lastY = e.clientY; return; }
             var dx = e.clientX - self.lastX;
             var dy = e.clientY - self.lastY;
@@ -73,13 +81,8 @@ CharacterController.prototype.initialize = function() {
             self.camera.setLocalEulerAngles(self.pitch, self.yaw, 0);
         }
     };
+    
     this._onDocMouseUp = function(e) {
-        if (e.button === 2) {
-            self._isLooking = false;
-            self.lastX = null;
-            self.lastY = null;
-            self._canvas.style.cursor = '';
-        }
         if (e.button === 0) {
             self.isDragging = false;
             self.lastX = null;
@@ -94,10 +97,12 @@ CharacterController.prototype.initialize = function() {
     // Mode switch from UI
     this.app.on('controls:setMode', function(mode) {
         this.controlMode = mode;
-        this._isLooking = false;
         this.isDragging = false;
         this.lastX = null;
         this.lastY = null;
+        if (mode !== 'fps' && document.pointerLockElement === this._canvas) {
+            document.exitPointerLock();
+        }
         console.log('[CharCtrl] Mode switched to:', mode);
     }, this);
 
@@ -106,6 +111,9 @@ CharacterController.prototype.initialize = function() {
         this._canvas.removeEventListener('mousedown', this._onCanvasMouseDown);
         document.removeEventListener('mousemove', this._onDocMouseMove);
         document.removeEventListener('mouseup', this._onDocMouseUp);
+        if (document.pointerLockElement === this._canvas) {
+            document.exitPointerLock();
+        }
         this._removeDebugHud();
     }, this);
 

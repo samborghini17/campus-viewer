@@ -13,12 +13,14 @@ PoiManager.prototype.initialize = function() {
     this.isCleanMode = false;
     this.isAutoTouring = false;
     this.tourTimer = 0;
+    this.activePois = [];
 
     this.createUI();
 
     this.app.on('poi:register', this.registerPOI, this);
     this.app.on('ui:toggleTour', this.toggleEntireTourSystem, this); 
     this.app.on('ui:toggleVisibility', this.onCleanModeToggle, this); 
+    this.app.on('level:switch', this.refreshList, this);
 };
 
 PoiManager.prototype.registerPOI = function(data) {
@@ -26,7 +28,45 @@ PoiManager.prototype.registerPOI = function(data) {
     if(exists) return;
 
     this.pois.push(data);
-    this.addListItem(data, this.pois.length - 1);
+    // Delay refresh to allow all entities to initialize
+    if (!this._refreshQueued) {
+        this._refreshQueued = true;
+        var self = this;
+        setTimeout(function() {
+            self.refreshList();
+            self._refreshQueued = false;
+        }, 100);
+    }
+};
+
+PoiManager.prototype.refreshList = function() {
+    var list = document.getElementById('poi-items');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    function isEnabled(ent) {
+        var curr = ent;
+        while(curr) {
+            if(!curr.enabled) return false;
+            curr = curr.parent;
+        }
+        return true;
+    }
+    
+    var self = this;
+    this.activePois = [];
+    this.pois.forEach(function(data, index) {
+        if (isEnabled(data.entity)) {
+            self.activePois.push(index);
+            self.addListItem(data, index);
+        }
+    });
+    
+    // Validate current index
+    if (this.currentIndex !== -1 && this.activePois.indexOf(this.currentIndex) === -1) {
+        this.currentIndex = -1;
+    }
+    
     this.updateNavButtons();
 };
 
@@ -95,15 +135,18 @@ PoiManager.prototype.jumpTo = function(index) {
 };
 
 PoiManager.prototype.next = function() {
-    if (this.pois.length === 0) return;
-    var nextIndex = (this.currentIndex + 1) % this.pois.length;
-    this.jumpTo(nextIndex);
+    if (this.activePois.length === 0) return;
+    var currentActiveIdx = this.activePois.indexOf(this.currentIndex);
+    var nextActiveIdx = (currentActiveIdx + 1) % this.activePois.length;
+    this.jumpTo(this.activePois[nextActiveIdx]);
 };
 
 PoiManager.prototype.prev = function() {
-    if (this.pois.length === 0) return;
-    var prevIndex = (this.currentIndex - 1 + this.pois.length) % this.pois.length;
-    this.jumpTo(prevIndex);
+    if (this.activePois.length === 0) return;
+    var currentActiveIdx = this.activePois.indexOf(this.currentIndex);
+    if (currentActiveIdx === -1) currentActiveIdx = 0;
+    var prevActiveIdx = (currentActiveIdx - 1 + this.activePois.length) % this.activePois.length;
+    this.jumpTo(this.activePois[prevActiveIdx]);
 };
 
 PoiManager.prototype.toggleAutoTour = function() {
@@ -223,8 +266,8 @@ PoiManager.prototype.updateNavTitle = function(title) {
 
 PoiManager.prototype.updateNavButtons = function() {
     if (this.currentIndex === -1) {
-        if (this.pois.length > 0) {
-            this.updateNavTitle("Tour starten (" + this.pois.length + " Ziele)");
+        if (this.activePois.length > 0) {
+            this.updateNavTitle("Tour starten (" + this.activePois.length + " Ziele)");
         } else {
             this.updateNavTitle("Keine Ziele");
         }
