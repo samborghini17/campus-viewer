@@ -3,7 +3,7 @@ var CharacterController = pc.createScript('character-controller');
 CharacterController.attributes.add('camera', { type: 'entity', title: 'Camera (Auto-Find)' });
 CharacterController.attributes.add('speed', { type: 'number', default: 0.4 });
 CharacterController.attributes.add('lookSens', { type: 'number', default: 0.15 });
-CharacterController.attributes.add('cameraHeight', { type: 'number', default: 1.35 });
+CharacterController.attributes.add('cameraHeight', { type: 'number', default: 1.2 });
 CharacterController.attributes.add('gravityEnabled', { type: 'boolean', default: true });
 
 CharacterController.prototype.initialize = function() {
@@ -64,16 +64,17 @@ CharacterController.prototype.initialize = function() {
         if (!self.enabled || !self.camera) return;
         
         if (self.controlMode === 'fps' && document.pointerLockElement === self._canvas) {
-            var dx = e.movementX || 0;
-            var dy = e.movementY || 0;
+            var dx = pc.math.clamp(e.movementX || 0, -100, 100);
+            var dy = pc.math.clamp(e.movementY || 0, -100, 100);
             self.yaw -= dx * self.lookSens;
             self.pitch -= dy * self.lookSens;
             self.pitch = pc.math.clamp(self.pitch, -89, 89);
             self.camera.setLocalEulerAngles(self.pitch, self.yaw, 0);
         } else if (self.controlMode === 'drag' && self.isDragging) {
+            if (e.buttons === 0) { self.isDragging = false; self.lastX = null; self.lastY = null; return; }
             if (self.lastX === null) { self.lastX = e.clientX; self.lastY = e.clientY; return; }
-            var dx = e.clientX - self.lastX;
-            var dy = e.clientY - self.lastY;
+            var dx = pc.math.clamp(e.clientX - self.lastX, -100, 100);
+            var dy = pc.math.clamp(e.clientY - self.lastY, -100, 100);
             self.lastX = e.clientX;
             self.lastY = e.clientY;
             self.yaw -= dx * self.lookSens;
@@ -222,8 +223,8 @@ CharacterController.prototype.update = function(dt) {
         levelMgrDebug = lm.script.levelManager._debugMode;
     }
     if (this._debugHud) {
-        this._debugHud.style.display = (levelMgrDebug || this._debugGravityOff) ? 'block' : 'none';
-        if (levelMgrDebug || this._debugGravityOff) {
+        this._debugHud.style.display = levelMgrDebug ? 'block' : 'none';
+        if (levelMgrDebug) {
             this._updateDebugHud();
         }
     }

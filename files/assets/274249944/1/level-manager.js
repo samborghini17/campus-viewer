@@ -743,17 +743,19 @@ LevelManager.prototype.resetCamera = function(hasCollider) {
         }
     } else {
         // WALK MODE: Teleport via rigidbody for physics-based placement
-        console.log('[ResetCam] WALK teleport to:', startPos.toString(), 'rot:', startRot ? startRot.toString() : 'none');
+        var charCtrl = playerRig ? playerRig.script['character-controller'] : null;
+        var camH = charCtrl ? charCtrl.cameraHeight : 1.2;
+        console.log('[ResetCam] WALK teleport to:', startPos.toString(), 'rot:', startRot ? startRot.toString() : 'none', 'camH:', camH);
         if (playerRig && playerRig.rigidbody) {
             playerRig.rigidbody.linearVelocity = pc.Vec3.ZERO;
             playerRig.rigidbody.angularVelocity = pc.Vec3.ZERO;
-            playerRig.rigidbody.teleport(startPos.x, startPos.y, startPos.z);
+            // Subtract cameraHeight so the camera itself ends up at startPos
+            playerRig.rigidbody.teleport(startPos.x, startPos.y - camH, startPos.z);
             playerRig.rigidbody.activate();
         }
         
         this.cameraEntity.setLocalPosition(0, 0, 0);
         
-        var charCtrl = playerRig ? playerRig.script['character-controller'] : null;
         if (charCtrl && charCtrl.setStartRotation && startRot) {
             charCtrl.setStartRotation(startRot);
         }
