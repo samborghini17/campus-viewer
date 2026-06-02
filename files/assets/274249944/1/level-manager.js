@@ -644,6 +644,8 @@ LevelManager.prototype.initialize = function() {
                 console.log('[Debug] Position copied to clipboard!');
             }
             console.log('[DebugMode] ' + (this._debugMode ? 'ON' : 'OFF'));
+            // Notify UI to show/hide collider debug panel
+            this.app.fire('debug:toggle', this._debugMode);
         }
         
         if (e.key === pc.KEY_C && this._dynamicColliderEntity && this._dynamicColliderEntity.render) {
@@ -688,6 +690,32 @@ LevelManager.prototype.initialize = function() {
     this.app.on('quality:adaptive:toggle', function(enabled) {
         this._adaptiveQuality = enabled;
         console.log('[Quality] Adaptive:', enabled);
+    }, this);
+
+    // --- COLLIDER DEBUG: Real-time transform from UI panel ---
+    this.app.on('collider:setTransform', function(px, py, pz, rx, ry, rz) {
+        if (!this._dynamicColliderEntity) return;
+        this._dynamicColliderEntity.setLocalPosition(px, py, pz);
+        this._dynamicColliderEntity.setLocalEulerAngles(rx, ry, rz);
+        // Re-sync physics body to match new visual position
+        if (this._dynamicColliderEntity.rigidbody) {
+            this._dynamicColliderEntity.rigidbody.syncEntityToBody();
+        }
+        console.log('[Collider] Transform: pos=[' + px + ',' + py + ',' + pz + '] rot=[' + rx + ',' + ry + ',' + rz + ']');
+    }, this);
+
+    this.app.on('collider:toggleVisibility', function() {
+        if (this._dynamicColliderEntity && this._dynamicColliderEntity.render) {
+            this._dynamicColliderEntity.render.enabled = !this._dynamicColliderEntity.render.enabled;
+            console.log('[Collider] Visibility:', this._dynamicColliderEntity.render.enabled);
+        }
+    }, this);
+
+    // Debug mode toggle from UI menu button
+    this.app.on('debug:menuToggle', function() {
+        this._debugMode = !this._debugMode;
+        this.app.fire('debug:toggle', this._debugMode);
+        console.log('[DebugMode] ' + (this._debugMode ? 'ON' : 'OFF'));
     }, this);
 
     this.loadLevel('lemgo', true);
@@ -855,6 +883,11 @@ LevelManager.prototype.loadCollisionFromUrl = function(levelId, splatPos, splatR
         console.log('[Collision] Entity pos:', entity.getPosition().toString());
         console.log('[Collision] Entity rot:', entity.getEulerAngles().toString());
         console.log('[Collision] Ready: ' + levelId + ' (waiting for physics settle)');
+
+        // Notify UI debug panel with current collider transform
+        var colPos = entity.getLocalPosition();
+        var colRot = entity.getLocalEulerAngles();
+        self.app.fire('collider:loaded', colPos, colRot);
 
         // Wait for Ammo.js to register the new body before placing the player
         setTimeout(function() {

@@ -8,6 +8,17 @@
         </button>
         <div class="menu-separator"></div>
 
+        <div id="search-container" class="menu-item" style="padding: 6px 8px; pointer-events: auto;">
+            <span class="icon">🔍</span>
+            <input type="text" id="level-search" placeholder="Raum suchen..."
+                   style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); 
+                          border-radius:6px; padding:6px 8px; color:white; font-size:12px; outline:none; font-family:inherit;"
+                   autocomplete="off">
+        </div>
+        <div id="search-results" style="display:none; max-height:200px; overflow-y:auto; padding:0 4px;"></div>
+
+        <div class="menu-separator"></div>
+
         <button id="menu-home" class="menu-item">
             <span class="icon">🏠</span> <span id="lbl-menu-home">Zum Start (Lemgo)</span>
         </button>
@@ -20,14 +31,16 @@
         <button id="menu-reset" class="menu-item">
             <span class="icon">🔄</span> <span id="lbl-menu-reset">Kamera Reset</span>
         </button>
+        <div id="ctrl-mode-section">
         <div class="menu-separator"></div>
         <div class="menu-item" style="pointer-events: none; color: var(--text-secondary); padding-bottom: 2px; font-size: 11px; text-transform: uppercase; font-weight: 600;">Steuerungs-Modus</div>
         <button id="mock-ctrl-fps" class="menu-item active" style="color: var(--col-cyan);">
-            <span class="icon">🎯</span> <span id="lbl-ctrl-fps">Rechtsklick-Umsehen</span>
+            <span class="icon">🎯</span> <span id="lbl-ctrl-fps">Shooter-Steuerung</span>
         </button>
         <button id="mock-ctrl-drag" class="menu-item" style="opacity: 0.5;">
-            <span class="icon">👆</span> <span id="lbl-ctrl-drag">Drag & Look</span>
+            <span class="icon">👆</span> <span id="lbl-ctrl-drag">Orbit-Steuerung</span>
         </button>
+        </div>
         <div class="menu-separator"></div>
         <div class="menu-item" style="pointer-events: none; color: var(--text-secondary); padding-bottom: 2px; font-size: 11px; text-transform: uppercase; font-weight: 600;" id="lbl-tools-header">Werkzeuge</div>
         <button id="menu-culling-toggle" class="menu-item" style="opacity: 0.5;">
@@ -45,6 +58,12 @@
         </button>
         <button id="menu-adaptive-quality" class="menu-item" style="opacity: 0.5;">
             <span class="icon">⚡</span> <span id="lbl-adaptive">Auto-Qualität: AUS</span>
+        </button>
+        <button id="menu-fullscreen" class="menu-item">
+            <span class="icon">🖥️</span> <span id="lbl-fullscreen">Vollbild</span>
+        </button>
+        <button id="menu-shortcuts" class="menu-item">
+            <span class="icon">⌨️</span> <span id="lbl-shortcuts">Tastenkürzel</span>
         </button>
         <div class="menu-separator"></div>
         <a href="https://kreativ.institute/de" target="_blank" class="menu-item link">
@@ -114,6 +133,13 @@
                 <li>Laden...</li>
             </ul>
         </div>
+    </div>
+</div>
+
+<!-- VIRTUAL JOYSTICK (mobile only) -->
+<div id="mobile-joystick-zone" class="mobile-only">
+    <div id="joystick-base">
+        <div id="joystick-stick"></div>
     </div>
 </div>
 

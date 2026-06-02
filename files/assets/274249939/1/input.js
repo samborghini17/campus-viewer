@@ -46,11 +46,16 @@ class DesktopInput {
     constructor(app) {
         this.app = app;
         this._canvas = app.graphicsDevice.canvas;
+        this._isRightDragging = false;
+        this._lastMouseX = 0;
+        this._lastMouseY = 0;
 
         this._onKeyDown = this._onKeyDown.bind(this);
         this._onKeyUp = this._onKeyUp.bind(this);
         this._onMouseDown = this._onMouseDown.bind(this);
         this._onMouseMove = this._onMouseMove.bind(this);
+        this._onMouseUp = this._onMouseUp.bind(this);
+        this._onContextMenu = (e) => e.preventDefault();
 
         this.enabled = true;
     }
@@ -63,11 +68,15 @@ class DesktopInput {
             window.addEventListener('keyup', this._onKeyUp);
             window.addEventListener('mousedown', this._onMouseDown);
             window.addEventListener('mousemove', this._onMouseMove);
+            window.addEventListener('mouseup', this._onMouseUp);
+            this._canvas.addEventListener('contextmenu', this._onContextMenu);
         } else {
             window.removeEventListener('keydown', this._onKeyDown);
             window.removeEventListener('keyup', this._onKeyUp);
             window.removeEventListener('mousedown', this._onMouseDown);
             window.removeEventListener('mousemove', this._onMouseMove);
+            window.removeEventListener('mouseup', this._onMouseUp);
+            this._canvas.removeEventListener('contextmenu', this._onContextMenu);
         }
     }
 
@@ -112,10 +121,7 @@ class DesktopInput {
      * @private
      */
     _onKeyDown(e) {
-        if (document.pointerLockElement !== this._canvas) {
-            return;
-        }
-
+        // WASD always works — no pointer lock required
         if (e.repeat) {
             return;
         }
@@ -133,9 +139,21 @@ class DesktopInput {
         this._handleKey(e.key, 0);
     }
 
+    /**
+     * Right-click-drag to look (no pointer lock).
+     * Left-click is always free for UI interaction.
+     */
     _onMouseDown(e) {
-        if (document.pointerLockElement !== this._canvas) {
-            this._canvas.requestPointerLock();
+        if (e.button === 2) {
+            this._isRightDragging = true;
+            this._lastMouseX = e.clientX;
+            this._lastMouseY = e.clientY;
+        }
+    }
+
+    _onMouseUp(e) {
+        if (e.button === 2) {
+            this._isRightDragging = false;
         }
     }
 
@@ -144,18 +162,19 @@ class DesktopInput {
      * @private
      */
     _onMouseMove(e) {
-        if (document.pointerLockElement !== this._canvas) {
-            return;
-        }
+        if (!this._isRightDragging) return;
 
-        const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-        const movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+        const dx = e.clientX - this._lastMouseX;
+        const dy = e.clientY - this._lastMouseY;
+        this._lastMouseX = e.clientX;
+        this._lastMouseY = e.clientY;
 
-        this.app.fire('cc:look', movementX, movementY);
+        this.app.fire('cc:look', dx, dy);
     }
 
     destroy() {
         this.enabled = false;
+        this._isRightDragging = false;
     }
 }
 

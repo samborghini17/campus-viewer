@@ -325,12 +325,12 @@ UI.prototype.initialize = function() {
             ttMed: 'Ausgewogen (Standard)',
             ttHigh: 'Hohe Details',
             ttUltra: 'Maximale Details',
-            flyDesktop: '<li><b>WASD / Pfeile</b>: Laufen / Fliegen</li><li><b>Q / E</b>: Runter / Hoch</li><li>• <b>Shift</b>: Schneller</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>Maus (Ziehen)</b>: Umsehen (Kopf drehen)</li>',
-            flyTouch: '<li>• <b>1 Finger</b>: Umsehen</li><li>• <b>2 Finger</b>: Vorwärts laufen</li>',
+            flyDesktop: '<li><b>WASD / Pfeile</b>: Laufen / Fliegen</li><li><b>Q / E</b>: Runter / Hoch</li><li>• <b>Shift</b>: Schneller</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>Rechte Maustaste + Ziehen</b>: Umsehen</li>',
+            flyTouch: '<li>• <b>Joystick</b>: Bewegen</li><li>• <b>1 Finger (Bildschirm)</b>: Umsehen</li>',
             orbitDesktop: '<li><b>Linke Taste</b> Drehen (Orbit)</li><li><b>Mausrad</b> Zoomen</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Frei bewegen (Pan)</li><li>• <b>Q/E</b>: Runter/Hoch</li><li>• <b>Shift</b>: Schneller</li>',
             orbitTouch: '<li>• <b>1 Finger</b> Drehen</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
-            ctrlFps: 'Rechtsklick-Umsehen',
-            ctrlDrag: 'Drag & Look',
+            ctrlFps: 'Shooter-Steuerung',
+            ctrlDrag: 'Orbit-Steuerung',
             toolsHeader: 'Werkzeuge',
             cullingOn: 'Culling: AN',
             cullingOff: 'Culling: AUS',
@@ -362,12 +362,12 @@ UI.prototype.initialize = function() {
             ttMed: 'Balanced (Default)',
             ttHigh: 'High Details',
             ttUltra: 'Maximum Details',
-            flyDesktop: '<li><b>WASD / Arrows</b>: Walk / Fly</li><li><b>Q / E</b>: Down / Up</li><li>• <b>Shift</b>: Faster</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>Mouse (Drag)</b>: Look around</li>',
-            flyTouch: '<li>• <b>1 Finger</b>: Look around</li><li>• <b>2 Finger</b>: Walk forward</li>',
+            flyDesktop: '<li><b>WASD / Arrows</b>: Walk / Fly</li><li><b>Q / E</b>: Down / Up</li><li>• <b>Shift</b>: Faster</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>Right-Click + Drag</b>: Look around</li>',
+            flyTouch: '<li>• <b>Joystick</b>: Move</li><li>• <b>1 Finger (Screen)</b>: Look around</li>',
             orbitDesktop: '<li><b>Left Click</b> Rotate (Orbit)</li><li><b>Mouse Wheel</b> Zoom</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Move freely (Pan)</li><li>• <b>Q/E</b>: Down/Up</li><li>• <b>Shift</b>: Faster</li>',
             orbitTouch: '<li>• <b>1 Finger</b> Rotate</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
-            ctrlFps: 'Right-Click Look',
-            ctrlDrag: 'Drag & Look',
+            ctrlFps: 'Shooter Controls',
+            ctrlDrag: 'Orbit Controls',
             toolsHeader: 'Tools',
             cullingOn: 'Culling: ON',
             cullingOff: 'Culling: OFF',
@@ -415,6 +415,9 @@ UI.prototype.initialize = function() {
         document.body.appendChild(this.uiContainer);
         this._initElements();
         this._initBurgerMenu();
+        this._initJoystick();
+        this._initSearch();
+        this._initColliderDebug();
         this._updateButtonStates();
         this._applyTranslations();
     }
@@ -489,7 +492,7 @@ UI.prototype._initBurgerMenu = function() {
     if (!container || !btn) return;
     this.jumpBackBtn = document.createElement('button');
     this.jumpBackBtn.className = 'menu-item';
-    this.jumpBackBtn.innerHTML = `<span class="icon">⬅</span> <span id="lbl-menu-back">${this.dict[this.currentLang].menuBack}</span>`;
+    this.jumpBackBtn.innerHTML = `<span class="icon">⬅️</span> <span id="lbl-menu-back">${this.dict[this.currentLang].menuBack}</span>`;
     Object.assign(this.jumpBackBtn.style, {
         color: '#f1c40f',
         fontWeight: 'bold',
@@ -509,13 +512,13 @@ UI.prototype._initBurgerMenu = function() {
         tourBtn.id = 'menu-tour-toggle';
         tourBtn.className = 'menu-item';
         var initText = self._tourVisible ? self.currentLang === 'de' ? 'Tour ausblenden' : 'Hide Tour' : self.currentLang === 'de' ? 'Tour einblenden' : 'Show Tour';
-        tourBtn.innerHTML = `<span>🗺️</span> ${initText}`;
+        tourBtn.innerHTML = `<span class="icon">🗺️</span> <span>${initText}</span>`;
         if (resetBtn) resetBtn.parentNode.insertBefore(tourBtn, resetBtn);
         else if (burgerDropdown) burgerDropdown.appendChild(tourBtn);
         tourBtn.onclick = function() {
             self._tourVisible = !self._tourVisible;
             var btnText = self._tourVisible ? self.currentLang === 'de' ? 'Tour ausblenden' : 'Hide Tour' : self.currentLang === 'de' ? 'Tour einblenden' : 'Show Tour';
-            this.innerHTML = `<span>🗺️</span> ${btnText}`;
+            this.innerHTML = `<span class="icon">🗺️</span> <span>${btnText}</span>`;
             self.app.fire('ui:toggleTour', self._tourVisible);
         };
     }
@@ -530,6 +533,8 @@ UI.prototype._initBurgerMenu = function() {
         };
     }
     btn.addEventListener('click', function(e) {
+        // Exit pointer lock so user can interact with menu
+        if (document.pointerLockElement) document.exitPointerLock();
         container.classList.toggle('open');
         if (container.classList.contains('open')) {
             btn.innerHTML = '<span class="icon">✕</span> ' + (self.currentLang === 'de' ? 'Schließen' : 'Close');
@@ -643,11 +648,8 @@ UI.prototype._initBurgerMenu = function() {
             self._debugEnabled = !self._debugEnabled;
             debugBtn.style.opacity = self._debugEnabled ? '1' : '0.5';
             debugBtn.style.color = self._debugEnabled ? 'var(--col-cyan)' : '';
-            // Simulate P key press for debug toggle
-            var lm = self.app.root.findByName('LevelManager');
-            if (lm && lm.script && lm.script.levelManager) {
-                lm.script.levelManager._debugMode = self._debugEnabled;
-            }
+            // Fire event to toggle debug mode in level-manager + show collider panel
+            self.app.fire('debug:menuToggle');
             console.log('[UI] Debug mode:', self._debugEnabled);
         };
     }
@@ -677,6 +679,400 @@ UI.prototype._initBurgerMenu = function() {
             self.app.fire('quality:adaptive:toggle', self._adaptiveEnabled);
         };
     }
+
+    // --- Fullscreen Toggle ---
+    var fullscreenBtn = document.getElementById('menu-fullscreen');
+    if (fullscreenBtn) {
+        fullscreenBtn.onclick = function() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                var el = document.documentElement;
+                if (el.requestFullscreen) el.requestFullscreen();
+                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        };
+        // Update label on fullscreen change
+        var updateFsLabel = function() {
+            var lbl = document.getElementById('lbl-fullscreen');
+            var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            if (lbl) {
+                lbl.innerText = isFs
+                    ? (self.currentLang === 'de' ? 'Vollbild beenden' : 'Exit Fullscreen')
+                    : (self.currentLang === 'de' ? 'Vollbild' : 'Fullscreen');
+            }
+        };
+        document.addEventListener('fullscreenchange', updateFsLabel);
+        document.addEventListener('webkitfullscreenchange', updateFsLabel);
+    }
+
+    // --- Keyboard Shortcuts Modal ---
+    var shortcutsBtn = document.getElementById('menu-shortcuts');
+    if (shortcutsBtn) {
+        shortcutsBtn.onclick = function() {
+            self._showShortcutsModal();
+        };
+    }
+};
+UI.prototype._initJoystick = function() {
+    var self = this;
+    var joystickZone = document.getElementById('mobile-joystick-zone');
+    var joystickBase = document.getElementById('joystick-base');
+    var joystickStick = document.getElementById('joystick-stick');
+    if (!joystickZone || !joystickBase || !joystickStick) return;
+
+    var activeTouch = null;
+    var baseRect = null;
+    var baseCenterX = 0;
+    var baseCenterY = 0;
+    var maxRadius = 35; // max stick travel from center (half of base minus stick)
+
+    var updateStick = function(touchX, touchY) {
+        if (!baseRect) return;
+        var dx = touchX - baseCenterX;
+        var dy = touchY - baseCenterY;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        
+        // Clamp to circular radius
+        if (dist > maxRadius) {
+            dx = (dx / dist) * maxRadius;
+            dy = (dy / dist) * maxRadius;
+        }
+        
+        joystickStick.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+        
+        // Normalize to [-1, 1]
+        var normX = dx / maxRadius;
+        var normY = -dy / maxRadius; // Invert Y: up = positive (forward)
+        self.app.fire('joystick:move', normX, normY);
+    };
+
+    var resetStick = function() {
+        joystickStick.style.transform = 'translate(-50%, -50%)';
+        self.app.fire('joystick:move', 0, 0);
+        activeTouch = null;
+    };
+
+    joystickBase.addEventListener('touchstart', function(e) {
+        e.stopPropagation();
+        if (activeTouch !== null) return; // Already tracking a touch
+        var touch = e.changedTouches[0];
+        activeTouch = touch.identifier;
+        baseRect = joystickBase.getBoundingClientRect();
+        baseCenterX = baseRect.left + baseRect.width / 2;
+        baseCenterY = baseRect.top + baseRect.height / 2;
+        updateStick(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    joystickBase.addEventListener('touchmove', function(e) {
+        e.stopPropagation();
+        for (var i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === activeTouch) {
+                updateStick(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+                break;
+            }
+        }
+    }, { passive: false });
+
+    var onTouchEnd = function(e) {
+        for (var i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === activeTouch) {
+                resetStick();
+                break;
+            }
+        }
+    };
+
+    joystickBase.addEventListener('touchend', onTouchEnd, { passive: true });
+    joystickBase.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    console.log('[UI] Mobile joystick initialized');
+};
+UI.prototype._initSearch = function() {
+    var self = this;
+    var searchInput = document.getElementById('level-search');
+    var searchResults = document.getElementById('search-results');
+    if (!searchInput || !searchResults) return;
+
+    // Prevent clicks in search from closing burger menu
+    searchInput.addEventListener('click', function(e) { e.stopPropagation(); });
+    searchInput.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    searchInput.addEventListener('input', function() {
+        var query = searchInput.value.trim().toLowerCase();
+        searchResults.innerHTML = '';
+        if (query.length < 2) { searchResults.style.display = 'none'; return; }
+
+        var matches = [];
+        var levelData = self._levelData;
+        for (var id in levelData) {
+            var d = levelData[id];
+            var name = self.currentLang === 'de' ? d.name_de : d.name_en;
+            if (name.toLowerCase().indexOf(query) !== -1 || id.toLowerCase().indexOf(query) !== -1) {
+                matches.push({ id: id, name: name, mode: d.mode });
+            }
+        }
+
+        if (matches.length === 0) {
+            searchResults.innerHTML = '<div style="padding:8px 12px; color:rgba(255,255,255,0.5); font-size:12px;">' + 
+                (self.currentLang === 'de' ? 'Keine Ergebnisse' : 'No results') + '</div>';
+            searchResults.style.display = 'block';
+            return;
+        }
+
+        matches.forEach(function(m) {
+            var btn = document.createElement('button');
+            btn.className = 'menu-item';
+            btn.style.fontSize = '12px';
+            btn.style.padding = '6px 12px';
+            var modeIcon = m.mode === 'orbit' ? '🌐' : '🏠';
+            btn.innerHTML = '<span class="icon">' + modeIcon + '</span> <span>' + m.name + '</span>';
+            btn.onclick = function(e) {
+                e.stopPropagation();
+                self.app.fire('level:switch', m.id);
+                searchInput.value = '';
+                searchResults.style.display = 'none';
+                searchResults.innerHTML = '';
+                // Close burger menu
+                var container = document.getElementById('burger-menu-container');
+                if (container) container.classList.remove('open');
+            };
+            searchResults.appendChild(btn);
+        });
+        searchResults.style.display = 'block';
+    });
+
+    // Exit pointer lock when focusing search
+    searchInput.addEventListener('focus', function() {
+        if (document.pointerLockElement) document.exitPointerLock();
+    });
+
+    console.log('[UI] Search initialized');
+};
+UI.prototype._initColliderDebug = function() {
+    var self = this;
+
+    // Create collider debug panel (hidden by default, shown in debug mode)
+    var panel = document.createElement('div');
+    panel.id = 'collider-debug-panel';
+    Object.assign(panel.style, {
+        position: 'fixed', top: '80px', right: '10px',
+        width: '280px', background: 'rgba(0,0,0,0.85)',
+        border: '1px solid rgba(0,255,136,0.3)', borderRadius: '8px',
+        padding: '12px', fontFamily: 'monospace', fontSize: '11px',
+        color: '#00ff88', zIndex: '10001', display: 'none',
+        pointerEvents: 'auto', userSelect: 'none'
+    });
+
+    var axes = ['X', 'Y', 'Z'];
+    var colors = { X: '#ff4444', Y: '#44ff44', Z: '#4488ff' };
+
+    panel.innerHTML = '<div style="font-weight:bold; margin-bottom:8px; color:#ff0; font-size:13px;">⚙ Collider Debug</div>';
+
+    // Position section
+    panel.innerHTML += '<div style="margin-bottom:6px; color:#888; text-transform:uppercase; font-size:10px;">Position</div>';
+    axes.forEach(function(axis) {
+        panel.innerHTML += '<div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">' +
+            '<span style="color:' + colors[axis] + '; width:14px;">' + axis + '</span>' +
+            '<button class="col-step" data-target="pos" data-axis="' + axis.toLowerCase() + '" data-dir="-1" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">◄</button>' +
+            '<input type="number" id="col-pos-' + axis.toLowerCase() + '" value="0" step="0.1" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:3px;padding:3px 6px;color:white;font-family:monospace;font-size:11px;text-align:center;outline:none;">' +
+            '<button class="col-step" data-target="pos" data-axis="' + axis.toLowerCase() + '" data-dir="1" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">►</button>' +
+            '</div>';
+    });
+
+    // Rotation section
+    panel.innerHTML += '<div style="margin:8px 0 6px; color:#888; text-transform:uppercase; font-size:10px;">Rotation</div>';
+    axes.forEach(function(axis) {
+        panel.innerHTML += '<div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">' +
+            '<span style="color:' + colors[axis] + '; width:14px;">' + axis + '</span>' +
+            '<button class="col-step" data-target="rot" data-axis="' + axis.toLowerCase() + '" data-dir="-1" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">◄</button>' +
+            '<input type="number" id="col-rot-' + axis.toLowerCase() + '" value="0" step="1" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:3px;padding:3px 6px;color:white;font-family:monospace;font-size:11px;text-align:center;outline:none;">' +
+            '<button class="col-step" data-target="rot" data-axis="' + axis.toLowerCase() + '" data-dir="1" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">►</button>' +
+            '</div>';
+    });
+
+    // Step size
+    panel.innerHTML += '<div style="margin:8px 0 6px; display:flex; gap:4px; align-items:center;">' +
+        '<span style="color:#888; font-size:10px;">Step:</span>' +
+        '<button class="step-size-btn" data-step="0.01" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">0.01</button>' +
+        '<button class="step-size-btn active" data-step="0.1" style="padding:2px 6px;border:1px solid rgba(0,255,136,0.5);background:rgba(0,255,136,0.15);color:white;border-radius:3px;cursor:pointer;font-size:10px;">0.1</button>' +
+        '<button class="step-size-btn" data-step="1" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">1.0</button>' +
+        '<button class="step-size-btn" data-step="5" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">5.0</button>' +
+        '</div>';
+
+    // Buttons
+    panel.innerHTML += '<div style="display:flex; gap:6px; margin-top:8px;">' +
+        '<button id="col-copy-btn" style="flex:1;padding:6px;border:1px solid rgba(0,255,136,0.3);background:rgba(0,255,136,0.1);color:#00ff88;border-radius:4px;cursor:pointer;font-family:monospace;font-size:11px;">📋 Copy</button>' +
+        '<button id="col-visibility-btn" style="flex:1;padding:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:4px;cursor:pointer;font-family:monospace;font-size:11px;">👁 Toggle</button>' +
+        '</div>';
+
+    document.body.appendChild(panel);
+    this._colliderPanel = panel;
+    this._colliderStep = 0.1;
+
+    // Step size buttons
+    panel.querySelectorAll('.step-size-btn').forEach(function(btn) {
+        btn.onclick = function(e) {
+            e.stopPropagation();
+            self._colliderStep = parseFloat(btn.dataset.step);
+            panel.querySelectorAll('.step-size-btn').forEach(function(b) {
+                b.style.border = '1px solid rgba(255,255,255,0.2)';
+                b.style.background = 'rgba(255,255,255,0.05)';
+            });
+            btn.style.border = '1px solid rgba(0,255,136,0.5)';
+            btn.style.background = 'rgba(0,255,136,0.15)';
+        };
+    });
+
+    // Step buttons (◄ ►)
+    panel.querySelectorAll('.col-step').forEach(function(btn) {
+        btn.onclick = function(e) {
+            e.stopPropagation();
+            var target = btn.dataset.target; // 'pos' or 'rot'
+            var axis = btn.dataset.axis;     // 'x', 'y', 'z'
+            var dir = parseInt(btn.dataset.dir);
+            var input = document.getElementById('col-' + target + '-' + axis);
+            if (!input) return;
+            var step = target === 'rot' ? Math.max(1, self._colliderStep * 10) : self._colliderStep;
+            input.value = (parseFloat(input.value) + dir * step).toFixed(target === 'rot' ? 1 : 3);
+            self._applyColliderTransform();
+        };
+    });
+
+    // Input change listeners
+    ['pos', 'rot'].forEach(function(target) {
+        ['x', 'y', 'z'].forEach(function(axis) {
+            var input = document.getElementById('col-' + target + '-' + axis);
+            if (input) {
+                input.addEventListener('input', function() { self._applyColliderTransform(); });
+                input.addEventListener('click', function(e) { e.stopPropagation(); });
+                input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+                input.addEventListener('focus', function() {
+                    if (document.pointerLockElement) document.exitPointerLock();
+                });
+            }
+        });
+    });
+
+    // Copy button
+    var copyBtn = document.getElementById('col-copy-btn');
+    if (copyBtn) {
+        copyBtn.onclick = function(e) {
+            e.stopPropagation();
+            var px = document.getElementById('col-pos-x').value;
+            var py = document.getElementById('col-pos-y').value;
+            var pz = document.getElementById('col-pos-z').value;
+            var rx = document.getElementById('col-rot-x').value;
+            var ry = document.getElementById('col-rot-y').value;
+            var rz = document.getElementById('col-rot-z').value;
+            var text = 'colliderPos: [' + px + ', ' + py + ', ' + pz + '],\ncolliderRot: [' + rx + ', ' + ry + ', ' + rz + '],';
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text);
+                copyBtn.innerText = '✅ Copied!';
+                setTimeout(function() { copyBtn.innerText = '📋 Copy'; }, 1500);
+            }
+        };
+    }
+
+    // Visibility toggle
+    var visBtn = document.getElementById('col-visibility-btn');
+    if (visBtn) {
+        visBtn.onclick = function(e) {
+            e.stopPropagation();
+            self.app.fire('collider:toggleVisibility');
+        };
+    }
+
+    // Listen for debug mode toggle
+    this.app.on('debug:toggle', function(enabled) {
+        panel.style.display = enabled ? 'block' : 'none';
+    }, this);
+
+    // Listen for collider load to populate initial values
+    this.app.on('collider:loaded', function(pos, rot) {
+        var fields = { 'col-pos-x': pos.x, 'col-pos-y': pos.y, 'col-pos-z': pos.z,
+                       'col-rot-x': rot.x, 'col-rot-y': rot.y, 'col-rot-z': rot.z };
+        for (var id in fields) {
+            var el = document.getElementById(id);
+            if (el) el.value = fields[id].toFixed(3);
+        }
+    }, this);
+
+    console.log('[UI] Collider debug panel initialized');
+};
+UI.prototype._applyColliderTransform = function() {
+    var px = parseFloat(document.getElementById('col-pos-x').value) || 0;
+    var py = parseFloat(document.getElementById('col-pos-y').value) || 0;
+    var pz = parseFloat(document.getElementById('col-pos-z').value) || 0;
+    var rx = parseFloat(document.getElementById('col-rot-x').value) || 0;
+    var ry = parseFloat(document.getElementById('col-rot-y').value) || 0;
+    var rz = parseFloat(document.getElementById('col-rot-z').value) || 0;
+    this.app.fire('collider:setTransform', px, py, pz, rx, ry, rz);
+};
+UI.prototype._showShortcutsModal = function() {
+    var isDE = this.currentLang === 'de';
+    var overlay = document.getElementById('info-modal-overlay');
+    var title = document.getElementById('info-title');
+    var body = document.getElementById('info-body');
+    var link = document.getElementById('info-link');
+    if (!overlay || !title || !body) return;
+
+    title.innerText = isDE ? 'Tastenkürzel' : 'Keyboard Shortcuts';
+    if (link) link.style.display = 'none';
+
+    var shortcuts = isDE ? [
+        { cat: '🚶 Bewegung', items: [
+            ['WASD / Pfeiltasten', 'Laufen / Bewegen'],
+            ['Shift', 'Schneller laufen'],
+            ['Q / E', 'Runter / Hoch (Flugmodus)'],
+            ['G (halten)', 'Schwerkraft aus (Fliegen)'],
+            ['Mausrad', 'Geschwindigkeit anpassen']
+        ]},
+        { cat: '🎥 Kamera', items: [
+            ['Rechte Maustaste + Ziehen', 'Umsehen'],
+            ['1 Finger (Touch)', 'Umsehen (Mobil)'],
+            ['Joystick (Touch)', 'Bewegen (Mobil)']
+        ]},
+        { cat: '🛠 Debug / Tools', items: [
+            ['P', 'Debug-Modus ein/aus + Position kopieren'],
+            ['C', 'Kollisions-Mesh ein/aus'],
+            ['K', 'Culling ein/aus'],
+            ['F2', 'Screenshot speichern']
+        ]}
+    ] : [
+        { cat: '🚶 Movement', items: [
+            ['WASD / Arrow Keys', 'Walk / Move'],
+            ['Shift', 'Run faster'],
+            ['Q / E', 'Down / Up (Fly mode)'],
+            ['G (hold)', 'Disable gravity (Fly)'],
+            ['Mouse Wheel', 'Adjust speed']
+        ]},
+        { cat: '🎥 Camera', items: [
+            ['Right-Click + Drag', 'Look around'],
+            ['1 Finger (Touch)', 'Look around (Mobile)'],
+            ['Joystick (Touch)', 'Move (Mobile)']
+        ]},
+        { cat: '🛠 Debug / Tools', items: [
+            ['P', 'Toggle debug mode + Copy position'],
+            ['C', 'Toggle collision mesh'],
+            ['K', 'Toggle culling'],
+            ['F2', 'Save screenshot']
+        ]}
+    ];
+
+    var html = '';
+    shortcuts.forEach(function(section) {
+        html += '<div style="margin-bottom:16px;"><div style="font-weight:600; color:var(--col-cyan); margin-bottom:8px; font-size:14px;">' + section.cat + '</div>';
+        html += '<table style="width:100%; border-collapse:collapse;">';
+        section.items.forEach(function(item) {
+            html += '<tr><td style="padding:4px 8px; border-bottom:1px solid rgba(255,255,255,0.05);"><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px; font-size:12px; font-family:monospace; border:1px solid rgba(255,255,255,0.15);">' + item[0] + '</kbd></td><td style="padding:4px 8px; color:rgba(255,255,255,0.7); font-size:13px; border-bottom:1px solid rgba(255,255,255,0.05);">' + item[1] + '</td></tr>';
+        });
+        html += '</table></div>';
+    });
+
+    body.innerHTML = html;
+    overlay.classList.remove('hidden');
 };
 UI.prototype._applyTranslations = function() {
     var d = this.dict[this.currentLang];
@@ -723,16 +1119,16 @@ UI.prototype._translateDynamic = function() {
     var controlsCard = document.getElementById('controls-card');
     if (helpBtn && controlsCard) {
         var isVis = controlsCard.style.display !== 'none';
-        helpBtn.innerHTML = isVis ? `<span>✕</span> ${d.menuHelpOff}` : `<span>🕹️</span> ${d.menuHelpOn}`;
+        helpBtn.innerHTML = isVis ? `<span class="icon">✕</span> <span>${d.menuHelpOff}</span>` : `<span class="icon">🕹️</span> <span>${d.menuHelpOn}</span>`;
     }
     var uiBtn = document.getElementById('menu-toggle-ui');
     if (uiBtn) {
-        uiBtn.innerHTML = this._uiVisible ? `<span>👁️</span> ${d.menuUiOff}` : `<span>👁️‍🗨️</span> ${d.menuUiOn}`;
+        uiBtn.innerHTML = this._uiVisible ? `<span class="icon">👁️</span> <span>${d.menuUiOff}</span>` : `<span class="icon">👁️‍🗨️</span> <span>${d.menuUiOn}</span>`;
     }
     var tourBtn = document.getElementById('menu-tour-toggle');
     if (tourBtn) {
         var btnText = this._tourVisible ? this.currentLang === 'de' ? 'Tour ausblenden' : 'Hide Tour' : this.currentLang === 'de' ? 'Tour einblenden' : 'Show Tour';
-        tourBtn.innerHTML = `<span>🗺️</span> ${btnText}`;
+        tourBtn.innerHTML = `<span class="icon">🗺️</span> <span>${btnText}</span>`;
     }
 
     // Dynamic translations for new elements
@@ -849,7 +1245,12 @@ UI.prototype._updateContent = function(levelId) {
     var tourBtn = document.getElementById('menu-tour-toggle');
     if (tourBtn) {
         var btnText = this._tourVisible ? this.currentLang === 'de' ? 'Tour ausblenden' : 'Hide Tour' : this.currentLang === 'de' ? 'Tour einblenden' : 'Show Tour';
-        tourBtn.innerHTML = `<span>🗺️</span> ${btnText}`;
+        tourBtn.innerHTML = `<span class="icon">🗺️</span> <span>${btnText}</span>`;
+    }
+    // Show/hide Steuerungs-Modus section based on mode
+    var ctrlSection = document.getElementById('ctrl-mode-section');
+    if (ctrlSection) {
+        ctrlSection.style.display = data.mode === 'orbit' ? 'none' : 'block';
     }
     this._updateControlsText(data.mode);
 };

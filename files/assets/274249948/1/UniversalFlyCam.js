@@ -9,13 +9,38 @@ UniversalFlyCam.prototype.initialize = function() {
     this.yaw = 0;
     this.lastTouchPoint = new pc.Vec2();
     this.isTouching = false;
+    this._isRightDragging = false;
+    this._lastMouseX = 0;
+    this._lastMouseY = 0;
 
-    // Desktop: Mouse Lock
-    this.app.mouse.on(pc.EVENT_MOUSEDOWN, function () {
-        if (!this.app.touch) this.app.mouse.enablePointerLock();
-    }, this);
+    var self = this;
 
-    this.app.mouse.on(pc.EVENT_MOUSEMOVE, this.onMouseMove, this);
+    // Desktop: Right-click-drag to look (NO pointer lock)
+    this._onMouseDown = function(e) {
+        if (e.button === 2) {
+            self._isRightDragging = true;
+            self._lastMouseX = e.clientX;
+            self._lastMouseY = e.clientY;
+        }
+    };
+    this._onMouseUp = function(e) {
+        if (e.button === 2) self._isRightDragging = false;
+    };
+    this._onMouseMoveDoc = function(e) {
+        if (!self._isRightDragging || !self.enabled) return;
+        var dx = e.clientX - self._lastMouseX;
+        var dy = e.clientY - self._lastMouseY;
+        self._lastMouseX = e.clientX;
+        self._lastMouseY = e.clientY;
+        self.rotateCamera(dx, dy);
+    };
+    this._onContextMenu = function(e) { e.preventDefault(); };
+
+    var canvas = this.app.graphicsDevice.canvas;
+    canvas.addEventListener('mousedown', this._onMouseDown);
+    document.addEventListener('mouseup', this._onMouseUp);
+    document.addEventListener('mousemove', this._onMouseMoveDoc);
+    canvas.addEventListener('contextmenu', this._onContextMenu);
 
     // Mobile: Touch Events
     if (this.app.touch) {
@@ -51,11 +76,7 @@ UniversalFlyCam.prototype.update = function(dt) {
     }
 };
 
-UniversalFlyCam.prototype.onMouseMove = function(event) {
-    if (pc.Mouse.isPointerLocked()) {
-        this.rotateCamera(event.dx, event.dy);
-    }
-};
+// onMouseMove is no longer used (replaced by _onMouseMoveDoc in initialize)
 
 UniversalFlyCam.prototype.onTouchStart = function(event) {
     var touch = event.touches[0];

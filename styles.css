@@ -5,13 +5,13 @@ html {
 }
 body {
     margin: 0;
-    max-height: 100%;
+    padding: 0;
     height: 100%;
+    width: 100%;
     overflow: hidden;
     background-color: #1d292c;
     font-family: Helvetica, arial, sans-serif;
     position: relative;
-    width: 100%;
 
     -webkit-tap-highlight-color: transparent;
 }
@@ -21,8 +21,14 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100% !important;
+    height: 100% !important;
+}
+/* Use dynamic viewport height on iOS for true fullscreen */
+@supports (height: 100dvh) {
+    #application-canvas {
+        height: 100dvh !important;
+    }
 }
 #application-canvas.fill-mode-NONE {
     margin: auto;
