@@ -325,7 +325,7 @@ UI.prototype.initialize = function() {
             ttMed: 'Ausgewogen (Standard)',
             ttHigh: 'Hohe Details',
             ttUltra: 'Maximale Details',
-            flyDesktop: '<li><b>WASD / Pfeile</b>: Laufen / Fliegen</li><li><b>Q / E</b>: Runter / Hoch</li><li>• <b>Shift</b>: Schneller</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>Rechte Maustaste + Ziehen</b>: Umsehen</li>',
+            flyDesktop: '<li><b>WASD / Pfeile</b>: Laufen / Fliegen</li><li><b>Q / E</b>: Runter / Hoch</li><li>• <b>Shift</b>: Schneller</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <span style="color:#00ff88;font-weight:bold;">[ESC]</span>: UI klicken / Menü öffnen</li><li>• <b>Rechte Maustaste + Ziehen</b>: Umsehen</li>',
             flyTouch: '<li>• <b>Joystick</b>: Bewegen</li><li>• <b>1 Finger (Bildschirm)</b>: Umsehen</li>',
             orbitDesktop: '<li><b>Linke Taste</b> Drehen (Orbit)</li><li><b>Mausrad</b> Zoomen</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Frei bewegen (Pan)</li><li>• <b>Q/E</b>: Runter/Hoch</li><li>• <b>Shift</b>: Schneller</li>',
             orbitTouch: '<li>• <b>1 Finger</b> Drehen</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
@@ -337,8 +337,8 @@ UI.prototype.initialize = function() {
             cullDist: 'Culling-Distanz',
             debugMode: 'Debug Modus',
             screenshot: 'Screenshot (F2)',
-            adaptiveOn: 'Auto-Qualit\u00e4t: AN',
-            adaptiveOff: 'Auto-Qualit\u00e4t: AUS'
+            adaptiveOn: 'Auto-Qualität: AN',
+            adaptiveOff: 'Auto-Qualität: AUS'
         },
         en: {
             menuBtn: 'Menu',
@@ -347,7 +347,7 @@ UI.prototype.initialize = function() {
             menuHelpOff: 'Hide Controls',
             menuUiOn: 'Show UI',
             menuUiOff: 'Hide UI',
-            menuReset: 'Reset Camera',
+            menuReset: 'Camera Reset',
             menuImprint: 'Imprint',
             menuBack: 'Jump Back',
             menuToggleControl: 'Controls: Drag/Orbit',
@@ -362,7 +362,7 @@ UI.prototype.initialize = function() {
             ttMed: 'Balanced (Default)',
             ttHigh: 'High Details',
             ttUltra: 'Maximum Details',
-            flyDesktop: '<li><b>WASD / Arrows</b>: Walk / Fly</li><li><b>Q / E</b>: Down / Up</li><li>• <b>Shift</b>: Faster</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>Right-Click + Drag</b>: Look around</li>',
+            flyDesktop: '<li><b>WASD / Arrows</b>: Walk / Fly</li><li><b>Q / E</b>: Down / Up</li><li>• <b>Shift</b>: Faster</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <span style="color:#00ff88;font-weight:bold;">[ESC]</span>: Click UI / Open Menu</li><li>• <b>Right-Click + Drag</b>: Look around</li>',
             flyTouch: '<li>• <b>Joystick</b>: Move</li><li>• <b>1 Finger (Screen)</b>: Look around</li>',
             orbitDesktop: '<li><b>Left Click</b> Rotate (Orbit)</li><li><b>Mouse Wheel</b> Zoom</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Move freely (Pan)</li><li>• <b>Q/E</b>: Down/Up</li><li>• <b>Shift</b>: Faster</li>',
             orbitTouch: '<li>• <b>1 Finger</b> Rotate</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
@@ -376,6 +376,33 @@ UI.prototype.initialize = function() {
             screenshot: 'Screenshot (F2)',
             adaptiveOn: 'Auto Quality: ON',
             adaptiveOff: 'Auto Quality: OFF'
+        }
+    };
+    this._loadTranslations = function(lang, callback) {
+        var self = this;
+        fetch('/translations/' + lang + '.json')
+            .then(res => res.json())
+            .then(data => {
+                self.dict[lang] = Object.assign({}, self.dict[lang] || {}, data);
+                if (self.currentLang === lang) {
+                    self._applyTranslations();
+                    self._applyRTL();
+                }
+                if (callback) callback();
+            })
+            .catch(err => {
+                console.error("Failed to load translation for " + lang, err);
+                if (callback) callback();
+            });
+    };
+    
+    this._applyRTL = function() {
+        var isRTL = (this.currentLang === 'ar');
+        document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+        if (isRTL) {
+            document.body.classList.add('rtl-mode');
+        } else {
+            document.body.classList.remove('rtl-mode');
         }
     };
     if (this.cssAsset) {
@@ -417,9 +444,9 @@ UI.prototype.initialize = function() {
         this._initBurgerMenu();
         this._initJoystick();
         this._initSearch();
-        this._initColliderDebug();
+        this._initRealtimeEditor();
         this._updateButtonStates();
-        this._applyTranslations();
+        this._loadTranslations(this.currentLang);
     }
     setInterval(()=>{
         var vrBtn = document.querySelector('.webxr-button, .pc-webxr-button, #webxr-button, button[title*="VR"]');
@@ -483,7 +510,7 @@ UI.prototype._initBurgerMenu = function() {
     var self = this;
     var container = document.getElementById('burger-menu-container');
     var btn = document.getElementById('burger-btn');
-    var langBtn = document.getElementById('menu-lang');
+    var langBtns = document.querySelectorAll('.lang-btn');
     var homeBtn = document.getElementById('menu-home');
     var helpBtn = document.getElementById('menu-help');
     var resetBtn = document.getElementById('menu-reset');
@@ -522,15 +549,62 @@ UI.prototype._initBurgerMenu = function() {
             self.app.fire('ui:toggleTour', self._tourVisible);
         };
     }
+    
+    var autoTourBtn = document.getElementById('menu-auto-tour-toggle');
+    if (!autoTourBtn) {
+        autoTourBtn = document.createElement('button');
+        autoTourBtn.id = 'menu-auto-tour-toggle';
+        autoTourBtn.className = 'menu-item';
+        autoTourBtn.style.color = 'var(--col-cyan)';
+        autoTourBtn.innerHTML = `<span class="icon">🎬</span> <span id="lbl-auto-tour">Cinematic Auto-Tour</span>`;
+        if (tourBtn && tourBtn.parentNode) {
+            tourBtn.parentNode.insertBefore(autoTourBtn, tourBtn.nextSibling);
+        }
+        autoTourBtn.onclick = function() {
+            if (self._isAutoTouring) {
+                self.app.fire('tour:stop');
+                self._isAutoTouring = false;
+                autoTourBtn.innerHTML = `<span class="icon">🎬</span> <span id="lbl-auto-tour">Cinematic Auto-Tour</span>`;
+            } else {
+                var startTour = function() {
+                    self.app.fire('tour:play', 'lemgo');
+                    self._isAutoTouring = true;
+                    autoTourBtn.innerHTML = `<span class="icon">🛑</span> <span id="lbl-auto-tour" style="color:#ff4444;">Tour stoppen</span>`;
+                };
+
+                if (!self.app.scripts.get('auto-tour')) {
+                    console.log('[UI] Loading Cinematic Auto-Tour script dynamically...');
+                    var s = document.createElement('script');
+                    s.src = './files/assets/274249968/1/auto-tour.js';
+                    s.onload = startTour;
+                    s.onerror = function(err) {
+                        console.error('Failed to load auto-tour script:', err);
+                    };
+                    document.head.appendChild(s);
+                } else {
+                    startTour();
+                }
+            }
+        };
+    }
 
     // Removed ctrlModeBtn completely per user request
 
-    if (langBtn) {
-        langBtn.onclick = function(e) {
-            self.currentLang = self.currentLang === 'de' ? 'en' : 'de';
-            self._applyTranslations();
-            self.app.fire('lang:switch', self.currentLang);
-        };
+    if (langBtns) {
+        langBtns.forEach(function(lBtn) {
+            lBtn.onclick = function(e) {
+                self.currentLang = lBtn.dataset.lang;
+                if (self.dict[self.currentLang]) {
+                    self._applyTranslations();
+                    self._applyRTL();
+                    self.app.fire('lang:switch', self.currentLang);
+                } else {
+                    self._loadTranslations(self.currentLang, function() {
+                        self.app.fire('lang:switch', self.currentLang);
+                    });
+                }
+            };
+        });
     }
     btn.addEventListener('click', function(e) {
         // Exit pointer lock so user can interact with menu
@@ -643,15 +717,35 @@ UI.prototype._initBurgerMenu = function() {
     // --- Debug Mode Toggle ---
     this._debugEnabled = false;
     var debugBtn = document.getElementById('menu-debug-toggle');
+    var colScaleContainer = document.getElementById('collider-scale-container');
+    var colScaleSlider = document.getElementById('collider-scale-slider');
+    var colScaleLbl = document.getElementById('lbl-col-scale');
+
     if (debugBtn) {
         debugBtn.onclick = function() {
             self._debugEnabled = !self._debugEnabled;
             debugBtn.style.opacity = self._debugEnabled ? '1' : '0.5';
             debugBtn.style.color = self._debugEnabled ? 'var(--col-cyan)' : '';
+            if (colScaleContainer) {
+                colScaleContainer.style.display = self._debugEnabled ? 'flex' : 'none';
+            }
             // Fire event to toggle debug mode in level-manager + show collider panel
             self.app.fire('debug:menuToggle');
             console.log('[UI] Debug mode:', self._debugEnabled);
         };
+    }
+
+    if (colScaleSlider) {
+        colScaleSlider.addEventListener('input', function(e) {
+            var val = parseFloat(e.target.value) || 1.0;
+            if (colScaleLbl) {
+                colScaleLbl.innerText = (self.currentLang === 'de' ? 'Collider-Skalierung: ' : 'Collider Scale: ') + val.toFixed(1);
+            }
+            self.app.fire('collider:setScale', val, val, val);
+        });
+        ['mousedown', 'touchstart'].forEach(function(ev) {
+            colScaleSlider.addEventListener(ev, function(e) { e.stopPropagation(); });
+        });
     }
 
     // --- Screenshot Button ---
@@ -850,72 +944,72 @@ UI.prototype._initSearch = function() {
 
     console.log('[UI] Search initialized');
 };
-UI.prototype._initColliderDebug = function() {
+UI.prototype._initRealtimeEditor = function() {
     var self = this;
-
-    // Create collider debug panel (hidden by default, shown in debug mode)
     var panel = document.createElement('div');
-    panel.id = 'collider-debug-panel';
+    panel.id = 'realtime-editor-panel';
     Object.assign(panel.style, {
         position: 'fixed', top: '80px', right: '10px',
-        width: '280px', background: 'rgba(0,0,0,0.85)',
+        width: '320px', background: 'rgba(0,0,0,0.85)',
         border: '1px solid rgba(0,255,136,0.3)', borderRadius: '8px',
         padding: '12px', fontFamily: 'monospace', fontSize: '11px',
         color: '#00ff88', zIndex: '10001', display: 'none',
-        pointerEvents: 'auto', userSelect: 'none'
+        pointerEvents: 'auto', userSelect: 'none',
+        maxHeight: '80vh', overflowY: 'auto'
     });
 
-    var axes = ['X', 'Y', 'Z'];
-    var colors = { X: '#ff4444', Y: '#44ff44', Z: '#4488ff' };
-
-    panel.innerHTML = '<div style="font-weight:bold; margin-bottom:8px; color:#ff0; font-size:13px;">⚙ Collider Debug</div>';
-
-    // Position section
-    panel.innerHTML += '<div style="margin-bottom:6px; color:#888; text-transform:uppercase; font-size:10px;">Position</div>';
-    axes.forEach(function(axis) {
-        panel.innerHTML += '<div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">' +
-            '<span style="color:' + colors[axis] + '; width:14px;">' + axis + '</span>' +
-            '<button class="col-step" data-target="pos" data-axis="' + axis.toLowerCase() + '" data-dir="-1" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">◄</button>' +
-            '<input type="number" id="col-pos-' + axis.toLowerCase() + '" value="0" step="0.1" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:3px;padding:3px 6px;color:white;font-family:monospace;font-size:11px;text-align:center;outline:none;">' +
-            '<button class="col-step" data-target="pos" data-axis="' + axis.toLowerCase() + '" data-dir="1" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">►</button>' +
-            '</div>';
-    });
-
-    // Rotation section
-    panel.innerHTML += '<div style="margin:8px 0 6px; color:#888; text-transform:uppercase; font-size:10px;">Rotation</div>';
-    axes.forEach(function(axis) {
-        panel.innerHTML += '<div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">' +
-            '<span style="color:' + colors[axis] + '; width:14px;">' + axis + '</span>' +
-            '<button class="col-step" data-target="rot" data-axis="' + axis.toLowerCase() + '" data-dir="-1" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">◄</button>' +
-            '<input type="number" id="col-rot-' + axis.toLowerCase() + '" value="0" step="1" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:3px;padding:3px 6px;color:white;font-family:monospace;font-size:11px;text-align:center;outline:none;">' +
-            '<button class="col-step" data-target="rot" data-axis="' + axis.toLowerCase() + '" data-dir="1" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">►</button>' +
-            '</div>';
-    });
+    panel.innerHTML = '<div style="font-weight:bold; margin-bottom:8px; color:#ff0; font-size:13px; text-align:center;">🛠 Realtime Level Editor</div>';
 
     // Step size
-    panel.innerHTML += '<div style="margin:8px 0 6px; display:flex; gap:4px; align-items:center;">' +
+    panel.innerHTML += '<div style="margin-bottom:12px; display:flex; gap:4px; align-items:center; justify-content:center;">' +
         '<span style="color:#888; font-size:10px;">Step:</span>' +
-        '<button class="step-size-btn" data-step="0.01" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">0.01</button>' +
-        '<button class="step-size-btn active" data-step="0.1" style="padding:2px 6px;border:1px solid rgba(0,255,136,0.5);background:rgba(0,255,136,0.15);color:white;border-radius:3px;cursor:pointer;font-size:10px;">0.1</button>' +
-        '<button class="step-size-btn" data-step="1" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">1.0</button>' +
-        '<button class="step-size-btn" data-step="5" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;font-size:10px;">5.0</button>' +
+        '<button class="step-size-btn" data-step="0.01" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;">0.01</button>' +
+        '<button class="step-size-btn active" data-step="0.1" style="padding:2px 6px;border:1px solid rgba(0,255,136,0.5);background:rgba(0,255,136,0.15);color:white;border-radius:3px;cursor:pointer;">0.1</button>' +
+        '<button class="step-size-btn" data-step="1" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;">1.0</button>' +
+        '<button class="step-size-btn" data-step="5" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;">5.0</button>' +
         '</div>';
 
-    // Buttons
-    panel.innerHTML += '<div style="display:flex; gap:6px; margin-top:8px;">' +
-        '<button id="col-copy-btn" style="flex:1;padding:6px;border:1px solid rgba(0,255,136,0.3);background:rgba(0,255,136,0.1);color:#00ff88;border-radius:4px;cursor:pointer;font-family:monospace;font-size:11px;">📋 Copy</button>' +
-        '<button id="col-visibility-btn" style="flex:1;padding:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:4px;cursor:pointer;font-family:monospace;font-size:11px;">👁 Toggle</button>' +
+    var createSection = function(id, title, color) {
+        var html = '<div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:8px;">';
+        html += '<div style="font-weight:bold; color:' + color + '; margin-bottom:6px;">' + title + '</div>';
+        
+        ['pos', 'rot'].forEach(function(type) {
+            html += '<div style="display:flex; gap:4px; margin-bottom:4px;">';
+            html += '<div style="width:24px; color:#888; padding-top:4px;">' + (type === 'pos' ? 'Pos' : 'Rot') + '</div>';
+            ['x', 'y', 'z'].forEach(function(axis) {
+                html += '<div style="flex:1; display:flex; flex-direction:column; align-items:center;">';
+                html += '<span style="color:#888; font-size:9px;">' + axis.toUpperCase() + '</span>';
+                html += '<input type="number" id="ed-' + id + '-' + type + '-' + axis + '" value="0" step="0.1" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); border-radius:3px; padding:2px; color:white; font-family:monospace; font-size:10px; text-align:center; outline:none; box-sizing:border-box;">';
+                html += '<div style="display:flex; width:100%; gap:2px; margin-top:2px;">';
+                html += '<button class="ed-step" data-id="' + id + '" data-type="' + type + '" data-axis="' + axis + '" data-dir="-1" style="flex:1; border:none; background:rgba(255,255,255,0.1); color:white; border-radius:2px; cursor:pointer; font-size:9px;">-</button>';
+                html += '<button class="ed-step" data-id="' + id + '" data-type="' + type + '" data-axis="' + axis + '" data-dir="1" style="flex:1; border:none; background:rgba(255,255,255,0.1); color:white; border-radius:2px; cursor:pointer; font-size:9px;">+</button>';
+                html += '</div></div>';
+            });
+            html += '</div>';
+        });
+        html += '</div>';
+        return html;
+    };
+
+    panel.innerHTML += createSection('splat', '🌌 Splat (.sog)', '#4488ff');
+    panel.innerHTML += createSection('cam', '🎥 Camera Start', '#ffaa00');
+    panel.innerHTML += createSection('col', '📦 Collider Mesh', '#ff4444');
+
+    // Action Buttons
+    panel.innerHTML += '<div style="display:flex; gap:6px; margin-top:16px;">' +
+        '<button id="ed-save-btn" style="flex:1;padding:8px;border:1px solid rgba(255,170,0,0.5);background:rgba(255,170,0,0.15);color:#ffaa00;border-radius:4px;cursor:pointer;font-weight:bold;">💾 Save to Disk</button>' +
+        '<button id="ed-dump-btn" style="flex:1;padding:8px;border:1px solid rgba(0,255,136,0.5);background:rgba(0,255,136,0.15);color:#00ff88;border-radius:4px;cursor:pointer;font-weight:bold;">📋 Copy JSON</button>' +
+        '<button id="ed-col-vis-btn" style="flex:1;padding:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:4px;cursor:pointer;">👁 Col Vis</button>' +
         '</div>';
 
     document.body.appendChild(panel);
-    this._colliderPanel = panel;
-    this._colliderStep = 0.1;
+    this._editorStep = 0.1;
 
     // Step size buttons
     panel.querySelectorAll('.step-size-btn').forEach(function(btn) {
         btn.onclick = function(e) {
             e.stopPropagation();
-            self._colliderStep = parseFloat(btn.dataset.step);
+            self._editorStep = parseFloat(btn.dataset.step);
             panel.querySelectorAll('.step-size-btn').forEach(function(b) {
                 b.style.border = '1px solid rgba(255,255,255,0.2)';
                 b.style.background = 'rgba(255,255,255,0.05)';
@@ -925,58 +1019,63 @@ UI.prototype._initColliderDebug = function() {
         };
     });
 
-    // Step buttons (◄ ►)
-    panel.querySelectorAll('.col-step').forEach(function(btn) {
+    // Plus/Minus step buttons
+    panel.querySelectorAll('.ed-step').forEach(function(btn) {
         btn.onclick = function(e) {
             e.stopPropagation();
-            var target = btn.dataset.target; // 'pos' or 'rot'
-            var axis = btn.dataset.axis;     // 'x', 'y', 'z'
+            var id = btn.dataset.id;
+            var type = btn.dataset.type;
+            var axis = btn.dataset.axis;
             var dir = parseInt(btn.dataset.dir);
-            var input = document.getElementById('col-' + target + '-' + axis);
+            var input = document.getElementById('ed-' + id + '-' + type + '-' + axis);
             if (!input) return;
-            var step = target === 'rot' ? Math.max(1, self._colliderStep * 10) : self._colliderStep;
-            input.value = (parseFloat(input.value) + dir * step).toFixed(target === 'rot' ? 1 : 3);
-            self._applyColliderTransform();
+            var step = type === 'rot' ? Math.max(1, self._editorStep * 10) : self._editorStep;
+            input.value = (parseFloat(input.value) + dir * step).toFixed(type === 'rot' ? 1 : 3);
+            self._applyRealtimeTransform(id);
         };
     });
 
-    // Input change listeners
-    ['pos', 'rot'].forEach(function(target) {
-        ['x', 'y', 'z'].forEach(function(axis) {
-            var input = document.getElementById('col-' + target + '-' + axis);
-            if (input) {
-                input.addEventListener('input', function() { self._applyColliderTransform(); });
-                input.addEventListener('click', function(e) { e.stopPropagation(); });
-                input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-                input.addEventListener('focus', function() {
-                    if (document.pointerLockElement) document.exitPointerLock();
-                });
-            }
+    // Input listeners
+    ['splat', 'cam', 'col'].forEach(function(id) {
+        ['pos', 'rot'].forEach(function(type) {
+            ['x', 'y', 'z'].forEach(function(axis) {
+                var input = document.getElementById('ed-' + id + '-' + type + '-' + axis);
+                if (input) {
+                    input.addEventListener('input', function() { self._applyRealtimeTransform(id); });
+                    input.addEventListener('click', function(e) { e.stopPropagation(); });
+                    input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+                    input.addEventListener('focus', function() {
+                        if (document.pointerLockElement) document.exitPointerLock();
+                    });
+                }
+            });
         });
     });
 
-    // Copy button
-    var copyBtn = document.getElementById('col-copy-btn');
-    if (copyBtn) {
-        copyBtn.onclick = function(e) {
+    // Save to Disk button
+    var saveBtn = document.getElementById('ed-save-btn');
+    if (saveBtn) {
+        saveBtn.onclick = function(e) {
             e.stopPropagation();
-            var px = document.getElementById('col-pos-x').value;
-            var py = document.getElementById('col-pos-y').value;
-            var pz = document.getElementById('col-pos-z').value;
-            var rx = document.getElementById('col-rot-x').value;
-            var ry = document.getElementById('col-rot-y').value;
-            var rz = document.getElementById('col-rot-z').value;
-            var text = 'colliderPos: [' + px + ', ' + py + ', ' + pz + '],\ncolliderRot: [' + rx + ', ' + ry + ', ' + rz + '],';
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(text);
-                copyBtn.innerText = '✅ Copied!';
-                setTimeout(function() { copyBtn.innerText = '📋 Copy'; }, 1500);
-            }
+            self.app.fire('level:saveConfig');
+            saveBtn.innerText = '⏳ Saving...';
+            setTimeout(function() { saveBtn.innerText = '💾 Save to Disk'; }, 1500);
+        };
+    }
+
+    // Copy JSON dump button
+    var dumpBtn = document.getElementById('ed-dump-btn');
+    if (dumpBtn) {
+        dumpBtn.onclick = function(e) {
+            e.stopPropagation();
+            self.app.fire('level:dumpConfig');
+            dumpBtn.innerText = '✅ JSON Copied!';
+            setTimeout(function() { dumpBtn.innerText = '📋 Copy Level JSON'; }, 1500);
         };
     }
 
     // Visibility toggle
-    var visBtn = document.getElementById('col-visibility-btn');
+    var visBtn = document.getElementById('ed-col-vis-btn');
     if (visBtn) {
         visBtn.onclick = function(e) {
             e.stopPropagation();
@@ -984,31 +1083,52 @@ UI.prototype._initColliderDebug = function() {
         };
     }
 
-    // Listen for debug mode toggle
+    // Toggle Debug UI
     this.app.on('debug:toggle', function(enabled) {
         panel.style.display = enabled ? 'block' : 'none';
-    }, this);
-
-    // Listen for collider load to populate initial values
-    this.app.on('collider:loaded', function(pos, rot) {
-        var fields = { 'col-pos-x': pos.x, 'col-pos-y': pos.y, 'col-pos-z': pos.z,
-                       'col-rot-x': rot.x, 'col-rot-y': rot.y, 'col-rot-z': rot.z };
-        for (var id in fields) {
-            var el = document.getElementById(id);
-            if (el) el.value = fields[id].toFixed(3);
+        // When opening the panel, populate current camera position automatically
+        if (enabled) {
+            var playerRig = self.app.root.findByName('Character_Controller');
+            var cam = self.app.root.findByName('Camera');
+            var pos = playerRig ? playerRig.getPosition() : (cam ? cam.getPosition() : new pc.Vec3());
+            var charCtrl = playerRig ? playerRig.script['character-controller'] : null;
+            var rx = charCtrl ? charCtrl.pitch : 0;
+            var ry = charCtrl ? charCtrl.yaw : 0;
+            var rz = 0;
+            
+            document.getElementById('ed-cam-pos-x').value = pos.x.toFixed(2);
+            document.getElementById('ed-cam-pos-y').value = pos.y.toFixed(2);
+            document.getElementById('ed-cam-pos-z').value = pos.z.toFixed(2);
+            document.getElementById('ed-cam-rot-x').value = rx.toFixed(0);
+            document.getElementById('ed-cam-rot-y').value = ry.toFixed(0);
+            document.getElementById('ed-cam-rot-z').value = rz.toFixed(0);
         }
-    }, this);
+    });
 
-    console.log('[UI] Collider debug panel initialized');
+    // Populate Collider data when loaded
+    this.app.on('collider:loaded', function(pos, rot) {
+        document.getElementById('ed-col-pos-x').value = pos.x.toFixed(3);
+        document.getElementById('ed-col-pos-y').value = pos.y.toFixed(3);
+        document.getElementById('ed-col-pos-z').value = pos.z.toFixed(3);
+        document.getElementById('ed-col-rot-x').value = rot.x.toFixed(1);
+        document.getElementById('ed-col-rot-y').value = rot.y.toFixed(1);
+        document.getElementById('ed-col-rot-z').value = rot.z.toFixed(1);
+    });
+
+    console.log('[UI] Realtime Editor initialized');
 };
-UI.prototype._applyColliderTransform = function() {
-    var px = parseFloat(document.getElementById('col-pos-x').value) || 0;
-    var py = parseFloat(document.getElementById('col-pos-y').value) || 0;
-    var pz = parseFloat(document.getElementById('col-pos-z').value) || 0;
-    var rx = parseFloat(document.getElementById('col-rot-x').value) || 0;
-    var ry = parseFloat(document.getElementById('col-rot-y').value) || 0;
-    var rz = parseFloat(document.getElementById('col-rot-z').value) || 0;
-    this.app.fire('collider:setTransform', px, py, pz, rx, ry, rz);
+
+UI.prototype._applyRealtimeTransform = function(id) {
+    var px = parseFloat(document.getElementById('ed-' + id + '-pos-x').value) || 0;
+    var py = parseFloat(document.getElementById('ed-' + id + '-pos-y').value) || 0;
+    var pz = parseFloat(document.getElementById('ed-' + id + '-pos-z').value) || 0;
+    var rx = parseFloat(document.getElementById('ed-' + id + '-rot-x').value) || 0;
+    var ry = parseFloat(document.getElementById('ed-' + id + '-rot-y').value) || 0;
+    var rz = parseFloat(document.getElementById('ed-' + id + '-rot-z').value) || 0;
+    
+    if (id === 'splat') this.app.fire('splat:setTransform', px, py, pz, rx, ry, rz);
+    else if (id === 'cam') this.app.fire('camera:setTransform', px, py, pz, rx, ry, rz);
+    else if (id === 'col') this.app.fire('collider:setTransform', px, py, pz, rx, ry, rz);
 };
 UI.prototype._showShortcutsModal = function() {
     var isDE = this.currentLang === 'de';

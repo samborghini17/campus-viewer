@@ -96,8 +96,8 @@ LevelManager.prototype.initialize = function() {
             envUrl: 'https://samborghini17.github.io/splat-host/inno-spin/environment.sog', 
             splatPos: [-56.90, -1.90, -108.40], 
             splatRot: [-90, 25, 0], 
-            cameraStart: [-53.03, 0.50, -101.08], 
-            cameraStartRot: [165, -27, -180], 
+            cameraStart: [-51.54, -1.03, -101.07],
+            cameraStartRot: [3, -12389, 0], 
             mode: 'fly', 
             collider: null 
         },
@@ -692,16 +692,173 @@ LevelManager.prototype.initialize = function() {
         console.log('[Quality] Adaptive:', enabled);
     }, this);
 
-    // --- COLLIDER DEBUG: Real-time transform from UI panel ---
+    // --- REALTIME EDITOR EVENTS ---
+    this.app.on('tour:play', function(levelId) {
+        var playerRig = this.app.root.findByName('Character_Controller');
+        if (!playerRig) return;
+        
+        if (!playerRig.script || !playerRig.script['auto-tour']) {
+            if (!playerRig.script) playerRig.addComponent('script');
+            playerRig.script.create('auto-tour', {
+                attributes: {
+                    cameraRig: playerRig,
+                    speed: 0.8
+                }
+            });
+        }
+        
+        var points = [];
+        var camPos = playerRig.getPosition();
+        var charCtrl = playerRig.script['character-controller'];
+        points.push({
+            pos: [camPos.x, camPos.y, camPos.z],
+            rot: [charCtrl ? charCtrl.pitch : 0, charCtrl ? charCtrl.yaw : 0, 0],
+            duration: 2.0
+        });
+        
+        this.levelConfig.forEach(function(l) {
+            if (l.cameraStart && l.cameraStartRot && l.id !== 'detmold') {
+                points.push({
+                    pos: l.cameraStart,
+                    rot: l.cameraStartRot,
+                    duration: 5.0
+                });
+            }
+        });
+        
+        playerRig.script['auto-tour'].play(points);
+    }, this);
+
+    this.app.on('tour:stop', function() {
+        var playerRig = this.app.root.findByName('Character_Controller');
+        if (playerRig && playerRig.script && playerRig.script['auto-tour']) {
+            playerRig.script['auto-tour'].stop();
+        }
+    }, this);
+
+    this.app.on('splat:setTransform', function(px, py, pz, rx, ry, rz) {
+        if (!this.mainSplatEntity) return;
+        this.mainSplatEntity.setLocalPosition(px, py, pz);
+        this.mainSplatEntity.setLocalEulerAngles(rx, ry, rz);
+    }, this);
+
+    this.app.on('camera:setTransform', function(px, py, pz, rx, ry, rz) {
+        var playerRig = this.app.root.findByName('Character_Controller');
+        if (playerRig && playerRig.rigidbody) {
+            playerRig.rigidbody.teleport(px, py, pz);
+        } else if (playerRig) {
+            playerRig.setPosition(px, py, pz);
+        }
+        var charCtrl = playerRig ? playerRig.script['character-controller'] : null;
+        if (charCtrl) {
+            charCtrl.pitch = rx;
+            charCtrl.yaw = ry;
+        }
+        if (this.cameraEntity) {
+            this.cameraEntity.setLocalEulerAngles(rx, ry, rz);
+        }
+    }, this);
+
     this.app.on('collider:setTransform', function(px, py, pz, rx, ry, rz) {
         if (!this._dynamicColliderEntity) return;
         this._dynamicColliderEntity.setLocalPosition(px, py, pz);
         this._dynamicColliderEntity.setLocalEulerAngles(rx, ry, rz);
-        // Re-sync physics body to match new visual position
         if (this._dynamicColliderEntity.rigidbody) {
             this._dynamicColliderEntity.rigidbody.syncEntityToBody();
         }
-        console.log('[Collider] Transform: pos=[' + px + ',' + py + ',' + pz + '] rot=[' + rx + ',' + ry + ',' + rz + ']');
+    }, this);
+
+    this.app.on('collider:setScale', function(sx, sy, sz) {
+        if (!this._dynamicColliderEntity) return;
+        this._dynamicColliderEntity.setLocalScale(sx, sy, sz);
+        if (this._dynamicColliderEntity.rigidbody) {
+            this._dynamicColliderEntity.rigidbody.syncEntityToBody();
+        }
+    }, this);
+
+    this.app.on('level:dumpConfig', function() {
+        var playerRig = this.app.root.findByName('Character_Controller');
+        var camPos = playerRig ? playerRig.getPosition() : this.cameraEntity.getPosition();
+        var charCtrl = playerRig ? playerRig.script['character-controller'] : null;
+        var cx = camPos.x.toFixed(2), cy = camPos.y.toFixed(2), cz = camPos.z.toFixed(2);
+        var crx = charCtrl ? charCtrl.pitch.toFixed(0) : 0;
+        var cry = charCtrl ? charCtrl.yaw.toFixed(0) : 0;
+        
+        var sp = this.mainSplatEntity ? this.mainSplatEntity.getLocalPosition() : pc.Vec3.ZERO;
+        var sr = this.mainSplatEntity ? this.mainSplatEntity.getLocalEulerAngles() : pc.Vec3.ZERO;
+        var sx = sp.x.toFixed(2), sy = sp.y.toFixed(2), sz = sp.z.toFixed(2);
+        var srx = sr.x.toFixed(0), sry = sr.y.toFixed(0), srz = sr.z.toFixed(0);
+
+        var colPos = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalPosition() : pc.Vec3.ZERO;
+        var colRot = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalEulerAngles() : pc.Vec3.ZERO;
+        var colScale = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalScale() : pc.Vec3.ONE;
+
+        var currentConfig = this.levelConfig.find(function(l) { return l.id === this.currentLevelId; }.bind(this));
+        var url = currentConfig ? currentConfig.url : '';
+        var envUrl = currentConfig ? currentConfig.envUrl : '';
+
+        var json = `        { 
+            id: '${this.currentLevelId}', 
+            url: '${url}', 
+            envUrl: '${envUrl}', 
+            splatPos: [${sx}, ${sy}, ${sz}], 
+            splatRot: [${srx}, ${sry}, ${srz}], 
+            cameraStart: [${cx}, ${cy}, ${cz}],
+            cameraStartRot: [${crx}, ${cry}, 0], 
+            colliderPos: [${colPos.x.toFixed(2)}, ${colPos.y.toFixed(2)}, ${colPos.z.toFixed(2)}],
+            colliderRot: [${colRot.x.toFixed(0)}, ${colRot.y.toFixed(0)}, ${colRot.z.toFixed(0)}],
+            colliderScale: [${colScale.x.toFixed(3)}, ${colScale.y.toFixed(3)}, ${colScale.z.toFixed(3)}],
+            mode: 'fly', 
+            collider: null 
+        },`;
+
+        console.log("%c[Level Config Dump]\n" + json, "color:#00ff88; font-weight:bold; font-family:monospace;");
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(json);
+            console.log("✅ JSON copied to clipboard!");
+        }
+    }, this);
+
+    this.app.on('level:saveConfig', function() {
+        var playerRig = this.app.root.findByName('Character_Controller');
+        var camPos = playerRig ? playerRig.getPosition() : this.cameraEntity.getPosition();
+        var charCtrl = playerRig ? playerRig.script['character-controller'] : null;
+        var cx = camPos.x.toFixed(2), cy = camPos.y.toFixed(2), cz = camPos.z.toFixed(2);
+        var crx = charCtrl ? charCtrl.pitch.toFixed(0) : 0;
+        var cry = charCtrl ? charCtrl.yaw.toFixed(0) : 0;
+        
+        var sp = this.mainSplatEntity ? this.mainSplatEntity.getLocalPosition() : pc.Vec3.ZERO;
+        var sr = this.mainSplatEntity ? this.mainSplatEntity.getLocalEulerAngles() : pc.Vec3.ZERO;
+        var sx = sp.x.toFixed(2), sy = sp.y.toFixed(2), sz = sp.z.toFixed(2);
+        var srx = sr.x.toFixed(0), sry = sr.y.toFixed(0), srz = sr.z.toFixed(0);
+
+        var colPos = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalPosition() : pc.Vec3.ZERO;
+        var colRot = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalEulerAngles() : pc.Vec3.ZERO;
+        var colScale = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalScale() : pc.Vec3.ONE;
+
+        var currentConfig = this.levelConfig.find(function(l) { return l.id === this.currentLevelId; }.bind(this));
+        var data = {
+            id: this.currentLevelId,
+            url: currentConfig ? currentConfig.url : '',
+            envUrl: currentConfig ? currentConfig.envUrl : '',
+            splatPos: [sx, sy, sz],
+            splatRot: [srx, sry, srz],
+            cameraStart: [cx, cy, cz],
+            cameraStartRot: [crx, cry, 0],
+            colliderPos: [colPos.x.toFixed(2), colPos.y.toFixed(2), colPos.z.toFixed(2)],
+            colliderRot: [colRot.x.toFixed(0), colRot.y.toFixed(0), colRot.z.toFixed(0)],
+            colliderScale: [colScale.x.toFixed(3), colScale.y.toFixed(3), colScale.z.toFixed(3)],
+            mode: 'fly'
+        };
+
+        fetch('/__save-level', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(res => res.json()).then(res => {
+            if(res.success) console.log("✅ Level saved successfully to disk!");
+            else console.error("❌ Failed to save level:", res.error);
+        }).catch(err => console.error("❌ Failed to fetch save-level API:", err));
     }, this);
 
     this.app.on('collider:toggleVisibility', function() {
@@ -819,7 +976,7 @@ LevelManager.prototype.destroyDynamicCollider = function() {
     this.app.systems.rigidbody.gravity.set(0, 0, 0);
 };
 
-LevelManager.prototype.loadCollisionFromUrl = function(levelId, splatPos, splatRot, callback) {
+LevelManager.prototype.loadCollisionFromUrl = function(levelId, data, callback) {
     var self = this;
     var glbFile = COLLIDER_MAP[levelId];
     if (!glbFile) {
@@ -860,8 +1017,17 @@ LevelManager.prototype.loadCollisionFromUrl = function(levelId, splatPos, splatR
 
         // The collision meshes are already aligned to world origin (0,0,0) with pre-baked rotations
         // in Blender. So we do NOT apply splatPos/splatRot to them to avoid double-transformation!
-        entity.setLocalPosition(0, 0, 0);
-        entity.setLocalEulerAngles(0, 0, 0);
+        
+        var cPos = [0,0,0];
+        var cRot = [0,0,0];
+        var cScale = [1,1,1];
+        if (data.colliderPos) cPos = data.colliderPos;
+        if (data.colliderRot) cRot = data.colliderRot;
+        if (data.colliderScale) cScale = data.colliderScale;
+        
+        entity.setLocalPosition(cPos[0], cPos[1], cPos[2]);
+        entity.setLocalEulerAngles(cRot[0], cRot[1], cRot[2]);
+        entity.setLocalScale(cScale[0], cScale[1], cScale[2]);
 
         // Add collision component (mesh type)
         entity.addComponent('collision', {
@@ -976,17 +1142,8 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     }
 
     if (revealScript) {
-        var camStart = data.cameraStart ? 
-             new pc.Vec3(data.cameraStart[0], data.cameraStart[1], data.cameraStart[2]) : new pc.Vec3(0,0,0);
-
-        if (id === 'lemgo') {
-             revealScript.restart(camStart);
-        } else {
-             var localPos = new pc.Vec3();
-             var w2l = this.mainSplatEntity.getWorldTransform().clone().invert();
-             w2l.transformPoint(camStart, localPos);
-             revealScript.restart(localPos);
-        }
+        // Start the reveal effect from the middle of the splat
+        revealScript.restart(new pc.Vec3(0, 0, 0));
     }
 
     // --- Dynamic collision loading ---
@@ -999,7 +1156,7 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
             this.setCameraMode(data.mode, data.bounds, false);
             this.resetCamera(false);
 
-            this.loadCollisionFromUrl(id, sp, sr, function(success) {
+            this.loadCollisionFromUrl(id, data, function(success) {
                 if (success && self.currentLevelId === id) {
                     // Collision loaded + physics settled - now enable walking
                     try {

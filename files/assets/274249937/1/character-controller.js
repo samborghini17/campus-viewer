@@ -3,7 +3,7 @@ var CharacterController = pc.createScript('character-controller');
 CharacterController.attributes.add('camera', { type: 'entity', title: 'Camera (Auto-Find)' });
 CharacterController.attributes.add('speed', { type: 'number', default: 0.4 });
 CharacterController.attributes.add('lookSens', { type: 'number', default: 0.15 });
-CharacterController.attributes.add('cameraHeight', { type: 'number', default: 1.2 });
+CharacterController.attributes.add('cameraHeight', { type: 'number', default: 1.0 });
 CharacterController.attributes.add('gravityEnabled', { type: 'boolean', default: true });
 
 CharacterController.prototype.initialize = function() {
@@ -58,6 +58,22 @@ CharacterController.prototype.initialize = function() {
     this._isPointerLocked = false;
     this._onPointerLockChange = function() {
         self._isPointerLocked = (document.pointerLockElement === self._canvas);
+        var hint = document.getElementById('pointer-lock-hint');
+        if (hint) {
+            if (self._isPointerLocked) {
+                hint.style.display = 'block';
+                setTimeout(function() { hint.style.opacity = '1'; }, 10);
+                if (self._hintTimeout) clearTimeout(self._hintTimeout);
+                self._hintTimeout = setTimeout(function() {
+                    hint.style.opacity = '0';
+                    setTimeout(function() { if (!self._isPointerLocked) hint.style.display = 'none'; }, 300);
+                }, 3000);
+            } else {
+                hint.style.opacity = '0';
+                if (self._hintTimeout) clearTimeout(self._hintTimeout);
+                setTimeout(function() { hint.style.display = 'none'; }, 300);
+            }
+        }
     };
     document.addEventListener('pointerlockchange', this._onPointerLockChange);
 
