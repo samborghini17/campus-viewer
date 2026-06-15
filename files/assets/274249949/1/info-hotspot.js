@@ -231,8 +231,8 @@ InfoHotspot.prototype.updateContent = function() {
         
         // INTERNER FALLBACK, falls ui.mjs die Daten nicht richtig freigegeben hat!
         var fallbackData = {
-            'lemgo': { name_de: 'Lemgoer Campus', name_en: 'Lemgo Campus' },
-            'detmold': { name_de: 'Detmolder Campus', name_en: 'Detmold Campus' },
+            'lemgo': { name_de: 'Innovation Campus Lemgo', name_en: 'Innovation Campus Lemgo' },
+            'detmold': { name_de: 'Kreativ Campus Detmold', name_en: 'Kreativ Campus Detmold' },
             'innospin': { name_de: 'InnovationSPIN', name_en: 'InnovationSPIN' },
             'kio-innen-map-fusion': { name_de: 'KreativInstitut.OWL (KIO)', name_en: 'KreativInstitut.OWL (KIO)' },
             'mensa': { name_de: 'Mensa', name_en: 'Canteen' },

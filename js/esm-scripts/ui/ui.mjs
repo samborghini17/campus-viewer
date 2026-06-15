@@ -22,7 +22,7 @@ UI.prototype.initialize = function() {
     this.uiContainer = document.createElement('div');
     this._currentLevelId = 'lemgo';
     this._uiVisible = true;
-    this._tourVisible = true;
+    this._tourVisible = false;
     this._lastSwitchTime = 0;
     this.history = [];
     this.isJumpingBack = false;
@@ -30,17 +30,17 @@ UI.prototype.initialize = function() {
     this._levelData = {
         'lemgo': {
             prefix_de: 'auf dem',
-            name_de: 'Lemgoer Campus',
+            name_de: 'Innovation Campus Lemgo',
             prefix_en: 'at',
-            name_en: 'Lemgo Campus',
+            name_en: 'Innovation Campus Lemgo',
             link: 'https://www.icl-owl.de/',
             mode: 'orbit'
         },
         'detmold': {
             prefix_de: 'auf dem',
-            name_de: 'Detmolder Campus',
+            name_de: 'Kreativ Campus Detmold',
             prefix_en: 'at',
-            name_en: 'Detmold Campus',
+            name_en: 'Kreativ Campus Detmold',
             link: 'https://www.th-owl.de/g/service/kreativ-campus-detmold/',
             mode: 'orbit'
         },
@@ -314,7 +314,7 @@ UI.prototype.initialize = function() {
             menuImprint: 'Impressum',
             menuBack: 'Zurück springen',
             menuToggleControl: 'Steuerung: Drag/Orbit',
-            welcome: 'Willkommen zum interaktiven Campus der TH OWL',
+            welcome: 'Willkommen zum interaktiven Campus',
             locationIntro: 'Du befindest dich derzeit',
             switchDetmold: 'Zum Campus Detmold',
             switchLemgo: 'Zum Campus Lemgo',
@@ -351,7 +351,7 @@ UI.prototype.initialize = function() {
             menuImprint: 'Imprint',
             menuBack: 'Jump Back',
             menuToggleControl: 'Controls: Drag/Orbit',
-            welcome: 'Welcome to the interactive campus of TH OWL',
+            welcome: 'Welcome to the interactive campus',
             locationIntro: 'You are currently',
             switchDetmold: 'To Detmold Campus',
             switchLemgo: 'To Lemgo Campus',
@@ -555,7 +555,6 @@ UI.prototype._initBurgerMenu = function() {
         autoTourBtn = document.createElement('button');
         autoTourBtn.id = 'menu-auto-tour-toggle';
         autoTourBtn.className = 'menu-item';
-        autoTourBtn.style.color = 'var(--col-cyan)';
         autoTourBtn.innerHTML = `<span class="icon">🎬</span> <span id="lbl-auto-tour">Cinematic Auto-Tour</span>`;
         if (tourBtn && tourBtn.parentNode) {
             tourBtn.parentNode.insertBefore(autoTourBtn, tourBtn.nextSibling);
@@ -1354,6 +1353,18 @@ UI.prototype._updateContent = function(levelId) {
     if (this._linkEl) {
         this._linkEl.innerText = this.currentLang === 'de' ? data.name_de : data.name_en;
         this._linkEl.href = data.link;
+    }
+    
+    var logoEl = document.getElementById('header-logo');
+    if (!logoEl) {
+        logoEl = document.querySelector('.logo');
+    }
+    if (logoEl) {
+        if (levelId === 'detmold') {
+            logoEl.src = '/kcd.png';
+        } else {
+            logoEl.src = '/icl.jpg';
+        }
     }
     var switchText = document.getElementById('switch-campus-text');
     var d = this.dict[this.currentLang];

@@ -17,11 +17,26 @@ AutoTour.prototype.initialize = function() {
 };
 
 AutoTour.prototype.play = function(pointsData) {
+    if (!this.cameraRig) {
+        this.cameraRig = this.app.root.findByName('Character_Controller') || this.app.root.findByName('Camera');
+    }
+    
+    if (typeof pointsData === 'string' && pointsData === 'lemgo') {
+        pointsData = [
+            { pos: [-3, 1.5, 3], rot: [0, -45, 0], duration: 4 },
+            { pos: [0, 1.5, -4], rot: [0, -180, 0], duration: 4 },
+            { pos: [4, 1.5, 0], rot: [0, -270, 0], duration: 4 },
+            { pos: [-3, 1.5, 3], rot: [0, -405, 0], duration: 4 }
+        ];
+    }
+    
     if (!this.cameraRig || !pointsData || pointsData.length < 2) return;
     
     this._points = pointsData;
-    this._posCurve.clear();
-    this._rotCurve.clear();
+    this._posCurve = new pc.CurveSet();
+    this._posCurve.curves = [new pc.Curve(), new pc.Curve(), new pc.Curve()];
+    this._rotCurve = new pc.CurveSet();
+    this._rotCurve.curves = [new pc.Curve(), new pc.Curve(), new pc.Curve()];
     
     // Build the curve (Assuming pointsData is array of { pos: [x,y,z], rot: [x,y,z], duration: seconds })
     var currentTime = 0;
