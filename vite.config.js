@@ -22,15 +22,18 @@ const LevelSavePlugin = () => {
                             let content = fs.readFileSync(filepath, 'utf8');
 
                             // We need to find the object with id: 'ID' inside the levelConfig array
-                            // Using a robust regex to find the block for the specific level ID
-                            const regex = new RegExp(`({\\s*id:\\s*['"]${id}['"][\\s\\S]*?collider:\\s*null\\s*},?)`, 'g');
+                            // Using a robust regex that matches from the id to the closing },
+                            const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const regex = new RegExp(`(\\{\\s*id:\\s*['"]${escapedId}['"][\\s\\S]*?collider:\\s*(?:null|'[^']*')[\\s\\S]*?\\},?)`, 'g');
                             
-                            // Check if it exists
+                            // Check if it exists (reset lastIndex after test)
+                            regex.lastIndex = 0;
                             if (!regex.test(content)) {
                                 res.statusCode = 404;
                                 res.end(JSON.stringify({ error: `Level ID ${id} not found in config` }));
                                 return;
                             }
+                            regex.lastIndex = 0;
 
                             // Build the replacement string
                             const replacement = `{ 

@@ -96,8 +96,11 @@ LevelManager.prototype.initialize = function() {
             envUrl: 'https://samborghini17.github.io/splat-host/inno-spin/environment.sog', 
             splatPos: [-56.90, -1.90, -108.40], 
             splatRot: [-90, 25, 0], 
-            cameraStart: [-51.54, -1.03, -101.07],
-            cameraStartRot: [3, -12389, 0], 
+            cameraStart: [-52.20, -1.54, -98.13],
+            cameraStartRot: [1, -8793, 0], 
+            colliderPos: [-56.90, -2.10, -107.90],
+            colliderRot: [0, 29, 0],
+            colliderScale: [1.000, 1.000, 1.000],
             mode: 'fly', 
             collider: null 
         },
@@ -492,6 +495,44 @@ LevelManager.prototype.initialize = function() {
             collider: null 
         },
         { 
+            id: 'fotostudio', 
+            url: 'https://samborghini17.github.io/splat-host/FB_MP/fotostudio/lod-meta.json', 
+            envUrl: '', 
+            splatPos: [0.00, 0.00, 0.00], 
+            splatRot: [-90, 0, 0], 
+            cameraStart: [0.27, 0.76, -2.16],
+            cameraStartRot: [-6, -109, 0], 
+            colliderPos: [0.00, 0.00, 0.00],
+            colliderRot: [0, 0, 0],
+            colliderScale: [1.000, 1.000, 1.000],
+            mode: 'fly', 
+            collider: null 
+        },
+        { 
+            id: 'hoerraum', 
+            url: 'https://samborghini17.github.io/splat-host/FB_MP/hoerraum/lod-meta.json', 
+            envUrl: '', 
+            splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
+        },
+        { 
+            id: 'splat-studio-klein', 
+            url: 'https://samborghini17.github.io/splat-host/FB_MP/splat-studio-klein/lod-meta.json', 
+            envUrl: '', 
+            splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
+        },
+        { 
+            id: 'stereo-studio', 
+            url: 'https://samborghini17.github.io/splat-host/FB_MP/stereo-studio/lod-meta.json', 
+            envUrl: '', 
+            splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
+        },
+        { 
+            id: 'surround-studio', 
+            url: 'https://samborghini17.github.io/splat-host/FB_MP/surround-studio/lod-meta.json', 
+            envUrl: '', 
+            splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
+        },
+        { 
             id: 'audiolab-1', 
             url: 'https://samborghini17.github.io/splat-host/kio-indoor/audiolab-1/lod-meta.json', 
             envUrl: 'https://samborghini17.github.io/splat-host/kio-indoor/audiolab-1/environment.sog', 
@@ -666,6 +707,39 @@ LevelManager.prototype.initialize = function() {
         // Screenshot with F2
         if (e.key === pc.KEY_F2) {
             this._takeScreenshot();
+        }
+
+        // Debug Collider Movement (only if debug mode is ON and collider exists)
+        if (this._debugMode && this._dynamicColliderEntity) {
+            var step = e.shiftKey ? 1.0 : 0.1; // Hold Shift to move faster
+            var rotStep = e.shiftKey ? 15 : 5;
+            
+            var pos = this._dynamicColliderEntity.getLocalPosition();
+            var rot = this._dynamicColliderEntity.getLocalEulerAngles();
+
+            var moved = false;
+            // X-Z Movement
+            if (e.key === pc.KEY_NUMPAD_4) { pos.x -= step; moved = true; }
+            if (e.key === pc.KEY_NUMPAD_6) { pos.x += step; moved = true; }
+            if (e.key === pc.KEY_NUMPAD_8) { pos.z -= step; moved = true; }
+            if (e.key === pc.KEY_NUMPAD_2) { pos.z += step; moved = true; }
+            
+            // Y Movement
+            if (e.key === pc.KEY_NUMPAD_7) { pos.y -= step; moved = true; }
+            if (e.key === pc.KEY_NUMPAD_9) { pos.y += step; moved = true; }
+            
+            // Y Rotation
+            if (e.key === pc.KEY_NUMPAD_1) { rot.y -= rotStep; moved = true; }
+            if (e.key === pc.KEY_NUMPAD_3) { rot.y += rotStep; moved = true; }
+
+            if (moved) {
+                this._dynamicColliderEntity.setLocalPosition(pos);
+                this._dynamicColliderEntity.setLocalEulerAngles(rot);
+                if (this._dynamicColliderEntity.rigidbody) {
+                    this._dynamicColliderEntity.rigidbody.syncEntityToBody();
+                }
+                console.log('[Collider Update] Pos:', pos.toString(), 'Rot:', rot.toString());
+            }
         }
     }, this);
 
@@ -1077,10 +1151,48 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
 
     this.currentLevelId = id; 
 
+    // --- Dynamically create FB_MP Hotspot for Detmold ---
+    if (id === 'detmold') {
+        var existingHotspot = this.app.root.findByName('Hotspot_FB_MP');
+        if (!existingHotspot) {
+            var hsEntity = new pc.Entity('Hotspot_FB_MP');
+            hsEntity.addComponent('script');
+
+            // User-requested position for the FB building in Detmold
+            hsEntity.setLocalPosition(-184.10, 1.5, -41.59);
+            hsEntity.setLocalScale(1, 1, 1);
+            hsEntity.script.create('infoHotspot', {
+                attributes: {
+                    title: 'TH OWL Fachbereich Medien und Kultur',
+                    description: 'Ein kreatives Studium ist genau dein Ding? Du findest Medien und Kommunikation spannend und hast Lust, viele unterschiedliche Medienformate auszuprobieren? Dann bist du hier genau richtig!',
+                    buttonText: 'Zur Website',
+                    linkUrl: 'https://www.th-owl.de/mk/',
+                    targetLevelId: '',
+                    sublevelIds: ['fotostudio', 'hoerraum', 'splat-studio-klein', 'stereo-studio', 'surround-studio'],
+                    primaryColor: new pc.Color(1, 0.28, 0.34),
+                    secondaryColor: new pc.Color(1, 0.42, 0.51),
+                    textColor: new pc.Color(1, 0.42, 0.51),
+                    radius: 24,
+                    vrScale: 2.0
+                }
+            });
+            
+            var detmoldFolder = this.getEntityByName(this.levelFolders, 'detmold');
+            if (detmoldFolder) {
+                detmoldFolder.addChild(hsEntity);
+            } else {
+                this.app.root.addChild(hsEntity);
+            }
+        }
+    }
+
     // --- Content folders (legacy) ---
     var contentFolder = this.getEntityByName(this.levelFolders, id);
     if (this.currentContent) this.currentContent.enabled = false; 
     this.currentContent = contentFolder;
+
+    // Immediately refresh the POI list so it reflects the new level
+    this.app.fire('poi:refresh');
 
     // --- Destroy previous dynamic collision ---
     this.destroyDynamicCollider();

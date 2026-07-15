@@ -37,6 +37,9 @@ UI.prototype.initialize = function() {
             mode: 'orbit'
         },
         'detmold': {
+            logoUrl: './kcd.png',
+            titleDe: 'Kreativ Campus Detmold',
+            titleEn: 'Creative Campus Detmold',
             prefix_de: 'auf dem',
             name_de: 'Kreativ Campus Detmold',
             prefix_en: 'at',
@@ -154,6 +157,46 @@ UI.prototype.initialize = function() {
             prefix_en: 'in the',
             name_en: 'InnovationSPIN Media Center',
             link: 'https://innovationspin.de/',
+            mode: 'fly'
+        },
+        'fotostudio': {
+            prefix_de: 'im',
+            name_de: 'Fotostudio',
+            prefix_en: 'in the',
+            name_en: 'Photo Studio',
+            link: 'https://www.th-owl.de/mk/',
+            mode: 'fly'
+        },
+        'stereo-studio': {
+            prefix_de: 'im',
+            name_de: 'Stereo Studio',
+            prefix_en: 'in the',
+            name_en: 'Stereo Studio',
+            link: 'https://www.th-owl.de/mk/',
+            mode: 'fly'
+        },
+        'splat-studio-klein': {
+            prefix_de: 'im',
+            name_de: 'Kleines Studio',
+            prefix_en: 'in the',
+            name_en: 'Small Studio',
+            link: 'https://www.th-owl.de/mk/',
+            mode: 'fly'
+        },
+        'hoerraum': {
+            prefix_de: 'im',
+            name_de: 'Hörraum',
+            prefix_en: 'in the',
+            name_en: 'Listening Room',
+            link: 'https://www.th-owl.de/mk/',
+            mode: 'fly'
+        },
+        'surround-studio': {
+            prefix_de: 'im',
+            name_de: 'Surround Studio',
+            prefix_en: 'in the',
+            name_en: 'Surround Studio',
+            link: 'https://www.th-owl.de/mk/',
             mode: 'fly'
         },
         'icl-bistro': {
@@ -325,10 +368,10 @@ UI.prototype.initialize = function() {
             ttMed: 'Ausgewogen (Standard)',
             ttHigh: 'Hohe Details',
             ttUltra: 'Maximale Details',
-            flyDesktop: '<li><b>WASD / Pfeile</b>: Laufen / Fliegen</li><li><b>Q / E</b>: Runter / Hoch</li><li>• <b>Shift</b>: Schneller</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <span style="color:#00ff88;font-weight:bold;">[ESC]</span>: UI klicken / Menü öffnen</li><li>• <b>Rechte Maustaste + Ziehen</b>: Umsehen</li>',
-            flyTouch: '<li>• <b>Joystick</b>: Bewegen</li><li>• <b>1 Finger (Bildschirm)</b>: Umsehen</li>',
-            orbitDesktop: '<li><b>Linke Taste</b> Drehen (Orbit)</li><li><b>Mausrad</b> Zoomen</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Frei bewegen (Pan)</li><li>• <b>Q/E</b>: Runter/Hoch</li><li>• <b>Shift</b>: Schneller</li>',
-            orbitTouch: '<li>• <b>1 Finger</b> Drehen</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
+            flyDesktop: '<li><b>WASD / Pfeile</b>: Laufen / Fliegen</li><li><b>Q / E</b>: Runter / Hoch</li><li><b>Shift</b>: Schneller</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);"><span style="color:var(--col-cyan);font-weight:bold;">[ESC]</span>: UI klicken / Menü öffnen</li><li><b>Rechte Maustaste + Ziehen</b>: Umsehen</li>',
+            flyTouch: '<li><b>Joystick</b>: Bewegen</li><li><b>1 Finger (Bildschirm)</b>: Umsehen</li>',
+            orbitDesktop: '<li><b>Linke Taste</b>: Drehen (Orbit)</li><li><b>Mausrad</b>: Zoomen</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);"><b>WASD</b>: Frei bewegen (Pan)</li><li><b>Q/E</b>: Runter/Hoch · <b>Shift</b>: Schneller</li>',
+            orbitTouch: '<li><b>1 Finger</b>: Drehen</li><li><b>2 Finger</b>: Zoom/Pan</li>',
             ctrlFps: 'Shooter-Steuerung',
             ctrlDrag: 'Orbit-Steuerung',
             toolsHeader: 'Werkzeuge',
@@ -362,10 +405,10 @@ UI.prototype.initialize = function() {
             ttMed: 'Balanced (Default)',
             ttHigh: 'High Details',
             ttUltra: 'Maximum Details',
-            flyDesktop: '<li><b>WASD / Arrows</b>: Walk / Fly</li><li><b>Q / E</b>: Down / Up</li><li>• <b>Shift</b>: Faster</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <span style="color:#00ff88;font-weight:bold;">[ESC]</span>: Click UI / Open Menu</li><li>• <b>Right-Click + Drag</b>: Look around</li>',
-            flyTouch: '<li>• <b>Joystick</b>: Move</li><li>• <b>1 Finger (Screen)</b>: Look around</li>',
-            orbitDesktop: '<li><b>Left Click</b> Rotate (Orbit)</li><li><b>Mouse Wheel</b> Zoom</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">• <b>WASD</b>: Move freely (Pan)</li><li>• <b>Q/E</b>: Down/Up</li><li>• <b>Shift</b>: Faster</li>',
-            orbitTouch: '<li>• <b>1 Finger</b> Rotate</li><li>• <b>2 Finger</b> Zoom/Pan</li>',
+            flyDesktop: '<li><b>WASD / Arrows</b>: Walk / Fly</li><li><b>Q / E</b>: Down / Up</li><li><b>Shift</b>: Faster</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);"><span style="color:var(--col-cyan);font-weight:bold;">[ESC]</span>: Click UI / Open Menu</li><li><b>Right-Click + Drag</b>: Look around</li>',
+            flyTouch: '<li><b>Joystick</b>: Move</li><li><b>1 Finger (Screen)</b>: Look around</li>',
+            orbitDesktop: '<li><b>Left Click</b>: Rotate (Orbit)</li><li><b>Mouse Wheel</b>: Zoom</li><li style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);"><b>WASD</b>: Move freely (Pan)</li><li><b>Q/E</b>: Down/Up · <b>Shift</b>: Faster</li>',
+            orbitTouch: '<li><b>1 Finger</b>: Rotate</li><li><b>2 Finger</b>: Zoom/Pan</li>',
             ctrlFps: 'Shooter Controls',
             ctrlDrag: 'Orbit Controls',
             toolsHeader: 'Tools',

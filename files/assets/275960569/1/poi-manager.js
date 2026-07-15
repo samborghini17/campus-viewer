@@ -20,7 +20,26 @@ PoiManager.prototype.initialize = function() {
     this.app.on('poi:register', this.registerPOI, this);
     this.app.on('ui:toggleTour', this.toggleEntireTourSystem, this); 
     this.app.on('ui:toggleVisibility', this.onCleanModeToggle, this); 
-    this.app.on('level:switch', this.refreshList, this);
+    this.app.on('scene:reveal', this.refreshList, this);
+    this.app.on('level:switch', this.onLevelSwitch, this);
+    this.app.on('poi:refresh', this.refreshList, this);
+};
+
+PoiManager.prototype.onLevelSwitch = function() {
+    // Stop any auto-tour when switching levels
+    if (this.isAutoTouring) {
+        this.isAutoTouring = false;
+        this.tourTimer = 0;
+        this.tourNodes = null;
+        this._restoreCameraControls();
+        this.updatePlayBtn();
+    }
+    this.currentIndex = -1;
+    // Refresh list immediately with a short delay to let entities enable/disable
+    var self = this;
+    setTimeout(function() {
+        self.refreshList();
+    }, 200);
 };
 
 PoiManager.prototype.registerPOI = function(data) {
@@ -44,6 +63,11 @@ PoiManager.prototype.refreshList = function() {
     if (!list) return;
     list.innerHTML = '';
     
+    // Prune destroyed entities
+    this.pois = this.pois.filter(function(data) {
+        return data.entity && !data.entity._destroyed;
+    });
+
     function isEnabled(ent) {
         var curr = ent;
         while(curr) {
@@ -70,12 +94,147 @@ PoiManager.prototype.refreshList = function() {
     this.updateNavButtons();
 };
 
+PoiManager.prototype.getTourNode = function(index) {
+    var target = this.pois[index];
+    var targetPos = target.entity.getPosition().clone();
+    var camPos, camRot;
+
+    if (target.customView) {
+        camPos = target.customView.getPosition().clone();
+        camRot = target.customView.getRotation().clone();
+    } else if (target.customPos && (target.customPos.x !== 0 || target.customPos.y !== 0 || target.customPos.z !== 0)) {
+        camPos = target.customPos.clone();
+        if (target.customRot && (target.customRot.x !== 0 || target.customRot.y !== 0 || target.customRot.z !== 0)) {
+            var tempEnt = new pc.Entity();
+            tempEnt.setEulerAngles(target.customRot);
+            camRot = tempEnt.getRotation().clone();
+            tempEnt.destroy();
+        } else {
+            var tempEnt2 = new pc.Entity();
+            tempEnt2.setPosition(camPos);
+            tempEnt2.lookAt(targetPos);
+            camRot = tempEnt2.getRotation().clone();
+            tempEnt2.destroy();
+        }
+    } else {
+        var offset = new pc.Vec3(0, 0.5, 1).normalize();
+        var dist = this.lookDistance;
+        if (target.type === 'construction') { dist *= 2.5; offset.set(1, 1, 1).normalize(); } 
+        else if (target.type === 'path') { dist *= 1.5; offset.set(0, 0.8, 1).normalize(); }
+        offset.scale(dist);
+        camPos = targetPos.clone().add(offset);
+        
+        var tempEnt3 = new pc.Entity();
+        tempEnt3.setPosition(camPos);
+        tempEnt3.lookAt(targetPos);
+        camRot = tempEnt3.getRotation().clone();
+        tempEnt3.destroy();
+    }
+    return { pos: camPos, rot: camRot, idx: index, title: target.title };
+};
+
+PoiManager.prototype.buildTourCurve = function() {
+    this.tourNodes = [];
+    if (this.activePois.length === 0) return;
+    for (var i = 0; i < this.activePois.length; i++) {
+        this.tourNodes.push(this.getTourNode(this.activePois[i]));
+    }
+};
+
+PoiManager.prototype.getCatmullRom = function(p0, p1, p2, p3, t) {
+    var t2 = t * t;
+    var t3 = t2 * t;
+    return new pc.Vec3(
+        0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+        0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+        0.5 * ((2 * p1.z) + (-p0.z + p2.z) * t + (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t2 + (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t3)
+    );
+};
+
+PoiManager.prototype._disableCameraControls = function() {
+    if (!this.cameraEntity) return;
+    var controls = this.cameraEntity.script ? this.cameraEntity.script.cameraControls : null;
+    if (controls) {
+        this._savedControlsEnabled = controls.enabled;
+        controls.enabled = false;
+    }
+};
+
+PoiManager.prototype._restoreCameraControls = function() {
+    if (!this.cameraEntity) return;
+    var controls = this.cameraEntity.script ? this.cameraEntity.script.cameraControls : null;
+    if (controls && this._savedControlsEnabled !== undefined) {
+        controls.enabled = this._savedControlsEnabled;
+    }
+};
+
 PoiManager.prototype.update = function(dt) {
-    if (this.isAutoTouring && this.pois.length > 0) {
-        this.tourTimer += dt;
-        if (this.tourTimer >= this.autoTourDelay) {
-            this.next();
-            this.tourTimer = 0;
+    if (!this.isAutoTouring || !this.tourNodes || this.tourNodes.length === 0) return;
+    
+    this.tourTimer += dt;
+    
+    var count = this.tourNodes.length;
+    if (count <= 1) {
+        if (count === 1 && this.cameraEntity) {
+            this.cameraEntity.setPosition(this.tourNodes[0].pos);
+            this.cameraEntity.setRotation(this.tourNodes[0].rot);
+        }
+        return;
+    }
+    
+    // Each segment: dwellTime at node + flyTime between nodes
+    var dwellTime = 5.0;  // 5 seconds pause at each POI
+    var flyTime = this.autoTourDelay; // time to fly between POIs
+    var segmentDuration = dwellTime + flyTime;
+    var totalDuration = count * segmentDuration;
+    if (this.tourTimer >= totalDuration) this.tourTimer = 0;
+    
+    // Which segment are we in?
+    var segIndex = Math.floor(this.tourTimer / segmentDuration);
+    if (segIndex >= count) segIndex = 0;
+    var segTime = this.tourTimer - (segIndex * segmentDuration);
+    
+    var n1 = this.tourNodes[segIndex];
+    
+    if (segTime < dwellTime) {
+        // DWELL PHASE: hold position at this POI
+        if (this.cameraEntity) {
+            this.cameraEntity.setPosition(n1.pos);
+            this.cameraEntity.setRotation(n1.rot);
+        }
+        if (this.currentIndex !== n1.idx) {
+            this.currentIndex = n1.idx;
+            this.highlightListItem(n1.idx);
+            this.updateNavTitle(n1.title);
+        }
+    } else {
+        // FLY PHASE: interpolate to the next POI
+        var f = (segTime - dwellTime) / flyTime;
+        
+        var ease = f < 0.5 ? 2 * f * f : -1 + (4 - 2 * f) * f;
+        f = (f * 0.3) + (ease * 0.7);
+        
+        var i0 = (segIndex - 1 + count) % count;
+        var i2 = (segIndex + 1) % count;
+        var i3 = (segIndex + 2) % count;
+        
+        var n0 = this.tourNodes[i0];
+        var n2 = this.tourNodes[i2];
+        var n3 = this.tourNodes[i3];
+        
+        var pos = this.getCatmullRom(n0.pos, n1.pos, n2.pos, n3.pos, f);
+        var qResult = new pc.Quat().slerp(n1.rot, n2.rot, f);
+        
+        if (this.cameraEntity) {
+            this.cameraEntity.setPosition(pos);
+            this.cameraEntity.setRotation(qResult);
+        }
+        
+        // Show the NEXT POI title as soon as we start flying toward it
+        if (this.currentIndex !== n2.idx) {
+            this.currentIndex = n2.idx;
+            this.highlightListItem(n2.idx);
+            this.updateNavTitle(n2.title + ' ↗');
         }
     }
 };
@@ -151,17 +310,34 @@ PoiManager.prototype.prev = function() {
 
 PoiManager.prototype.toggleAutoTour = function() {
     this.isAutoTouring = !this.isAutoTouring;
-    this.tourTimer = 0;
     
+    if (this.isAutoTouring) {
+        this.tourTimer = 0;
+        this.refreshList();
+        this.buildTourCurve();
+        this._disableCameraControls();
+        if (this.currentIndex !== -1) {
+            var idx = this.activePois.indexOf(this.currentIndex);
+            if (idx !== -1) {
+                var dwellTime = 5.0;
+                var flyTime = this.autoTourDelay;
+                var segmentDuration = dwellTime + flyTime;
+                this.tourTimer = idx * segmentDuration;
+            }
+        }
+        console.log('[AutoTour] Started with ' + (this.tourNodes ? this.tourNodes.length : 0) + ' nodes');
+    } else {
+        // PAUSE: keep camera where it is (don't snap back)
+        this.tourNodes = null;
+        this._restoreCameraControls();
+        console.log('[AutoTour] Paused at current position');
+    }
+
     var btn = document.getElementById('poi-play-btn');
     if(btn) {
         btn.innerHTML = this.isAutoTouring ? '❚❚' : '▶';
         if(this.isAutoTouring) btn.classList.add('playing');
         else btn.classList.remove('playing');
-    }
-    
-    if(this.isAutoTouring && this.currentIndex === -1) {
-        this.next();
     }
 };
 

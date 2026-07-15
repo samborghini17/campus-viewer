@@ -15,7 +15,7 @@ InfoHotspot.attributes.add('sublevelIds', { type: 'string', array: true, title: 
 InfoHotspot.attributes.add('targetLevelId', { type: 'string', default: '', title: 'Ziel Level ID (Haupt-Klick)' });
 InfoHotspot.attributes.add('linkUrl', { type: 'string', default: '', title: 'Link URL' });
 InfoHotspot.attributes.add('baseDelay', { type: 'number', default: 0.0, title: 'Verzögerung (s)' });
-InfoHotspot.attributes.add('randomWindow', { type: 'number', default: 0.5, title: 'Zufall (s)' });
+InfoHotspot.attributes.add('randomWindow', { type: 'number', default: 0.0, title: 'Zufall (s)' });
 InfoHotspot.attributes.add('radius', { type: 'number', default: 24, title: 'Größe (px)' });
 InfoHotspot.attributes.add('primaryColor', { type: 'rgb', default: [1, 0.28, 0.34], title: 'Hauptfarbe' });
 InfoHotspot.attributes.add('secondaryColor', { type: 'rgb', default: [1, 0.42, 0.51], title: 'Zweitfarbe' });
@@ -32,6 +32,7 @@ InfoHotspot.prototype.initialize = function() {
     this.createDom();
     this.create3DSphere(); 
     this._globalVisible = true;
+    this._revealed = false;
 
     this.app.on('scene:reveal', this.onReveal, this);
     this.app.on('ui:toggleVisibility', this.onToggleVisibility, this);
@@ -247,6 +248,11 @@ InfoHotspot.prototype.updateContent = function() {
             'ciit': { name_de: 'CENTRUM INDUSTRIAL IT (CIIT)', name_en: 'CENTRUM INDUSTRIAL IT (CIIT)' },
             'ciit-citrus': { name_de: 'CIIT (Citrus)', name_en: 'CIIT (Citrus)' },
             'innospin-medienzentrum': { name_de: 'InnoSpin Medienzentrum', name_en: 'InnoSpin Media Center' },
+            'fotostudio': { name_de: 'Fotostudio', name_en: 'Photo Studio' },
+            'stereo-studio': { name_de: 'Stereo Studio', name_en: 'Stereo Studio' },
+            'splat-studio-klein': { name_de: 'Kleines Studio', name_en: 'Small Studio' },
+            'hoerraum': { name_de: 'Hörraum', name_en: 'Listening Room' },
+            'surround-studio': { name_de: 'Surround Studio', name_en: 'Surround Studio' },
             'icl-bistro': { name_de: 'ICL Bistro', name_en: 'ICL Bistro' },
             'icl-ewerkstatt': { name_de: 'ICL E-Werkstatt', name_en: 'ICL E-Workshop' },
             'icl-fotostudio': { name_de: 'ICL Fotostudio', name_en: 'ICL Photo Studio' },
@@ -307,6 +313,7 @@ InfoHotspot.prototype.updateContent = function() {
 
 InfoHotspot.prototype.onReveal = function() {
     if (!this.entity.enabled) return;
+    this._revealed = true;
     var delayMs = this.baseDelay * 1000 + Math.random() * (this.randomWindow * 1000);
     setTimeout(() => {
         if(this.spot && this.entity.enabled) {
@@ -342,6 +349,8 @@ InfoHotspot.prototype.onDestroy = function() {
 };
 
 InfoHotspot.prototype.update = function() {
+    if (!this._revealed) return;
+
     if (!this.entity.enabled || !this.spot || !this._globalVisible) {
         if (this.sphereEntity) this.sphereEntity.enabled = false; return;
     }

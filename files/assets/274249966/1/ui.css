@@ -133,10 +133,10 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 #controls-card.collapsed .header-icon { transform: rotate(-90deg); }
 #controls-card.collapsed { border-color: rgba(255,255,255,0.1); }
 #controls-content { display: flex; flex-wrap: wrap; justify-content: space-between; padding: 20px; gap: 20px; max-height: 400px; opacity: 1; }
-.control-group ul { list-style: none; padding: 0; margin: 0; }
+.control-group ul { list-style: disc; padding: 0 0 0 16px; margin: 0; }
 .control-group li { font-size: 13px; margin-bottom: 6px; color: var(--text-secondary); }
-.col-blue { color: #4facfe; margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase;}
-.col-green { color: #43e97b; margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase;}
+.col-blue { color: var(--col-cyan); margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase;}
+.col-green { color: var(--col-amber); margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase;}
 
 /* --- POI SIDEBAR (SAUBERE ANIMATION) --- */
 #poi-sidebar {
@@ -236,25 +236,26 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 
     /* Header bar: centered with air on top */
     #gsplat-controls {
-        top: calc(var(--safe-top) + 15px);
-        padding: 6px 12px;
-        gap: 8px;
-        border-radius: 12px;
-        width: 90%;
-        max-width: 400px;
+        top: calc(var(--safe-top) + 12px);
+        padding: 8px 16px;
+        gap: 12px;
+        border-radius: 30px;
+        width: 85%;
+        max-width: 350px;
         left: 50%;
         transform: translateX(-50%);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: var(--bg-glass);
     }
     .title, .subtitle { display: none; }
     .branding { gap: 0; }
 
     /* Burger menu: positioned below header bar */
     #burger-menu-container {
-        top: calc(var(--safe-top) + 80px);
+        top: calc(var(--safe-top) + 75px);
         right: 5%;
     }
-    #burger-btn { padding: 6px 12px; }
+    #burger-btn { padding: 8px 16px; border-radius: 20px; }
 
     #controls-card { display: none !important; }
     .unified-btn { padding: 6px 10px; font-size: 11px; }
