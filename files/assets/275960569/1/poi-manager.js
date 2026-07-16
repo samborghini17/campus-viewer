@@ -166,6 +166,14 @@ PoiManager.prototype._restoreCameraControls = function() {
     if (controls && this._savedControlsEnabled !== undefined) {
         controls.enabled = this._savedControlsEnabled;
     }
+    
+    // Sync Character Controller so controls are not buggy when moving manually after tour/jump
+    var playerRig = this.app.root.findByName('Character_Controller');
+    if (playerRig) {
+        playerRig.setPosition(this.cameraEntity.getPosition());
+        var euler = this.cameraEntity.getLocalEulerAngles();
+        playerRig.setLocalEulerAngles(0, euler.y, 0);
+    }
 };
 
 PoiManager.prototype.update = function(dt) {
@@ -183,7 +191,7 @@ PoiManager.prototype.update = function(dt) {
     }
     
     // Each segment: dwellTime at node + flyTime between nodes
-    var dwellTime = 5.0;  // 5 seconds pause at each POI
+    var dwellTime = 12.0;  // Stay longer at each POI
     var flyTime = this.autoTourDelay; // time to fly between POIs
     var segmentDuration = dwellTime + flyTime;
     var totalDuration = count * segmentDuration;
@@ -197,10 +205,33 @@ PoiManager.prototype.update = function(dt) {
     var n1 = this.tourNodes[segIndex];
     
     if (segTime < dwellTime) {
-        // DWELL PHASE: hold position at this POI
+        // DWELL PHASE: orbit around the POI slowly
         if (this.cameraEntity) {
-            this.cameraEntity.setPosition(n1.pos);
-            this.cameraEntity.setRotation(n1.rot);
+            var actualPoi = this.pois[n1.idx];
+            if (actualPoi) {
+                var centerPos = actualPoi.entity.getPosition();
+                var radius = new pc.Vec3().sub2(n1.pos, centerPos).length();
+                if (radius < 0.1) radius = this.lookDistance;
+                
+                var dir = new pc.Vec3().sub2(n1.pos, centerPos).normalize();
+                var baseAngle = Math.atan2(dir.x, dir.z) * pc.math.RAD_TO_DEG;
+                
+                var orbitSpeed = 5; // degrees per second
+                var currentAngle = baseAngle + (segTime * orbitSpeed);
+                var currentAngleRad = currentAngle * pc.math.DEG_TO_RAD;
+                
+                var newCamPos = new pc.Vec3(
+                    centerPos.x + Math.sin(currentAngleRad) * radius,
+                    n1.pos.y,
+                    centerPos.z + Math.cos(currentAngleRad) * radius
+                );
+                
+                this.cameraEntity.setPosition(newCamPos);
+                this.cameraEntity.lookAt(centerPos);
+            } else {
+                this.cameraEntity.setPosition(n1.pos);
+                this.cameraEntity.setRotation(n1.rot);
+            }
         }
         if (this.currentIndex !== n1.idx) {
             this.currentIndex = n1.idx;
@@ -222,8 +253,43 @@ PoiManager.prototype.update = function(dt) {
         var n2 = this.tourNodes[i2];
         var n3 = this.tourNodes[i3];
         
-        var pos = this.getCatmullRom(n0.pos, n1.pos, n2.pos, n3.pos, f);
-        var qResult = new pc.Quat().slerp(n1.rot, n2.rot, f);
+        // Compute where the orbit EXACTLY ended for seamless transition
+        var flyStartPos = n1.pos;
+        var flyStartRot = n1.rot;
+        var actualPoi = this.pois[n1.idx];
+        
+        if (actualPoi) {
+            var centerPos = actualPoi.entity.getPosition();
+            var radius = new pc.Vec3().sub2(n1.pos, centerPos).length();
+            if (radius < 0.1) radius = this.lookDistance;
+            
+            var dir = new pc.Vec3().sub2(n1.pos, centerPos).normalize();
+            var baseAngle = Math.atan2(dir.x, dir.z) * pc.math.RAD_TO_DEG;
+            var endAngle = baseAngle + (dwellTime * 5); // 5 degrees per sec
+            var endAngleRad = endAngle * pc.math.DEG_TO_RAD;
+            
+            flyStartPos = new pc.Vec3(
+                centerPos.x + Math.sin(endAngleRad) * radius,
+                n1.pos.y,
+                centerPos.z + Math.cos(endAngleRad) * radius
+            );
+            
+            var m = new pc.Mat4();
+            m.setLookAt(flyStartPos, centerPos, pc.Vec3.UP);
+            m.invert();
+            flyStartRot = new pc.Quat().setFromMat4(m);
+        }
+        
+        // Ensure shortest path for quaternions
+        var qResult = new pc.Quat();
+        var dot = flyStartRot.x * n2.rot.x + flyStartRot.y * n2.rot.y + flyStartRot.z * n2.rot.z + flyStartRot.w * n2.rot.w;
+        var tRot = n2.rot.clone();
+        if (dot < 0) {
+            tRot.x *= -1; tRot.y *= -1; tRot.z *= -1; tRot.w *= -1;
+        }
+        
+        var pos = this.getCatmullRom(n0.pos, flyStartPos, n2.pos, n3.pos, f);
+        qResult.slerp(flyStartRot, tRot, f);
         
         if (this.cameraEntity) {
             this.cameraEntity.setPosition(pos);
@@ -234,7 +300,7 @@ PoiManager.prototype.update = function(dt) {
         if (this.currentIndex !== n2.idx) {
             this.currentIndex = n2.idx;
             this.highlightListItem(n2.idx);
-            this.updateNavTitle(n2.title + ' ↗');
+            this.updateNavTitle(n2.title); // Removed arrow
         }
     }
 };
@@ -280,6 +346,14 @@ PoiManager.prototype.jumpTo = function(index) {
         this.cameraEntity.setPosition(camPos);
         if (camRot) this.cameraEntity.setRotation(camRot);
         else this.cameraEntity.lookAt(targetPos);
+        
+        // Sync Character Controller so controls are not buggy when moving manually
+        var playerRig = this.app.root.findByName('Character_Controller');
+        if (playerRig) {
+            playerRig.setPosition(this.cameraEntity.getPosition());
+            var euler = this.cameraEntity.getLocalEulerAngles();
+            playerRig.setLocalEulerAngles(0, euler.y, 0);
+        }
     }
 
     if (this.cameraEntity && this.cameraEntity.script && this.cameraEntity.script.cameraControls) {

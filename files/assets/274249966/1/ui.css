@@ -234,37 +234,67 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
     .pc-only { display: none !important; }
     .mobile-only { display: flex !important; }
 
-    /* Header bar: centered with air on top */
+    /* Header bar: elegant top-left span */
     #gsplat-controls {
         top: calc(var(--safe-top) + 12px);
-        padding: 8px 16px;
-        gap: 12px;
-        border-radius: 30px;
-        width: 85%;
-        max-width: 350px;
-        left: 50%;
-        transform: translateX(-50%);
+        left: 10px;
+        right: 60px; /* Leave space for burger menu */
+        width: auto;
+        padding: 8px 12px;
+        gap: 8px;
+        border-radius: 20px;
+        transform: none;
+        max-width: none;
         border: 1px solid rgba(255, 255, 255, 0.15);
         background: var(--bg-glass);
+        justify-content: flex-start;
     }
+    
     .title, .subtitle { display: none; }
-    .branding { gap: 0; }
+    
+    .branding { gap: 10px; flex: 1; }
+    .logo { height: 28px; border-radius: 14px; } /* Ensure logo loads and looks good */
+    
+    /* Make right controls compact */
+    .right-controls { width: auto; justify-content: flex-end; flex: 1; }
+    #btn-switch-campus { padding: 6px; font-size: 11px; }
+    #switch-campus-text { display: none; } /* Hide text, only show icon on mobile */
 
-    /* Burger menu: positioned below header bar */
+    /* Burger menu: positioned perfectly to the right of header */
     #burger-menu-container {
-        top: calc(var(--safe-top) + 75px);
-        right: 5%;
+        top: calc(var(--safe-top) + 12px);
+        right: 10px;
     }
-    #burger-btn { padding: 8px 16px; border-radius: 20px; }
+    #burger-btn { 
+        padding: 8px 10px; 
+        border-radius: 20px; 
+        height: 46px; /* Match gsplat-controls height */
+    }
+    #lbl-menu-btn { display: none; } /* Hide "Menü" text on mobile */
 
     #controls-card { display: none !important; }
     .unified-btn { padding: 6px 10px; font-size: 11px; }
 
-    /* FIX: Die Sidebar fährt auf dem Handy jetzt zu 100% sauber aus! */
-    #poi-sidebar { top: calc(var(--safe-top) + 130px); bottom: auto; height: 300px; width: 220px; left: 0; transform: translateX(0); } 
-    #poi-sidebar.collapsed { transform: translateX(-230px); }
+    /* POI Sidebar */
+    #poi-sidebar { 
+        top: calc(var(--safe-top) + 70px); 
+        bottom: auto; 
+        height: calc(100vh - 250px); 
+        max-height: 350px;
+        width: 220px; 
+        left: 10px; 
+        transform: translateX(0); 
+    } 
+    #poi-sidebar.collapsed { transform: translateX(-240px); }
 
-    #poi-navbar { bottom: calc(var(--safe-bottom) + 160px); width: 85%; justify-content: space-between; padding: 6px 12px;}
+    /* POI Navbar */
+    #poi-navbar { 
+        bottom: calc(var(--safe-bottom) + 120px); 
+        width: 90%; 
+        justify-content: center; 
+        padding: 6px 12px;
+        gap: 20px;
+    }
 
     /* Joystick: visible on mobile */
     #mobile-joystick-zone {

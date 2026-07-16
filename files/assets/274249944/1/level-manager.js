@@ -1,3 +1,4 @@
+
 var COLLIDER_BASE = 'https://samborghini17.github.io/splat-host/Campus%20Collider%20Fertig/';
 var COLLIDER_MAP = {
     'ciit-citrus': 'CIIT_Citrus.glb',
@@ -25,15 +26,35 @@ var COLLIDER_MAP = {
     'iku-owl-innen': 'ikuOWL_Innen.glb'
 };
 
-var LevelManager = pc.createScript('levelManager');
+var COLLIDER_NETLIFY_BASE = 'https://icl-collider.netlify.app/';
+var COLLIDER_NETLIFY_MAP = {
+    'audimax': 'Audimax_2026-01-24-150730.voxel.glb',
+    'berufsfoerderzentrum': 'ICL_Berufsfrderzentrum_2026-01-10-145943-done.voxel.glb',
+    'ciit-citrus': 'CIIT_ Citrus_2025-11-29-110853.voxel.glb',
+    'ciit': 'CIIT_Innen_2025-11-15-110811.voxel.glb',
+    'et-3et': 'ET_3ET_2026-01-24-115618.voxel.glb',
+    'et-4et': 'ET_ET4_2026-01-24-121658.voxel.glb',
+    'fff-innen': 'Future_Food_Factory_Innen_2025-12-13-110513.voxel.glb',
+    'icl-ewerkstatt': 'ICL_EWerkstatt_2026-01-10-210347-done.voxel.glb',
+    'icl-holz-hauswirtschaft': 'ICL_Holz_Hauswirtschaft_2026-01-10-143834-done.voxel.glb',
+    'icl-metallwerkstatt': 'ICL_Metallwerkstatt_2026-01-10-124214-done.voxel.glb',
+    'iku-owl-innen': 'ikuOWL_innen_2025-11-29-115324.voxel.glb',
+    'innospin-medienzentrum': 'InnoSpin_Medienzentrum_2025-11-29-104335.voxel.glb',
+    'laufwege-map-fusion': 'Laufwege_Map_Fusion.voxel.glb',
+    'lernfabrik-innen': 'Lernfabrik_innen_2025-11-29-123326.voxel.glb',
+    'lt-2et': 'LT_2ET_2026-01-24-131508.voxel.glb',
+    'lt-eg': 'LT_EG_2026-01-24-125158.voxel.glb',
+    'smartfactory-innen': 'Smartfactory_Innen_2025-12-06-110332.voxel.glb',
+    'smartfactory-innen-mit-licht': 'Smartfactory_Innen_mitLicht_2025-12-06-114222.voxel.glb'
+};
 
+var LevelManager = pc.createScript('levelManager');
 LevelManager.attributes.add('mainSplatEntity', { type: 'entity', title: 'Main Splat Entity' });
 LevelManager.attributes.add('envSplatEntity', { type: 'entity', title: 'Environment Splat (.sog)' });
 LevelManager.attributes.add('hotspotDelay', { type: 'number', default: 2.0, title: 'Hotspot Delay (s)' });
 LevelManager.attributes.add('levelFolders', { type: 'entity', array: true, title: 'Level Folders' });
 LevelManager.attributes.add('collisionMeshes', { type: 'entity', array: true, title: 'Collision Meshes' });
 
-// --- NEU: Kamera Speed Settings ---
 LevelManager.attributes.add('outdoorSpeed', { type: 'number', default: 15, title: 'Outdoor Speed' });
 LevelManager.attributes.add('outdoorFastSpeed', { type: 'number', default: 35, title: 'Outdoor Fast Speed (Shift)' });
 LevelManager.attributes.add('indoorSpeed', { type: 'number', default: 0.4, title: 'Indoor Speed' });
@@ -43,7 +64,6 @@ LevelManager.attributes.add('defaultCullDistance', { type: 'number', default: 70
 LevelManager.prototype.initialize = function() {
     this.cameraEntity = this.app.root.findByName('Camera');
     this.currentLevelId = 'lemgo'; 
-
     this.overlay = document.createElement('div');
     Object.assign(this.overlay.style, {
         position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
@@ -278,8 +298,11 @@ LevelManager.prototype.initialize = function() {
             envUrl: 'https://samborghini17.github.io/splat-host/pca/environment.sog', 
             splatPos: [0.00, 0.00, 0.00], 
             splatRot: [-90, 0, 0], 
-            cameraStart: [-34.66, 0.50, 60.23], 
-            cameraStartRot: [180, -85, -180], 
+            cameraStart: [-39.19, 0.64, 59.99],
+            cameraStartRot: [-1, 16492, 0], 
+            colliderPos: [0.00, 0.00, 0.00],
+            colliderRot: [0, 0, 0],
+            colliderScale: [1.000, 1.000, 1.000],
             mode: 'fly', 
             collider: null 
         },
@@ -500,8 +523,8 @@ LevelManager.prototype.initialize = function() {
             envUrl: '', 
             splatPos: [0.00, 0.00, 0.00], 
             splatRot: [-90, 0, 0], 
-            cameraStart: [0.27, 0.76, -2.16],
-            cameraStartRot: [-6, -109, 0], 
+            cameraStart: [0.97, 0.28, -1.69],
+            cameraStartRot: [-0, -116, 0], 
             colliderPos: [0.00, 0.00, 0.00],
             colliderRot: [0, 0, 0],
             colliderScale: [1.000, 1.000, 1.000],
@@ -511,26 +534,50 @@ LevelManager.prototype.initialize = function() {
         { 
             id: 'hoerraum', 
             url: 'https://samborghini17.github.io/splat-host/FB_MP/hoerraum/lod-meta.json', 
-            envUrl: '', 
-            splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
+            envUrl: 'https://samborghini17.github.io/splat-host/FB_MP/hoerraum/environment.sog', 
+            splatPos: [0.00, 0.00, 0.00], 
+            splatRot: [-90, 0, 0], 
+            cameraStart: [-0.64, -0.10, 0.36],
+            cameraStartRot: [-4, -5482, 0], 
+            colliderPos: [0.00, 0.00, 0.00],
+            colliderRot: [0, 0, 0],
+            colliderScale: [1.000, 1.000, 1.000],
+            mode: 'fly', 
+            collider: null 
         },
         { 
             id: 'splat-studio-klein', 
             url: 'https://samborghini17.github.io/splat-host/FB_MP/splat-studio-klein/lod-meta.json', 
-            envUrl: '', 
-            splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
+            envUrl: 'https://samborghini17.github.io/splat-host/FB_MP/splat-studio-klein/environment.sog', 
+            splatPos: [0.00, 0.00, 0.00], 
+            splatRot: [-90, 0, 0], 
+            cameraStart: [3.13, -0.07, -1.49],
+            cameraStartRot: [-2, -15997, 0], 
+            colliderPos: [0.00, 0.00, 0.00],
+            colliderRot: [0, 0, 0],
+            colliderScale: [1.000, 1.000, 1.000],
+            mode: 'fly', 
+            collider: null 
         },
         { 
             id: 'stereo-studio', 
             url: 'https://samborghini17.github.io/splat-host/FB_MP/stereo-studio/lod-meta.json', 
-            envUrl: '', 
+            envUrl: 'https://samborghini17.github.io/splat-host/FB_MP/stereo-studio/environment.sog', 
             splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
         },
         { 
             id: 'surround-studio', 
             url: 'https://samborghini17.github.io/splat-host/FB_MP/surround-studio/lod-meta.json', 
-            envUrl: '', 
-            splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
+            envUrl: 'https://samborghini17.github.io/splat-host/FB_MP/surround-studio/environment.sog', 
+            splatPos: [0.00, 0.00, 0.00], 
+            splatRot: [-90, 0, 0], 
+            cameraStart: [0.06, -0.01, -0.39],
+            cameraStartRot: [-3, -130, 0], 
+            colliderPos: [0.00, 0.00, 0.00],
+            colliderRot: [0, 0, 0],
+            colliderScale: [1.000, 1.000, 1.000],
+            mode: 'fly', 
+            collider: null 
         },
         { 
             id: 'audiolab-1', 
@@ -680,10 +727,6 @@ LevelManager.prototype.initialize = function() {
             var posStr = '[' + pos.x.toFixed(2) + ', ' + pos.y.toFixed(2) + ', ' + pos.z.toFixed(2) + ']';
             var rotStr = '[' + rot.x.toFixed(0) + ', ' + rot.y.toFixed(0) + ', ' + rot.z.toFixed(0) + ']';
             console.log('%c[Debug] Position: ' + posStr + ' Rotation: ' + rotStr, 'color: #00ff88; font-weight: bold;');
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText('cameraStart: ' + posStr + ',\ncameraStartRot: ' + rotStr + ',');
-                console.log('[Debug] Position copied to clipboard!');
-            }
             console.log('[DebugMode] ' + (this._debugMode ? 'ON' : 'OFF'));
             // Notify UI to show/hide collider debug panel
             this.app.fire('debug:toggle', this._debugMode);
@@ -1053,13 +1096,21 @@ LevelManager.prototype.destroyDynamicCollider = function() {
 LevelManager.prototype.loadCollisionFromUrl = function(levelId, data, callback) {
     var self = this;
     var glbFile = COLLIDER_MAP[levelId];
+    var url = '';
+
+    if (glbFile) {
+        url = COLLIDER_BASE + glbFile;
+    } else if (COLLIDER_NETLIFY_MAP[levelId]) {
+        glbFile = COLLIDER_NETLIFY_MAP[levelId];
+        url = COLLIDER_NETLIFY_BASE + glbFile;
+    }
+
     if (!glbFile) {
         console.log('[Collision] No collision mesh mapped for: ' + levelId);
         if (callback) callback(false);
         return;
     }
 
-    var url = COLLIDER_BASE + glbFile;
     console.log('[Collision] Loading: ' + url);
 
     var asset = new pc.Asset('Collider_' + levelId, 'container', { url: url });

@@ -592,43 +592,6 @@ UI.prototype._initBurgerMenu = function() {
             self.app.fire('ui:toggleTour', self._tourVisible);
         };
     }
-    
-    var autoTourBtn = document.getElementById('menu-auto-tour-toggle');
-    if (!autoTourBtn) {
-        autoTourBtn = document.createElement('button');
-        autoTourBtn.id = 'menu-auto-tour-toggle';
-        autoTourBtn.className = 'menu-item';
-        autoTourBtn.innerHTML = `<span class="icon">🎬</span> <span id="lbl-auto-tour">Cinematic Auto-Tour</span>`;
-        if (tourBtn && tourBtn.parentNode) {
-            tourBtn.parentNode.insertBefore(autoTourBtn, tourBtn.nextSibling);
-        }
-        autoTourBtn.onclick = function() {
-            if (self._isAutoTouring) {
-                self.app.fire('tour:stop');
-                self._isAutoTouring = false;
-                autoTourBtn.innerHTML = `<span class="icon">🎬</span> <span id="lbl-auto-tour">Cinematic Auto-Tour</span>`;
-            } else {
-                var startTour = function() {
-                    self.app.fire('tour:play', 'lemgo');
-                    self._isAutoTouring = true;
-                    autoTourBtn.innerHTML = `<span class="icon">🛑</span> <span id="lbl-auto-tour" style="color:#ff4444;">Tour stoppen</span>`;
-                };
-
-                if (!self.app.scripts.get('auto-tour')) {
-                    console.log('[UI] Loading Cinematic Auto-Tour script dynamically...');
-                    var s = document.createElement('script');
-                    s.src = './files/assets/274249968/1/auto-tour.js';
-                    s.onload = startTour;
-                    s.onerror = function(err) {
-                        console.error('Failed to load auto-tour script:', err);
-                    };
-                    document.head.appendChild(s);
-                } else {
-                    startTour();
-                }
-            }
-        };
-    }
 
     // Removed ctrlModeBtn completely per user request
 
@@ -991,7 +954,7 @@ UI.prototype._initRealtimeEditor = function() {
     var panel = document.createElement('div');
     panel.id = 'realtime-editor-panel';
     Object.assign(panel.style, {
-        position: 'fixed', top: '80px', right: '10px',
+        position: 'fixed', bottom: '20px', right: '20px',
         width: '320px', background: 'rgba(0,0,0,0.85)',
         border: '1px solid rgba(0,255,136,0.3)', borderRadius: '8px',
         padding: '12px', fontFamily: 'monospace', fontSize: '11px',
@@ -1000,7 +963,17 @@ UI.prototype._initRealtimeEditor = function() {
         maxHeight: '80vh', overflowY: 'auto'
     });
 
-    panel.innerHTML = '<div style="font-weight:bold; margin-bottom:8px; color:#ff0; font-size:13px; text-align:center;">🛠 Realtime Level Editor</div>';
+    panel.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">' +
+        '<span style="font-weight:bold; color:#ff0; font-size:13px;">🛠 Realtime Level Editor</span>' +
+        '<button id="ed-close-btn" style="background:none; border:none; color:#888; cursor:pointer; font-size:16px;">×</button>' +
+        '</div>';
+    
+    // Debug Hotkeys info
+    panel.innerHTML += '<div style="font-size: 10px; color: #888; margin-bottom: 12px; line-height: 1.4;">' +
+        '<b style="color: #00ff88;">Hotkeys:</b><br>' +
+        '<b>P</b>: Toggle Debug | <b>C</b>: Collider Vis | <b>K</b>: Culling | <b>F2</b>: Screenshot<br>' +
+        '<b>Numpad 8/2,4/6,7/9,1/3</b>: Transform Collider <i>(+Shift fast)</i>' +
+        '</div>';
 
     // Step size
     panel.innerHTML += '<div style="margin-bottom:12px; display:flex; gap:4px; align-items:center; justify-content:center;">' +
@@ -1045,6 +1018,15 @@ UI.prototype._initRealtimeEditor = function() {
         '</div>';
 
     document.body.appendChild(panel);
+    
+    var closeBtn = document.getElementById('ed-close-btn');
+    if (closeBtn) {
+        closeBtn.onclick = function(e) {
+            e.stopPropagation();
+            panel.style.display = 'none';
+        };
+    }
+
     this._editorStep = 0.1;
 
     // Step size buttons
