@@ -93,6 +93,10 @@ CharacterController.prototype.initialize = function() {
         
         var dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
         var dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+        
+        // Fix for pointer lock bugs on widescreen monitors where movement values explode at screen edges
+        dx = pc.math.clamp(dx, -100, 100);
+        dy = pc.math.clamp(dy, -100, 100);
 
         self.yaw -= dx * self.lookSens;
         self.pitch -= dy * self.lookSens;
