@@ -20,7 +20,7 @@ PoiManager.prototype.initialize = function() {
     this.app.on('poi:register', this.registerPOI, this);
     this.app.on('ui:toggleTour', this.toggleEntireTourSystem, this); 
     this.app.on('ui:toggleVisibility', this.onCleanModeToggle, this); 
-    this.app.on('scene:reveal', this.refreshList, this);
+    this.app.on('level:contentReady', this.refreshList, this);
     this.app.on('level:switch', this.onLevelSwitch, this);
     this.app.on('poi:refresh', this.refreshList, this);
 };
@@ -216,7 +216,7 @@ PoiManager.prototype.update = function(dt) {
                 var dir = new pc.Vec3().sub2(n1.pos, centerPos).normalize();
                 var baseAngle = Math.atan2(dir.x, dir.z) * pc.math.RAD_TO_DEG;
                 
-                var orbitSpeed = 5; // degrees per second
+                var orbitSpeed = 360 / dwellTime; // Orbit completely and seamlessly return to start
                 var currentAngle = baseAngle + (segTime * orbitSpeed);
                 var currentAngleRad = currentAngle * pc.math.DEG_TO_RAD;
                 
@@ -253,32 +253,9 @@ PoiManager.prototype.update = function(dt) {
         var n2 = this.tourNodes[i2];
         var n3 = this.tourNodes[i3];
         
-        // Compute where the orbit EXACTLY ended for seamless transition
+        // Return to start position of orbit for seamless fly
         var flyStartPos = n1.pos;
         var flyStartRot = n1.rot;
-        var actualPoi = this.pois[n1.idx];
-        
-        if (actualPoi) {
-            var centerPos = actualPoi.entity.getPosition();
-            var radius = new pc.Vec3().sub2(n1.pos, centerPos).length();
-            if (radius < 0.1) radius = this.lookDistance;
-            
-            var dir = new pc.Vec3().sub2(n1.pos, centerPos).normalize();
-            var baseAngle = Math.atan2(dir.x, dir.z) * pc.math.RAD_TO_DEG;
-            var endAngle = baseAngle + (dwellTime * 5); // 5 degrees per sec
-            var endAngleRad = endAngle * pc.math.DEG_TO_RAD;
-            
-            flyStartPos = new pc.Vec3(
-                centerPos.x + Math.sin(endAngleRad) * radius,
-                n1.pos.y,
-                centerPos.z + Math.cos(endAngleRad) * radius
-            );
-            
-            var m = new pc.Mat4();
-            m.setLookAt(flyStartPos, centerPos, pc.Vec3.UP);
-            m.invert();
-            flyStartRot = new pc.Quat().setFromMat4(m);
-        }
         
         // Ensure shortest path for quaternions
         var qResult = new pc.Quat();

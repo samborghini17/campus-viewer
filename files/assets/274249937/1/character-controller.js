@@ -61,7 +61,7 @@ CharacterController.prototype.initialize = function() {
         var hint = document.getElementById('pointer-lock-hint');
         if (hint) {
             if (self._isPointerLocked) {
-                hint.style.display = 'block';
+                hint.style.display = 'flex';
                 setTimeout(function() { hint.style.opacity = '1'; }, 10);
                 if (self._hintTimeout) clearTimeout(self._hintTimeout);
                 self._hintTimeout = setTimeout(function() {

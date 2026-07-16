@@ -563,7 +563,15 @@ LevelManager.prototype.initialize = function() {
             id: 'stereo-studio', 
             url: 'https://samborghini17.github.io/splat-host/FB_MP/stereo-studio/lod-meta.json', 
             envUrl: 'https://samborghini17.github.io/splat-host/FB_MP/stereo-studio/environment.sog', 
-            splatPos: [0, 0, 0], splatRot: [-90, 0, 0], cameraStart: [0, 1.5, 0], mode: 'fly', collider: null 
+            splatPos: [0.00, 0.00, 0.00], 
+            splatRot: [-90, 0, 0], 
+            cameraStart: [-0.28, 0.10, 1.65],
+            cameraStartRot: [-8, -20, 0], 
+            colliderPos: [0.00, 0.00, 0.00],
+            colliderRot: [0, 0, 0],
+            colliderScale: [1.000, 1.000, 1.000],
+            mode: 'fly', 
+            collider: null 
         },
         { 
             id: 'surround-studio', 
@@ -914,6 +922,49 @@ LevelManager.prototype.initialize = function() {
         var url = currentConfig ? currentConfig.url : '';
         var envUrl = currentConfig ? currentConfig.envUrl : '';
 
+        var customObjs = [];
+        var traverse = function(node) {
+            if (node.script) {
+                var scriptName = null;
+                if (node.script.infoHotspot) scriptName = 'infoHotspot';
+                else if (node.script.pathVisualizer) scriptName = 'pathVisualizer';
+                else if (node.script.constructionZone) scriptName = 'constructionZone';
+                else if (node.script.videoTexture) scriptName = 'videoTexture';
+                else if (node.script.splatBlur) scriptName = 'splatBlur';
+                
+                if (scriptName || (node.tags && node.tags.has('custom-editor-object'))) {
+                    customObjs.push({ ent: node, scriptName: scriptName });
+                }
+            }
+            node.children.forEach(traverse);
+        };
+        var rootObj = this.app.root.findByName('LevelContainer') || this.app.root;
+        traverse(rootObj);
+
+        var customStr = "";
+        if (customObjs.length > 0) {
+            customStr = "\n\n        // --- CUSTOM OBJECTS (For JSON configs) ---\n";
+            customObjs.forEach(function(obj) {
+                var ent = obj.ent;
+                var s = obj.scriptName;
+                var p = ent.getLocalPosition();
+                var r = ent.getLocalEulerAngles();
+                var attrStr = "";
+                
+                if (s && ent.script[s]) {
+                    var keys = Object.keys(ent.script[s]);
+                    keys.forEach(function(k) {
+                        if (k === 'entity' || k === 'app' || k === 'enabled' || typeof ent.script[s][k] === 'function' || k.startsWith('_')) return;
+                        var val = ent.script[s][k];
+                        if (typeof val === 'string') attrStr += `, "${k}": "${val.replace(/"/g, '\\"')}"`;
+                        else if (typeof val === 'number') attrStr += `, "${k}": ${val}`;
+                        else if (typeof val === 'boolean') attrStr += `, "${k}": ${val}`;
+                    });
+                }
+                customStr += `        "${ent.name}": { "type": "${s || 'unknown'}", "pos": [${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}], "rot": [${r.x.toFixed(0)}, ${r.y.toFixed(0)}, ${r.z.toFixed(0)}]${attrStr} },\n`;
+            });
+        }
+
         var json = `        { 
             id: '${this.currentLevelId}', 
             url: '${url}', 
@@ -927,7 +978,7 @@ LevelManager.prototype.initialize = function() {
             colliderScale: [${colScale.x.toFixed(3)}, ${colScale.y.toFixed(3)}, ${colScale.z.toFixed(3)}],
             mode: 'fly', 
             collider: null 
-        },`;
+        },` + customStr;
 
         console.log("%c[Level Config Dump]\n" + json, "color:#00ff88; font-weight:bold; font-family:monospace;");
         if (navigator.clipboard) {
@@ -1009,16 +1060,28 @@ LevelManager.prototype.getConfigById = function(id) {
     return this.levelConfig.find(function(level) { return level.id === id; });
 };
 
-LevelManager.prototype.resetCamera = function(hasCollider) {
+LevelManager.prototype.jumpToSpawnpoint = function(pos, rot) {
+    this.setCameraMode('fly', null, this._dynamicColliderEntity != null || this.getConfigById(this.currentLevelId).collider != null);
+    this.resetCamera(true, pos, rot);
+};
+
+LevelManager.prototype.resetCamera = function(hasCollider, specificPos, specificRot) {
     var data = this.getConfigById(this.currentLevelId);
     if (!data) return;
 
-    var startPos = data.cameraStart ? new pc.Vec3(data.cameraStart[0], data.cameraStart[1], data.cameraStart[2]) : new pc.Vec3(0, 1.6, 0);
+    var startPos = new pc.Vec3(0, 1.6, 0);
     var startRot = null;
-    if (data.cameraStartRot) {
-        startRot = new pc.Vec3(data.cameraStartRot[0], data.cameraStartRot[1], data.cameraStartRot[2]);
-    } else if (data.mode === 'fly') {
-        startRot = new pc.Vec3(0, 0, 0);
+    
+    if (specificPos) {
+        startPos = new pc.Vec3(specificPos[0], specificPos[1], specificPos[2]);
+        if (specificRot) startRot = new pc.Vec3(specificRot[0], specificRot[1], specificRot[2]);
+    } else {
+        startPos = data.cameraStart ? new pc.Vec3(data.cameraStart[0], data.cameraStart[1], data.cameraStart[2]) : new pc.Vec3(0, 1.6, 0);
+        if (data.cameraStartRot) {
+            startRot = new pc.Vec3(data.cameraStartRot[0], data.cameraStartRot[1], data.cameraStartRot[2]);
+        } else if (data.mode === 'fly') {
+            startRot = new pc.Vec3(0, 0, 0);
+        }
     }
 
     var playerRig = this.app.root.findByName('Character_Controller');
@@ -1312,7 +1375,7 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     // --- Dynamic collision loading ---
     try {
         var hasLegacyCollider = (data.collider != null && colliderEntity != null);
-        var hasDynamicCollider = COLLIDER_MAP.hasOwnProperty(id);
+        var hasDynamicCollider = COLLIDER_MAP.hasOwnProperty(id) || COLLIDER_NETLIFY_MAP.hasOwnProperty(id);
 
         if (hasDynamicCollider && !hasLegacyCollider) {
             // Start in fly mode while collision loads
@@ -1352,6 +1415,7 @@ LevelManager.prototype._finishReveal = function(isStart) {
         self.overlay.style.opacity = '0';
         self.overlay.style.pointerEvents = 'none';
         if (self.currentContent) self.currentContent.enabled = true;
+        self.app.fire('level:contentReady');
         setTimeout(function() { self.app.fire('scene:reveal'); }, self.hotspotDelay * 1000);
     }, isStart ? 200 : 1000);
 };
