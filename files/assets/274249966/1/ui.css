@@ -30,7 +30,7 @@ body {
 .pc-only { display: flex !important; }
 
 /* === GLOBALE KLICK-RETTUNG === */
-#gsplat-controls, #burger-menu-container, #controls-card, #poi-sidebar, #poi-navbar, #collider-debug-panel {
+#gsplat-controls, #burger-menu-container, #controls-card, #poi-sidebar, #poi-navbar, #collider-debug-panel, .aeroglass-panel {
     pointer-events: auto !important;
 }
 
@@ -40,6 +40,27 @@ body {
 
 #info-modal-overlay.hidden { display: none !important; pointer-events: none !important; }
 /* ============================= */
+
+/* --- AEROGLASS PANEL --- */
+.aeroglass-panel {
+    background: rgba(30, 30, 35, 0.45);
+    backdrop-filter: var(--blur-strong);
+    -webkit-backdrop-filter: var(--blur-strong);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    color: var(--text-primary);
+}
+
+.aeroglass-panel button.unified-btn, .aeroglass-panel button.menu-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    margin-bottom: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.aeroglass-panel button.unified-btn:hover, .aeroglass-panel button.menu-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
 
 /* --- TOOLTIPS --- */
 [data-tooltip] { position: relative; }
@@ -98,7 +119,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 #burger-btn { padding: 6px 16px; background: var(--bg-primary); backdrop-filter: var(--blur-strong); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; color: var(--text-secondary); font-size: 11px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; height: 32px; }
 #burger-btn:hover, #burger-btn.active { background: rgba(80, 80, 90, 0.95); color: white; border-color: rgba(255, 255, 255, 0.3); }
 
-#burger-dropdown { margin-top: 8px; width: 240px; background: var(--bg-glass); backdrop-filter: var(--blur-strong); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 6px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); opacity: 0; transform: translateY(-10px); transition: 0.2s; display: flex; flex-direction: column; gap: 2px; transform-origin: top right; position: absolute; top: 100%; right: 0; }
+#burger-dropdown { margin-top: 8px; width: 240px; background: rgba(30, 30, 35, 0.45); backdrop-filter: var(--blur-strong); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 10px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25); opacity: 0; transform: translateY(-10px); transition: 0.2s; display: flex; flex-direction: column; gap: 4px; transform-origin: top right; position: absolute; top: 100%; right: 0; }
 #burger-menu-container.open #burger-dropdown { opacity: 1; transform: translateY(0); }
 
 /* --- MENU ITEM ALIGNMENT FIX --- */

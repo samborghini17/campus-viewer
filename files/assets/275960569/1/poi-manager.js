@@ -70,9 +70,35 @@ PoiManager.prototype.refreshList = function() {
 
     function isEnabled(ent) {
         var curr = ent;
+        var belongsToLevel = null;
         while(curr) {
             if(!curr.enabled) return false;
+            // Check if this entity is a level entity (managed by LevelManager)
+            if (curr.name && self.app.systems.script && self.app.root.findByName('LevelContainer')) {
+                // If it's a child of LevelContainer, it's a level entity
+                if (curr.parent && curr.parent.name === 'LevelContainer' && curr.name !== 'LevelContainer') {
+                    belongsToLevel = curr.name;
+                }
+            }
             curr = curr.parent;
+        }
+        
+        // If we are in a specific level (e.g., innospin), and the POI is not part of this level, hide it.
+        // Exception: Lemgo is the main campus, so if we are in Lemgo, we might want to see global POIs.
+        var levelManager = self.app.root.findByName('LevelManager');
+        if (levelManager && levelManager.script && levelManager.script.levelManager) {
+            var currentLevel = levelManager.script.levelManager.currentLevelId;
+            if (currentLevel) {
+                // If the POI is physically under a level entity, it MUST match the current level
+                if (belongsToLevel && belongsToLevel !== currentLevel) {
+                    return false;
+                }
+                // If the POI is GLOBAL (not under any specific level), hide it in sub-levels!
+                if (!belongsToLevel && currentLevel !== 'lemgo') {
+                    // Only show global POIs in lemgo, hide them in innospin/audimax etc.
+                    return false;
+                }
+            }
         }
         return true;
     }
@@ -213,21 +239,20 @@ PoiManager.prototype.update = function(dt) {
                 var radius = new pc.Vec3().sub2(n1.pos, centerPos).length();
                 if (radius < 0.1) radius = this.lookDistance;
                 
-                var dir = new pc.Vec3().sub2(n1.pos, centerPos).normalize();
-                var baseAngle = Math.atan2(dir.x, dir.z) * pc.math.RAD_TO_DEG;
-                
                 var orbitSpeed = 360 / dwellTime; // Orbit completely and seamlessly return to start
-                var currentAngle = baseAngle + (segTime * orbitSpeed);
-                var currentAngleRad = currentAngle * pc.math.DEG_TO_RAD;
+                var currentAngle = segTime * orbitSpeed;
                 
-                var newCamPos = new pc.Vec3(
-                    centerPos.x + Math.sin(currentAngleRad) * radius,
-                    n1.pos.y,
-                    centerPos.z + Math.cos(currentAngleRad) * radius
-                );
+                var relPos = new pc.Vec3().sub2(n1.pos, centerPos);
+                var rotQuat = new pc.Quat().setFromEulerAngles(0, currentAngle, 0);
+                var rotatedRelPos = rotQuat.transformVector(relPos);
+                var newCamPos = new pc.Vec3().add2(centerPos, rotatedRelPos);
+                
+                var startRotQuat = new pc.Quat().setFromEulerAngles(n1.rot.x, n1.rot.y, n1.rot.z);
+                var newCamRotQuat = new pc.Quat().mul2(rotQuat, startRotQuat);
+                var newCamRot = newCamRotQuat.getEulerAngles();
                 
                 this.cameraEntity.setPosition(newCamPos);
-                this.cameraEntity.lookAt(centerPos);
+                this.cameraEntity.setLocalEulerAngles(newCamRot.x, newCamRot.y, newCamRot.z);
             } else {
                 this.cameraEntity.setPosition(n1.pos);
                 this.cameraEntity.setRotation(n1.rot);
@@ -421,7 +446,7 @@ PoiManager.prototype.applyVisibility = function() {
 PoiManager.prototype.createUI = function() {
     this.listContainer = document.createElement('div');
     this.listContainer.id = 'poi-sidebar';
-    this.listContainer.className = 'collapsed'; 
+    this.listContainer.className = 'aeroglass-panel collapsed'; 
     
     this.listContainer.innerHTML = 
         '<div id="poi-sidebar-toggle"></div>' + 
@@ -433,6 +458,7 @@ PoiManager.prototype.createUI = function() {
 
     this.navBar = document.createElement('div');
     this.navBar.id = 'poi-navbar';
+    this.navBar.className = 'aeroglass-panel';
     this.navBar.innerHTML = 
         '<button id="poi-prev-btn">←</button>' +
         '<button id="poi-play-btn" title="Auto-Tour">▶</button>' +

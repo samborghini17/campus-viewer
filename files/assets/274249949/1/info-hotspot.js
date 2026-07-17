@@ -314,7 +314,7 @@ InfoHotspot.prototype.updateContent = function() {
 InfoHotspot.prototype.onReveal = function() {
     if (!this.entity.enabled) return;
     this._revealed = true;
-    var delayMs = this.baseDelay * 1000 + Math.random() * (this.randomWindow * 1000);
+    var delayMs = 1500 + this.baseDelay * 1000 + Math.random() * (this.randomWindow * 1000);
     setTimeout(() => {
         if(this.spot && this.entity.enabled) {
             this.spot.style.display = 'block';

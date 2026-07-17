@@ -1257,7 +1257,7 @@ UI.prototype._initRealtimeEditor = function() {
         } else if (type === 'Const') {
             entity.script.create('constructionZone', { attributes: { title: 'New Construction' } });
         } else if (type === 'Video') {
-            entity.script.create('videoTexture', { attributes: { videoUrl: '', loop: true, autoPlay: true } });
+            entity.script.create('videoTexture', { attributes: { videoUrl: 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4', playAudio: false, videoScale: 1.0 } });
             entity.setLocalScale(2, 1.125, 1);
         }
         self.app.root.findByName('LevelContainer').addChild(entity);
@@ -1271,12 +1271,13 @@ UI.prototype._initRealtimeEditor = function() {
         select.dispatchEvent(new Event('change'));
     };
     
-    document.getElementById('ed-add-poi').onclick = function() { spawnCustom('POI'); };
-    document.getElementById('ed-add-path').onclick = function() { spawnCustom('Path'); };
-    document.getElementById('ed-add-const').onclick = function() { spawnCustom('Const'); };
-    document.getElementById('ed-add-video').onclick = function() { spawnCustom('Video'); };
+    document.getElementById('ed-add-poi').onclick = function(e) { e.stopPropagation(); spawnCustom('POI'); };
+    document.getElementById('ed-add-path').onclick = function(e) { e.stopPropagation(); spawnCustom('Path'); };
+    document.getElementById('ed-add-const').onclick = function(e) { e.stopPropagation(); spawnCustom('Const'); };
+    document.getElementById('ed-add-video').onclick = function(e) { e.stopPropagation(); spawnCustom('Video'); };
 
-    document.getElementById('ed-delete-obj').onclick = function() {
+    document.getElementById('ed-delete-obj').onclick = function(e) {
+        e.stopPropagation();
         var objId = document.getElementById('ed-custom-obj-select').value;
         if (!objId) return;
         var entity = self.app.root.findByGuid(objId);
@@ -1287,6 +1288,14 @@ UI.prototype._initRealtimeEditor = function() {
     };
 
     console.log('[UI] Realtime Editor initialized');
+    
+    // Hide debug toggle unless ?admin=1
+    var debugToggleBtn = document.getElementById('menu-debug-toggle');
+    if (debugToggleBtn) {
+        if (!window.location.search.includes('admin=1')) {
+            debugToggleBtn.style.display = 'none';
+        }
+    }
 };
 
 UI.prototype._applyRealtimeTransform = function(id) {
@@ -1710,6 +1719,9 @@ UI.prototype._refreshCustomObjectsList = function() {
 
             if (!isCustom && node.tags && node.tags.has('custom-editor-object')) { 
                 isCustom = true; prefix = 'Obj'; 
+            }
+            if (!isCustom && node.tags && node.tags.has('poi')) { 
+                isCustom = true; prefix = 'POI'; 
             }
             
             if (isCustom) {
