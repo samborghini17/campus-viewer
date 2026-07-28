@@ -247,12 +247,10 @@ PoiManager.prototype.update = function(dt) {
                 var rotatedRelPos = rotQuat.transformVector(relPos);
                 var newCamPos = new pc.Vec3().add2(centerPos, rotatedRelPos);
                 
-                var startRotQuat = new pc.Quat().setFromEulerAngles(n1.rot.x, n1.rot.y, n1.rot.z);
-                var newCamRotQuat = new pc.Quat().mul2(rotQuat, startRotQuat);
-                var newCamRot = newCamRotQuat.getEulerAngles();
+                var newCamRotQuat = new pc.Quat().mul2(rotQuat, n1.rot);
                 
                 this.cameraEntity.setPosition(newCamPos);
-                this.cameraEntity.setLocalEulerAngles(newCamRot.x, newCamRot.y, newCamRot.z);
+                this.cameraEntity.setRotation(newCamRotQuat);
             } else {
                 this.cameraEntity.setPosition(n1.pos);
                 this.cameraEntity.setRotation(n1.rot);

@@ -560,22 +560,22 @@ UI.prototype._initBurgerMenu = function() {
     var toggleUiBtn = document.getElementById('menu-toggle-ui');
     var burgerDropdown = document.getElementById('burger-dropdown');
     if (!container || !btn) return;
-    this.jumpBackBtn = document.createElement('button');
-    this.jumpBackBtn.className = 'menu-item';
-    this.jumpBackBtn.innerHTML = `<span class="icon">⬅️</span> <span id="lbl-menu-back">${this.dict[this.currentLang].menuBack}</span>`;
-    Object.assign(this.jumpBackBtn.style, {
-        color: '#f1c40f',
-        fontWeight: 'bold',
-        display: 'none'
-    });
-    if (homeBtn && homeBtn.parentNode) homeBtn.parentNode.insertBefore(this.jumpBackBtn, homeBtn.nextSibling);
-    else if (burgerDropdown) burgerDropdown.appendChild(this.jumpBackBtn);
-    this.jumpBackBtn.onclick = (e)=>{
-        self.goBack();
-        container.classList.remove('open');
-        btn.classList.remove('active');
-        this._translateDynamic();
-    };
+    this.jumpBackBtn = document.getElementById('menu-back');
+    if (this.jumpBackBtn) {
+        Object.assign(this.jumpBackBtn.style, {
+            color: 'var(--text-secondary)',
+            fontWeight: 'bold',
+            display: 'flex',
+            opacity: '0.5',
+            pointerEvents: 'none'
+        });
+        this.jumpBackBtn.onclick = (e) => {
+            self.goBack();
+            container.classList.remove('open');
+            btn.classList.remove('active');
+            this._translateDynamic();
+        };
+    }
     var tourBtn = document.getElementById('menu-tour-toggle');
     if (!tourBtn) {
         tourBtn = document.createElement('button');
@@ -592,70 +592,7 @@ UI.prototype._initBurgerMenu = function() {
             self.app.fire('ui:toggleTour', self._tourVisible);
         };
     }
-    var lvlSelectBtn = document.getElementById('menu-level-select');
-    if (!lvlSelectBtn) {
-        var lvlContainer = document.createElement('div');
-        lvlContainer.className = 'menu-item';
-        lvlContainer.style.padding = '0';
-        lvlContainer.style.background = 'transparent';
-        
-        var lvlSelect = document.createElement('select');
-        lvlSelect.id = 'menu-level-select';
-        lvlSelect.style.width = '100%';
-        lvlSelect.style.padding = '6px';
-        lvlSelect.style.background = 'rgba(255,255,255,0.05)';
-        lvlSelect.style.color = 'white';
-        lvlSelect.style.border = 'none';
-        lvlSelect.style.borderRadius = '6px';
-        lvlSelect.style.outline = 'none';
-        lvlSelect.style.cursor = 'pointer';
-        
-        var defaultOpt = document.createElement('option');
-        defaultOpt.value = "";
-        defaultOpt.text = "🗺️ Campus Auswahl";
-        lvlSelect.appendChild(defaultOpt);
-        
-        lvlContainer.appendChild(lvlSelect);
-        if (resetBtn) resetBtn.parentNode.insertBefore(lvlContainer, resetBtn);
-        else if (burgerDropdown) burgerDropdown.appendChild(lvlContainer);
-        
-        // Populate after a short delay to ensure levelManager is ready
-        setTimeout(function() {
-            var lm = self.app.root.findByName('Camera') ? self.app.root.findByName('Camera').script.cameraControls : null; 
-            // Better to find levelManager directly via script registry or scene
-            var lmEntity = self.app.root.findByName('LevelManager');
-            if (lmEntity && lmEntity.script && lmEntity.script.levelManager) {
-                var config = lmEntity.script.levelManager.levelConfig;
-                config.forEach(function(lvl) {
-                    var opt = document.createElement('option');
-                    opt.value = lvl.id;
-                    opt.text = lvl.id;
-                    lvlSelect.appendChild(opt);
-                });
-            } else {
-                // If the LevelManager is not an entity by name, just get all entities with the script
-                var allEnts = self.app.root.find(function(node) { return node.script && node.script.levelManager; });
-                if (allEnts.length > 0) {
-                    var config = allEnts[0].script.levelManager.levelConfig;
-                    config.forEach(function(lvl) {
-                        var opt = document.createElement('option');
-                        opt.value = lvl.id;
-                        opt.text = lvl.id;
-                        lvlSelect.appendChild(opt);
-                    });
-                }
-            }
-        }, 1000);
-
-        lvlSelect.addEventListener('change', function(e) {
-            if(this.value) {
-                self.app.fire('level:switch', this.value);
-                this.value = "";
-                container.classList.remove('open');
-                btn.classList.remove('active');
-            }
-        });
-    }
+    // Removed menu-level-select (Campus Auswahl) per user request
 
     // Removed ctrlModeBtn completely per user request
 
@@ -1534,7 +1471,10 @@ UI.prototype.goBack = function() {
 };
 UI.prototype.updateJumpBackButton = function() {
     if (this.jumpBackBtn) {
-        this.jumpBackBtn.style.display = this.history.length > 0 ? 'flex' : 'none';
+        this.jumpBackBtn.style.display = 'flex';
+        this.jumpBackBtn.style.opacity = this.history.length > 0 ? '1' : '0.5';
+        this.jumpBackBtn.style.pointerEvents = this.history.length > 0 ? 'auto' : 'none';
+        this.jumpBackBtn.style.color = this.history.length > 0 ? '#f1c40f' : 'var(--text-secondary)';
     }
 };
 UI.prototype._updateContent = function(levelId) {
@@ -1570,80 +1510,7 @@ UI.prototype._updateContent = function(levelId) {
         tourBtn.innerHTML = `<span class="icon">🗺️</span> <span>${btnText}</span>`;
     }
 
-    // --- Spawnpoints UI ---
-    var spContainer = document.getElementById('menu-spawnpoint-container');
-    if (!spContainer) {
-        spContainer = document.createElement('div');
-        spContainer.id = 'menu-spawnpoint-container';
-        spContainer.className = 'menu-item';
-        spContainer.style.padding = '0';
-        spContainer.style.background = 'transparent';
-        
-        var spSelect = document.createElement('select');
-        spSelect.id = 'menu-spawnpoint-select';
-        spSelect.style.width = '100%';
-        spSelect.style.padding = '6px';
-        spSelect.style.background = 'rgba(255,255,255,0.05)';
-        spSelect.style.color = 'var(--col-cyan)';
-        spSelect.style.border = 'none';
-        spSelect.style.borderRadius = '6px';
-        spSelect.style.outline = 'none';
-        spSelect.style.cursor = 'pointer';
-        
-        spContainer.appendChild(spSelect);
-        
-        var lvlSelectBtn = document.getElementById('menu-level-select');
-        if (lvlSelectBtn && lvlSelectBtn.parentNode) {
-            lvlSelectBtn.parentNode.parentNode.insertBefore(spContainer, lvlSelectBtn.parentNode.nextSibling);
-        } else {
-            var bDropdown = document.getElementById('burger-dropdown');
-            if (bDropdown) bDropdown.appendChild(spContainer);
-        }
-
-        var self = this;
-        spSelect.addEventListener('change', function(e) {
-            if(this.value) {
-                var parts = this.value.split('|');
-                var pos = [parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2])];
-                var rot = [parseFloat(parts[3]), parseFloat(parts[4]), parseFloat(parts[5])];
-                var lmEnt = self.app.root.findByName('LevelManager');
-                if (lmEnt && lmEnt.script && lmEnt.script.levelManager) {
-                    lmEnt.script.levelManager.jumpToSpawnpoint(pos, rot);
-                }
-                this.value = "";
-                var bContainer = document.getElementById('burger-menu-container');
-                var bBtn = document.getElementById('burger-btn');
-                if (bContainer) bContainer.classList.remove('open');
-                if (bBtn) bBtn.classList.remove('active');
-            }
-        });
-    }
-
-    // Populate Spawnpoints if they exist
-    var lmEntity = this.app.root.findByName('LevelManager');
-    if (lmEntity && lmEntity.script && lmEntity.script.levelManager) {
-        var cfg = lmEntity.script.levelManager.getConfigById(levelId);
-        var spSelect = document.getElementById('menu-spawnpoint-select');
-        if (spSelect) {
-            spSelect.innerHTML = '';
-            if (cfg && cfg.spawnpoints && cfg.spawnpoints.length > 0) {
-                var def = document.createElement('option');
-                def.value = "";
-                def.text = "📍 " + (this.currentLang === 'de' ? 'Orte im Raum' : 'Locations');
-                spSelect.appendChild(def);
-                cfg.spawnpoints.forEach(function(sp) {
-                    var opt = document.createElement('option');
-                    var r = sp.rot || [0,0,0];
-                    opt.value = sp.pos.join('|') + '|' + r.join('|');
-                    opt.text = sp.name;
-                    spSelect.appendChild(opt);
-                });
-                spContainer.style.display = 'block';
-            } else {
-                spContainer.style.display = 'none';
-            }
-        }
-    }
+    // Spawnpoints Dropdown entirely removed per user request
 
     // Show/hide Steuerungs-Modus section based on mode
     var ctrlSection = document.getElementById('ctrl-mode-section');

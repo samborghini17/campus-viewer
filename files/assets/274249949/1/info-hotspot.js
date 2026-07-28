@@ -138,12 +138,10 @@ InfoHotspot.prototype.createDom = function() {
     document.body.appendChild(this.spot);
 
     this.card = document.createElement('div');
-    this.card.className = 'info-card';
+    this.card.className = 'info-card aeroglass-panel';
     Object.assign(this.card.style, {
         position: 'absolute', display: 'none', width: '280px',
-        background: 'rgba(40, 40, 40, 0.6)', backdropFilter: 'blur(20px)', webkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.15)', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4)',
-        color: 'white', padding: '24px', borderRadius: '16px', fontFamily: "'Segoe UI', sans-serif", zIndex: '500'
+        color: 'white', padding: '24px', fontFamily: "'Segoe UI', sans-serif", zIndex: '500'
     });
 
     // CLOSE BUTTON HAT RIESIGE HITBOX (40x40px)
