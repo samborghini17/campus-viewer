@@ -344,7 +344,11 @@ LevelManager.prototype.initialize = function() {
             splatRot: [-90, 0, 0], 
             cameraStart: [0, 1.7, 0], 
             mode: 'fly', 
-            collider: null 
+            collider: null,
+            spawnpoints: [
+                { name: 'Eingang Nord', pos: [0.0, 1.7, 0.0], rot: [0, 0, 0] },
+                { name: 'Mensa (Beispiel)', pos: [10.0, 1.7, -15.0], rot: [0, 45, 0] }
+            ]
         },
         { 
             id: 'laufwege-map-fusion-max-quality-1', 

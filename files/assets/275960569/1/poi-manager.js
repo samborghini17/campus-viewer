@@ -217,7 +217,7 @@ PoiManager.prototype.update = function(dt) {
     }
     
     // Each segment: dwellTime at node + flyTime between nodes
-    var dwellTime = 12.0;  // Stay longer at each POI
+    var dwellTime = 24.0;  // Stay longer at each POI and rotate slower
     var flyTime = this.autoTourDelay; // time to fly between POIs
     var segmentDuration = dwellTime + flyTime;
     var totalDuration = count * segmentDuration;
@@ -239,8 +239,10 @@ PoiManager.prototype.update = function(dt) {
                 var radius = new pc.Vec3().sub2(n1.pos, centerPos).length();
                 if (radius < 0.1) radius = this.lookDistance;
                 
-                var orbitSpeed = 360 / dwellTime; // Orbit completely and seamlessly return to start
-                var currentAngle = segTime * orbitSpeed;
+                // Use smoothstep easing for the orbit to eliminate speed jumps at start/end
+                var t = segTime / dwellTime;
+                var easedT = t * t * (3 - 2 * t);
+                var currentAngle = easedT * 360;
                 
                 var relPos = new pc.Vec3().sub2(n1.pos, centerPos);
                 var rotQuat = new pc.Quat().setFromEulerAngles(0, currentAngle, 0);

@@ -381,7 +381,11 @@ UI.prototype.initialize = function() {
             debugMode: 'Debug Modus',
             screenshot: 'Screenshot (F2)',
             adaptiveOn: 'Auto-Qualität: AN',
-            adaptiveOff: 'Auto-Qualität: AUS'
+            adaptiveOff: 'Auto-Qualität: AUS',
+            navMobileMap: 'Karte / Orte',
+            navTitle: 'Navigation',
+            navCampus: 'Campus Auswahl',
+            navSpawnpoints: 'Orte im Raum'
         },
         en: {
             menuBtn: 'Menu',
@@ -418,7 +422,11 @@ UI.prototype.initialize = function() {
             debugMode: 'Debug Mode',
             screenshot: 'Screenshot (F2)',
             adaptiveOn: 'Auto Quality: ON',
-            adaptiveOff: 'Auto Quality: OFF'
+            adaptiveOff: 'Auto Quality: OFF',
+            navMobileMap: 'Map / Places',
+            navTitle: 'Navigation',
+            navCampus: 'Select Campus',
+            navSpawnpoints: 'Places'
         }
     };
     this._loadTranslations = function(lang, callback) {
@@ -592,6 +600,24 @@ UI.prototype._initBurgerMenu = function() {
             self.app.fire('ui:toggleTour', self._tourVisible);
         };
     }
+
+    var navOverlay = document.getElementById('nav-overlay');
+    var btnMobMap = document.getElementById('btn-mobile-map');
+    var navCloseBtn = document.getElementById('nav-close-btn');
+    if (btnMobMap) btnMobMap.onclick = function() { if(navOverlay) navOverlay.style.display = 'flex'; };
+    if (navCloseBtn) navCloseBtn.onclick = function() { if(navOverlay) navOverlay.style.display = 'none'; };
+    
+    var navLevelBtns = document.querySelectorAll('.nav-level-btn');
+    navLevelBtns.forEach(function(btn) {
+        btn.onclick = function() {
+            var lvl = btn.getAttribute('data-level');
+            if (lvl && self.app) {
+                self.app.fire('level:switch', lvl);
+            }
+            if (navOverlay) navOverlay.style.display = 'none';
+        };
+    });
+
     // Removed menu-level-select (Campus Auswahl) per user request
 
     // Removed ctrlModeBtn completely per user request
@@ -617,17 +643,20 @@ UI.prototype._initBurgerMenu = function() {
         if (document.pointerLockElement) document.exitPointerLock();
         container.classList.toggle('open');
         if (container.classList.contains('open')) {
-            btn.innerHTML = '<span class="icon">✕</span> ' + (self.currentLang === 'de' ? 'Schließen' : 'Close');
+            var closeText = (self.currentLang === 'de' ? 'Schließen' : 'Close');
+            btn.innerHTML = '<span class="icon">✕</span> <span id="lbl-menu-btn">' + closeText + '</span>';
             btn.classList.add('active');
         } else {
-            btn.innerHTML = '<span class="icon">☰</span> ' + self.dict[self.currentLang].menuBtn;
+            var menuText = (self.dict && self.dict[self.currentLang] && self.dict[self.currentLang].menuBtn) ? self.dict[self.currentLang].menuBtn : 'Menü';
+            btn.innerHTML = '<span class="icon">☰</span> <span id="lbl-menu-btn">' + menuText + '</span>';
             btn.classList.remove('active');
         }
     });
     document.addEventListener('click', function(e) {
         if (!container.contains(e.target)) {
             container.classList.remove('open');
-            btn.innerHTML = '<span class="icon">☰</span> ' + self.dict[self.currentLang].menuBtn;
+            var menuText = (self.dict && self.dict[self.currentLang] && self.dict[self.currentLang].menuBtn) ? self.dict[self.currentLang].menuBtn : 'Menü';
+            btn.innerHTML = '<span class="icon">☰</span> <span id="lbl-menu-btn">' + menuText + '</span>';
             btn.classList.remove('active');
         }
     });
@@ -1341,6 +1370,12 @@ UI.prototype._applyTranslations = function() {
     setTxt('lbl-touch', d.touch);
     var backLbl = document.getElementById('lbl-menu-back');
     if (backLbl) backLbl.innerText = d.menuBack;
+    
+    setTxt('lbl-mobile-map', d.navMobileMap);
+    setTxt('lbl-nav-title', d.navTitle);
+    setTxt('lbl-nav-campus', d.navCampus);
+    setTxt('lbl-nav-spawnpoints', d.navSpawnpoints);
+
     setTt('btn-low', d.ttLow);
     setTt('btn-medium', d.ttMed);
     setTt('btn-high', d.ttHigh);
@@ -1510,7 +1545,36 @@ UI.prototype._updateContent = function(levelId) {
         tourBtn.innerHTML = `<span class="icon">🗺️</span> <span>${btnText}</span>`;
     }
 
-    // Spawnpoints Dropdown entirely removed per user request
+    var navSpContainer = document.getElementById('nav-spawnpoints-container');
+    var navSpSection = document.getElementById('nav-spawnpoints-section');
+    if (navSpContainer && navSpSection) {
+        var lmEntity = this.app.root.findByName('LevelManager');
+        if (lmEntity && lmEntity.script && lmEntity.script.levelManager) {
+            var cfg = lmEntity.script.levelManager.getConfigById(levelId);
+            if (cfg && cfg.spawnpoints && cfg.spawnpoints.length > 0) {
+                navSpContainer.innerHTML = '';
+                cfg.spawnpoints.forEach(function(sp) {
+                    var btn = document.createElement('button');
+                    btn.className = 'unified-btn';
+                    btn.style.width = '100%';
+                    btn.style.justifyContent = 'flex-start';
+                    btn.innerHTML = '<span class="icon">📍</span> <span>' + sp.name + '</span>';
+                    btn.onclick = function() {
+                        var r = sp.rot || [0,0,0];
+                        lmEntity.script.levelManager.jumpToSpawnpoint(sp.pos, r);
+                        var no = document.getElementById('nav-overlay');
+                        if (no) no.style.display = 'none';
+                    };
+                    navSpContainer.appendChild(btn);
+                });
+                navSpSection.style.display = 'block';
+            } else {
+                navSpSection.style.display = 'none';
+            }
+        } else {
+            navSpSection.style.display = 'none';
+        }
+    }
 
     // Show/hide Steuerungs-Modus section based on mode
     var ctrlSection = document.getElementById('ctrl-mode-section');
