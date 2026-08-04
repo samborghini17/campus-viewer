@@ -1527,9 +1527,11 @@ UI.prototype._updateContent = function(levelId) {
     }
     if (logoEl) {
         if (levelId === 'detmold') {
-            logoEl.src = '/kcd.png';
+            logoEl.src = './kcd.png';
+            logoEl.onerror = function() { this.onerror = null; this.src = './public/kcd.png'; };
         } else {
-            logoEl.src = '/icl.jpg';
+            logoEl.src = './icl.jpg';
+            logoEl.onerror = function() { this.onerror = null; this.src = './public/icl.jpg'; };
         }
     }
     var switchText = document.getElementById('switch-campus-text');

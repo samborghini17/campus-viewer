@@ -393,7 +393,10 @@ class CameraControls extends Script {
         
         const moveMult = (this._state.shift ? this.moveFastSpeed : this._state.ctrl ? this.moveSlowSpeed : this.moveSpeed) * dt;
         
-        const zoomMult = this.zoomSpeed * 60 * dt;
+        // Dynamic zoom scaling based on camera distance so wheel and pinch zoom are smooth & responsive
+        const currentDist = (this._pose && this._pose.distance) ? this._pose.distance : 50;
+        const distScale = Math.max(1.0, currentDist * 0.035);
+        const zoomMult = (this.zoomSpeed || 0.05) * 60 * dt * distScale;
         const zoomTouchMult = zoomMult * this.zoomPinchSens;
         const rotateMult = this.rotateSpeed * 60 * dt;
         const rotateJoystickMult = this.rotateSpeed * this.rotateJoystickSens * 60 * dt;
@@ -404,16 +407,24 @@ class CameraControls extends Script {
         v.add(keyMove.mulScalar(fly * moveMult));
         const panMove = screenToWorld(this._camera, mouse[0], mouse[1], this._pose.distance);
         v.add(panMove.mulScalar(orbit * desktopPan * +this.enablePan));
-        const wheelMove = tmpV2.set(0, 0, wheel[0]);
-        v.add(wheelMove.mulScalar(orbit * zoomMult));
+        
+        // Wheel navigation for both Orbit (zoom) and Fly (forward/backward dolly)
+        if (orbit) {
+            const wheelMove = tmpV2.set(0, 0, wheel[0]);
+            v.add(wheelMove.mulScalar(zoomMult));
+        } else if (fly && wheel[0] !== 0) {
+            const flyWheelStep = -(wheel[0] > 0 ? 1 : -1) * moveMult * 2.5;
+            v.z += flyWheelStep;
+        }
+        
         deltas.move.append([
             v.x,
             v.y,
             v.z
         ]);
         // desktop rotate
-        v.set(0, 0, 0);
         const mouseRotate = tmpV2.set(mouse[0], mouse[1], 0);
+        v.set(0, 0, 0);
         v.add(mouseRotate.mulScalar((1 - orbit * desktopPan) * rotateMult));
         deltas.rotate.append([
             v.x,
@@ -593,16 +604,16 @@ class CameraControls extends Script {
         }), /**
      * @attribute
      * @type {number}
-     * @default 200
-     */ _define_property(this, "maxOrbitDistance", 200), /**
+     * @default 2000
+     */ _define_property(this, "maxOrbitDistance", 2000), /**
      * @attribute
      * @type {number}
      * @default 0.7
      */ _define_property(this, "minHeight", 0.7), /**
      * @attribute
      * @type {number}
-     * @default 150
-     */ _define_property(this, "maxHeight", 150), _define_property(this, "minBounds", null), _define_property(this, "maxBounds", null), /**
+     * @default 500
+     */ _define_property(this, "maxHeight", 500), _define_property(this, "minBounds", null), _define_property(this, "maxBounds", null), /**
      * Enable panning.
      *
      * @attribute
@@ -650,7 +661,7 @@ class CameraControls extends Script {
      * @attribute
      * @title Zoom Speed
      * @type {number}
-     */ _define_property(this, "zoomSpeed", 0.001), /**
+     */ _define_property(this, "zoomSpeed", 0.05), /**
      * The joystick event name for the UI position for the base and stick elements.
      * The event name is appended with the side: 'left' or 'right'.
      *

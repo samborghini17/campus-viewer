@@ -445,8 +445,9 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 /* --- MOBILE SPECIFIC MEDIA QUERY (<= 600px) --- */
 /* ========================================================= */
 @media (max-width: 1100px) {
-    #gsplat-controls { flex-wrap: wrap; justify-content: center; gap: 10px; }
-    .right-controls { width: 100%; justify-content: space-between; }
+    #gsplat-controls { 
+        max-width: calc(100vw - 120px);
+    }
 }
 
 @media (max-width: 600px) {
@@ -458,7 +459,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         position: fixed;
         top: calc(var(--safe-top) + 8px);
         left: calc(var(--safe-left) + 10px);
-        right: calc(var(--safe-right) + 60px);
+        right: calc(var(--safe-right) + 62px);
         height: 44px;
         width: auto;
         padding: 0 10px;
@@ -491,6 +492,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         width: 28px;
         border-radius: 8px;
         display: block !important;
+        object-fit: contain;
     } 
     
     .right-controls {
@@ -511,12 +513,12 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 
     .quality-buttons.mobile-only .unified-btn {
         padding: 0 8px;
-        height: 30px;
+        height: 32px;
         font-size: 11px;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
     }
 
-    /* Burger Menu: Perfectly aligned at top-right */
+    /* Burger Menu: Perfectly harmonized top-right */
     #burger-menu-container {
         position: fixed;
         top: calc(var(--safe-top) + 8px);
@@ -542,6 +544,9 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         font-size: 18px;
         width: 100%;
         height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     #lbl-menu-btn { display: none !important; }
 
@@ -549,8 +554,9 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         width: min(290px, calc(100vw - 20px));
         right: 0;
         top: calc(100% + 8px);
-        max-height: calc(100dvh - var(--safe-top) - 70px);
+        max-height: calc(100dvh - var(--safe-top) - 75px);
         padding: 8px;
+        border-radius: var(--radius-ui);
     }
 
     #controls-card { display: none !important; }
@@ -558,13 +564,14 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
     /* POI Sidebar */
     #poi-sidebar { 
         top: calc(var(--safe-top) + 60px); 
-        bottom: calc(var(--safe-bottom) + 140px); 
+        bottom: calc(var(--safe-bottom) + 190px); 
         height: auto;
         width: 230px; 
         max-width: calc(100vw - 60px);
         left: calc(var(--safe-left) + 8px); 
         transform: translateX(0); 
         z-index: 1005;
+        border-radius: var(--radius-ui);
     } 
     #poi-sidebar.collapsed { transform: translateX(calc(-100% - 10px)); }
     #poi-sidebar-toggle {
@@ -574,20 +581,25 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         border-radius: 0 10px 10px 0;
     }
 
-    /* POI Navbar (Tour Bar): Floats centered above bottom thumb controls */
+    /* POI Navbar (Tour Bar): Raised position above thumbs & joystick */
     #poi-navbar { 
         position: fixed;
-        bottom: calc(var(--safe-bottom) + 80px); 
-        left: calc(var(--safe-left) + 12px);
-        right: calc(var(--safe-right) + 12px);
-        max-width: 360px;
-        margin: 0 auto;
-        height: 48px;
+        bottom: calc(var(--safe-bottom) + 125px); 
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 28px);
+        max-width: 340px;
+        margin: 0;
+        height: 46px;
         justify-content: space-between; 
-        padding: 4px 10px;
-        gap: 8px;
+        padding: 4px 8px;
+        gap: 6px;
         border-radius: var(--radius-pill);
-        transform: none;
+        background: var(--bg-glass-card);
+        backdrop-filter: var(--blur-strong);
+        -webkit-backdrop-filter: var(--blur-strong);
+        border: 1px solid var(--border-glass);
+        box-shadow: var(--shadow-glass);
         z-index: 1005;
         box-sizing: border-box;
     }
@@ -601,23 +613,38 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         width: 34px;
         height: 34px;
         font-size: 13px;
+        border-radius: 50%;
     }
 
-    /* Joystick: visible on mobile */
+    /* Virtual Joystick on mobile */
     #mobile-joystick-zone {
         display: flex !important;
+        bottom: calc(var(--safe-bottom) + 20px);
+        left: calc(var(--safe-left) + 16px);
+    }
+    #joystick-base {
+        width: 100px;
+        height: 100px;
+        background: rgba(18, 22, 32, 0.45);
+        border: 1.5px solid var(--border-glass);
+    }
+    #joystick-stick {
+        width: 44px;
+        height: 44px;
     }
 
-    /* Subtle Splat Counter Badge on mobile */
+    /* Mobile Map Button on mobile */
+    #btn-mobile-map {
+        bottom: calc(var(--safe-bottom) + 20px);
+        right: calc(var(--safe-right) + 16px);
+        height: 46px;
+        padding: 0 16px;
+        font-size: 12px;
+    }
+
+    /* Splat Counter: Hidden on mobile per user instruction */
     #gsplat-footer {
-        top: calc(var(--safe-top) + 58px);
-        right: calc(var(--safe-right) + 10px);
-        bottom: auto;
-        padding: 2px 8px;
-        font-size: 10px;
-        border-radius: 8px;
-        opacity: 0.65;
-        pointer-events: none;
+        display: none !important;
     }
 
     /* Navigation Overlay Modal */
@@ -630,7 +657,35 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         max-width: 380px;
         max-height: 85dvh;
         padding: 18px;
-        border-radius: 18px;
+        border-radius: var(--radius-ui);
+    }
+}
+
+/* Landscape / Small-height screen adjustments */
+@media (max-height: 500px) {
+    #poi-navbar {
+        bottom: calc(var(--safe-bottom) + 10px);
+        height: 38px;
+        max-width: 300px;
+    }
+    #poi-sidebar {
+        top: calc(var(--safe-top) + 54px);
+        bottom: calc(var(--safe-bottom) + 54px);
+    }
+    #btn-mobile-map {
+        bottom: calc(var(--safe-bottom) + 10px);
+        height: 38px;
+    }
+    #mobile-joystick-zone {
+        bottom: calc(var(--safe-bottom) + 10px);
+    }
+    #joystick-base {
+        width: 80px;
+        height: 80px;
+    }
+    #joystick-stick {
+        width: 36px;
+        height: 36px;
     }
 }
 

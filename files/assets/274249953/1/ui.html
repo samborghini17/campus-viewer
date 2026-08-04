@@ -39,16 +39,6 @@
         <button id="menu-reset" class="menu-item">
             <span class="icon">🔄</span> <span id="lbl-menu-reset">Kamera Reset</span>
         </button>
-        <div id="ctrl-mode-section">
-        <div class="menu-separator"></div>
-        <div class="menu-item" style="pointer-events: none; color: var(--text-secondary); padding-bottom: 2px; font-size: 11px; text-transform: uppercase; font-weight: 600;">Steuerungs-Modus</div>
-        <button id="mock-ctrl-fps" class="menu-item active" style="color: var(--col-cyan);">
-            <span class="icon">🎯</span> <span id="lbl-ctrl-fps">Shooter-Steuerung</span>
-        </button>
-        <button id="mock-ctrl-drag" class="menu-item" style="opacity: 0.5;">
-            <span class="icon">👆</span> <span id="lbl-ctrl-drag">Orbit-Steuerung</span>
-        </button>
-        </div>
         <div class="menu-separator"></div>
         <div class="menu-item" style="pointer-events: none; color: var(--text-secondary); padding-bottom: 2px; font-size: 11px; text-transform: uppercase; font-weight: 600;" id="lbl-tools-header">Werkzeuge</div>
         <button id="menu-culling-toggle" class="menu-item" style="opacity: 0.5;">
@@ -92,7 +82,7 @@
 <div id="gsplat-controls" class="header">
     <div class="branding">
         <a href="https://www.th-owl.de" target="_blank" rel="noopener noreferrer" class="logo-link">
-            <img src="./icl.jpg" alt="Logo" class="logo" id="header-logo">
+            <img src="./icl.jpg" alt="Logo" class="logo" id="header-logo" onerror="this.onerror=null; this.src='./public/icl.jpg';">
         </a>
         <div class="title-container">
             <span class="title" id="lbl-welcome">Willkommen zum interaktiven Campus</span>

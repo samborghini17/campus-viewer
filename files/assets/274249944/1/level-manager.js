@@ -1102,12 +1102,20 @@ LevelManager.prototype.resetCamera = function(hasCollider, specificPos, specific
 
         if (controls) {
             if (controls._pose) {
-                controls._pose.position.copy(startPos);
-                if (startRot) controls._pose.angles.copy(startRot);
+                if (startRot) {
+                    controls._pose.position.copy(startPos);
+                    controls._pose.angles.copy(startRot);
+                    controls._pose.distance = Math.max(30, startPos.length() || 80);
+                } else {
+                    controls._pose.look(startPos, pc.Vec3.ZERO);
+                }
+            }
+            if (controls._setMode) {
+                controls._setMode('orbit');
             }
             if (controls._controller) {
                 controls._controller.detach();
-                controls._controller.attach(controls._pose);
+                controls._controller.attach(controls._pose, false);
             }
         }
     } else {
@@ -1460,6 +1468,8 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
             controls.enableFly = true; 
             controls.moveSpeed = this.outdoorSpeed;
             controls.moveFastSpeed = this.outdoorFastSpeed;
+            controls.maxOrbitDistance = 2000;
+            controls.zoomSpeed = 0.05;
         }
         if (flyCam) flyCam.enabled = false;
         this._setCharControllerActive(playerRig, false);
