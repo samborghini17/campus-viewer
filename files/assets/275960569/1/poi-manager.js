@@ -230,11 +230,47 @@ PoiManager.prototype.getOrbitalTransform = function(index, angle) {
 };
 
 PoiManager.prototype.update = function(dt) {
-    var orbitSpeed = 15.0; // 15 degrees per second (24s for a full 360)
+    var orbitSpeed = 12.0; // 12 degrees per second (30s for full circle)
     this.orbitAngle = ((this.orbitAngle || 0) + orbitSpeed * dt) % 360.0;
 
+    // Handle Active Flight Transition seamlessly in engine update
+    if (this._flight && this._flight.active) {
+        this._flight.elapsed += dt;
+        var p = Math.min(1.0, this._flight.elapsed / Math.max(0.001, this._flight.duration));
+        // Smooth cubic ease in-out
+        var ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+        var targetTransform = this.getOrbitalTransform(this._flight.targetIndex, this.orbitAngle);
+        if (targetTransform && this.cameraEntity) {
+            var curPos = new pc.Vec3().lerp(this._flight.startPos, targetTransform.pos, ease);
+            var curRot = new pc.Quat().slerp(this._flight.startRot, targetTransform.rot, ease);
+            this.cameraEntity.setPosition(curPos);
+            this.cameraEntity.setRotation(curRot);
+
+            var playerRig = this.app.root.findByName('Character_Controller');
+            if (playerRig) {
+                playerRig.setPosition(curPos);
+                var euler = this.cameraEntity.getLocalEulerAngles();
+                playerRig.setLocalEulerAngles(0, euler.y, 0);
+            }
+        }
+
+        if (p >= 1.0) {
+            this._flight.active = false;
+            if (this.cameraEntity && targetTransform) {
+                this.cameraEntity.setPosition(targetTransform.pos);
+                this.cameraEntity.setRotation(targetTransform.rot);
+            }
+            if (this._flight.onComplete) {
+                var cb = this._flight.onComplete;
+                this._flight.onComplete = null;
+                cb();
+            }
+        }
+        return;
+    }
+
     if (!this.isAutoTouring || !this.tourNodes || this.tourNodes.length === 0) return;
-    if (this._isTransitioning) return;
     
     this.tourTimer += dt;
     
@@ -251,7 +287,7 @@ PoiManager.prototype.update = function(dt) {
     }
     
     // Each segment: dwellTime at node + flyTime between nodes
-    var dwellTime = 24.0;
+    var dwellTime = 16.0;
     var flyTime = this.autoTourDelay || 4.0;
     var segmentDuration = dwellTime + flyTime;
     var totalDuration = count * segmentDuration;
@@ -349,27 +385,16 @@ PoiManager.prototype.jumpTo = function(index, immediate) {
     
     this.currentIndex = index;
     var target = this.pois[index];
-    var flightDur = 1.3;
-    var orbitSpeed = 15.0;
-    var projectedAngle = ((this.orbitAngle || 0) + orbitSpeed * flightDur) % 360.0;
-    var transform = this.getOrbitalTransform(index, immediate ? (this.orbitAngle || 0) : projectedAngle) || this.getTargetCamTransform(index);
+    var transform = this.getOrbitalTransform(index, this.orbitAngle) || this.getTargetCamTransform(index);
     if (!transform) return;
 
-    var camPos = transform.pos;
-    var camRot = transform.rot || this._calcLookAtRot(camPos, transform.targetPos);
     var targetPos = transform.targetPos;
 
-    var self = this;
     if (this.cameraEntity) {
         if (immediate) {
-            if (this._activeFlightAnim) {
-                cancelAnimationFrame(this._activeFlightAnim);
-                this._activeFlightAnim = null;
-            }
-            this._isTransitioning = false;
-            this.cameraEntity.setPosition(camPos);
-            if (camRot) this.cameraEntity.setRotation(camRot);
-            else this.cameraEntity.lookAt(targetPos);
+            if (this._flight) this._flight.active = false;
+            this.cameraEntity.setPosition(transform.pos);
+            this.cameraEntity.setRotation(transform.rot || this._calcLookAtRot(transform.pos, targetPos));
             
             var playerRig = this.app.root.findByName('Character_Controller');
             if (playerRig) {
@@ -378,10 +403,11 @@ PoiManager.prototype.jumpTo = function(index, immediate) {
                 playerRig.setLocalEulerAngles(0, euler.y, 0);
             }
         } else {
+            var self = this;
             var activeIdx = this.activePois.indexOf(index);
-            this._startSmoothFlight(camPos, camRot, flightDur, function() {
+            this._startSmoothFlight(index, 1.3, function() {
                 if (self.isAutoTouring && self.tourNodes && activeIdx !== -1) {
-                    var dwellTime = 24.0;
+                    var dwellTime = 16.0;
                     var flyTime = self.autoTourDelay || 4.0;
                     var segmentDuration = dwellTime + flyTime;
                     self.tourTimer = activeIdx * segmentDuration;
@@ -409,56 +435,20 @@ PoiManager.prototype._calcLookAtRot = function(fromPos, toPos) {
     return rot;
 };
 
-PoiManager.prototype._startSmoothFlight = function(targetPos, targetRot, duration, onComplete) {
+PoiManager.prototype._startSmoothFlight = function(targetIndex, duration, onComplete) {
     if (!this.cameraEntity) return;
-    if (this._activeFlightAnim) {
-        cancelAnimationFrame(this._activeFlightAnim);
-        this._activeFlightAnim = null;
-    }
-    this._isTransitioning = true;
     var startPos = this.cameraEntity.getPosition().clone();
     var startRot = this.cameraEntity.getRotation().clone();
-    var startTime = performance.now();
-    var dur = (duration || 1.3) * 1000;
-    var self = this;
 
-    // Check shortest quaternion path
-    var endRot = targetRot.clone();
-    var dot = startRot.x * endRot.x + startRot.y * endRot.y + startRot.z * endRot.z + startRot.w * endRot.w;
-    if (dot < 0) {
-        endRot.x *= -1; endRot.y *= -1; endRot.z *= -1; endRot.w *= -1;
-    }
-
-    var animateFlight = function(now) {
-        var elapsed = now - startTime;
-        var p = Math.min(1.0, elapsed / dur);
-        // Smooth cubic ease in-out
-        var ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-
-        var currentPos = new pc.Vec3().lerp(startPos, targetPos, ease);
-        var currentRot = new pc.Quat().slerp(startRot, endRot, ease);
-
-        if (self.cameraEntity) {
-            self.cameraEntity.setPosition(currentPos);
-            self.cameraEntity.setRotation(currentRot);
-        }
-
-        var playerRig = self.app.root.findByName('Character_Controller');
-        if (playerRig) {
-            playerRig.setPosition(currentPos);
-            var euler = self.cameraEntity.getLocalEulerAngles();
-            playerRig.setLocalEulerAngles(0, euler.y, 0);
-        }
-
-        if (p < 1.0) {
-            self._activeFlightAnim = requestAnimationFrame(animateFlight);
-        } else {
-            self._activeFlightAnim = null;
-            self._isTransitioning = false;
-            if (onComplete) onComplete();
-        }
+    this._flight = {
+        active: true,
+        startPos: startPos,
+        startRot: startRot,
+        targetIndex: targetIndex,
+        duration: duration || 1.3,
+        elapsed: 0,
+        onComplete: onComplete || null
     };
-    self._activeFlightAnim = requestAnimationFrame(animateFlight);
 };
 
 PoiManager.prototype.next = function() {
@@ -477,22 +467,17 @@ PoiManager.prototype.next = function() {
     this.updateNavTitle(this.pois[nextPoiIndex].title);
 
     var flightDur = 1.3;
-    var orbitSpeed = 15.0;
-    var projectedAngle = ((this.orbitAngle || 0) + orbitSpeed * flightDur) % 360.0;
-    var targetTransform = this.getOrbitalTransform(nextPoiIndex, projectedAngle) || this.getTargetCamTransform(nextPoiIndex);
-    if (!targetTransform) return;
-
     var self = this;
     if (this.isAutoTouring && this.tourNodes && this.tourNodes.length > 0) {
-        var dwellTime = 24.0;
+        var dwellTime = 16.0;
         var flyTime = this.autoTourDelay || 4.0;
         var segmentDuration = dwellTime + flyTime;
         
-        this._startSmoothFlight(targetTransform.pos, targetTransform.rot, flightDur, function() {
+        this._startSmoothFlight(nextPoiIndex, flightDur, function() {
             self.tourTimer = nextActiveIdx * segmentDuration;
         });
     } else {
-        this._startSmoothFlight(targetTransform.pos, targetTransform.rot, flightDur);
+        this._startSmoothFlight(nextPoiIndex, flightDur);
     }
 };
 
@@ -512,22 +497,17 @@ PoiManager.prototype.prev = function() {
     this.updateNavTitle(this.pois[prevPoiIndex].title);
 
     var flightDur = 1.3;
-    var orbitSpeed = 15.0;
-    var projectedAngle = ((this.orbitAngle || 0) + orbitSpeed * flightDur) % 360.0;
-    var targetTransform = this.getOrbitalTransform(prevPoiIndex, projectedAngle) || this.getTargetCamTransform(prevPoiIndex);
-    if (!targetTransform) return;
-
     var self = this;
     if (this.isAutoTouring && this.tourNodes && this.tourNodes.length > 0) {
-        var dwellTime = 24.0;
+        var dwellTime = 16.0;
         var flyTime = this.autoTourDelay || 4.0;
         var segmentDuration = dwellTime + flyTime;
         
-        this._startSmoothFlight(targetTransform.pos, targetTransform.rot, flightDur, function() {
+        this._startSmoothFlight(prevPoiIndex, flightDur, function() {
             self.tourTimer = prevActiveIdx * segmentDuration;
         });
     } else {
-        this._startSmoothFlight(targetTransform.pos, targetTransform.rot, flightDur);
+        this._startSmoothFlight(prevPoiIndex, flightDur);
     }
 };
 

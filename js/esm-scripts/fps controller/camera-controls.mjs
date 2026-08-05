@@ -393,11 +393,10 @@ class CameraControls extends Script {
         
         const moveMult = (this._state.shift ? this.moveFastSpeed : this._state.ctrl ? this.moveSlowSpeed : this.moveSpeed) * dt;
         
-        // Dynamic zoom scaling based on camera distance so wheel and pinch zoom are smooth & responsive
-        const currentDist = (this._pose && this._pose.distance) ? this._pose.distance : 50;
-        const distScale = Math.max(1.0, currentDist * 0.035);
-        const zoomMult = (this.zoomSpeed || 0.05) * 60 * dt * distScale;
-        const zoomTouchMult = zoomMult * this.zoomPinchSens;
+        // Granular, smooth exponential zoom: OrbitController natively applies dist * move.z
+        // Standardized fractional zoom per wheel tick gives fine, non-jumping, stutter-free steps
+        const zoomMult = (this.zoomSpeed || 0.04);
+        const zoomTouchMult = zoomMult * (this.zoomPinchSens || 1.0) * 0.2;
         const rotateMult = this.rotateSpeed * 60 * dt;
         const rotateJoystickMult = this.rotateSpeed * this.rotateJoystickSens * 60 * dt;
         const { deltas } = frame;
@@ -410,8 +409,8 @@ class CameraControls extends Script {
         
         // Wheel navigation for both Orbit (zoom) and Fly (forward/backward dolly)
         if (orbit) {
-            const wheelMove = tmpV2.set(0, 0, wheel[0]);
-            v.add(wheelMove.mulScalar(zoomMult));
+            const wheelMove = tmpV2.set(0, 0, wheel[0] * zoomMult);
+            v.add(wheelMove);
         } else if (fly && wheel[0] !== 0) {
             const flyWheelStep = -(wheel[0] > 0 ? 1 : -1) * moveMult * 2.5;
             v.z += flyWheelStep;

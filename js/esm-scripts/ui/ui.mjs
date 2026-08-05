@@ -898,11 +898,26 @@ UI.prototype._initBurgerMenu = function() {
         if (adminModal) adminModal.classList.add('hidden');
         if (editorPanel) {
             editorPanel.style.display = 'flex';
+            self._editorPanelOpen = true;
             if (self._populateEditorLevel) self._populateEditorLevel(self._currentLevelId);
+            self._refreshOutlinerTree();
+            self._initGizmoSystem();
+            self._initViewportPicker();
         }
         self.app.fire('debug:toggle', true);
         var bContainer = document.getElementById('burger-menu-container');
         if (bContainer) bContainer.classList.remove('open');
+    };
+
+    var promptAdminAuth = function() {
+        if (adminModal) {
+            adminModal.classList.remove('hidden');
+            if (adminPwInput) {
+                adminPwInput.value = '';
+                setTimeout(function() { adminPwInput.focus(); }, 50);
+            }
+            if (adminError) adminError.style.display = 'none';
+        }
     };
 
     if (adminMenuBtn) {
@@ -910,14 +925,7 @@ UI.prototype._initBurgerMenu = function() {
             if (sessionStorage.getItem('thowl_admin') === '1') {
                 openEditor();
             } else {
-                if (adminModal) {
-                    adminModal.classList.remove('hidden');
-                    if (adminPwInput) {
-                        adminPwInput.value = '';
-                        adminPwInput.focus();
-                    }
-                    if (adminError) adminError.style.display = 'none';
-                }
+                promptAdminAuth();
             }
         };
     }
@@ -936,8 +944,10 @@ UI.prototype._initBurgerMenu = function() {
             } else {
                 if (adminError) adminError.style.display = 'block';
                 if (adminPwInput) {
-                    adminPwInput.style.borderColor = 'var(--col-red)';
-                    setTimeout(function() { adminPwInput.style.borderColor = ''; }, 1000);
+                    adminPwInput.style.borderColor = 'var(--col-accent)';
+                    adminPwInput.focus();
+                    adminPwInput.select();
+                    setTimeout(function() { if (adminPwInput) adminPwInput.style.borderColor = ''; }, 1200);
                 }
             }
             return false;
@@ -1158,7 +1168,33 @@ UI.prototype._initRealtimeEditor = function() {
         };
     }
 
-    // --- 3. Tab Switching ---
+    // --- 3. Tab Switching & Horizontal Navigation ---
+    var tabsContainer = panel.querySelector('.ed-tabs');
+    var scrollLeftBtn = document.getElementById('ed-tabs-scroll-left');
+    var scrollRightBtn = document.getElementById('ed-tabs-scroll-right');
+    
+    if (tabsContainer) {
+        tabsContainer.addEventListener('wheel', function(e) {
+            if (e.deltaY !== 0) {
+                tabsContainer.scrollLeft += e.deltaY;
+                e.preventDefault();
+            }
+        }, { passive: false });
+    }
+    
+    if (scrollLeftBtn && tabsContainer) {
+        scrollLeftBtn.onclick = function(e) {
+            e.stopPropagation();
+            tabsContainer.scrollBy({ left: -140, behavior: 'smooth' });
+        };
+    }
+    if (scrollRightBtn && tabsContainer) {
+        scrollRightBtn.onclick = function(e) {
+            e.stopPropagation();
+            tabsContainer.scrollBy({ left: 140, behavior: 'smooth' });
+        };
+    }
+
     var tabBtns = panel.querySelectorAll('.ed-tab-btn');
     var tabPanes = panel.querySelectorAll('.ed-tab-pane');
     tabBtns.forEach(function(btn) {
@@ -1168,6 +1204,7 @@ UI.prototype._initRealtimeEditor = function() {
             tabBtns.forEach(function(b) { b.classList.remove('active'); });
             tabPanes.forEach(function(p) { p.classList.remove('active'); });
             btn.classList.add('active');
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             var targetPane = document.getElementById(targetTab) || document.getElementById('pane-' + targetTab);
             if (targetPane) targetPane.classList.add('active');
             if (targetTab === 'tab-outliner') self._refreshOutlinerTree();
@@ -1395,8 +1432,29 @@ UI.prototype._initRealtimeEditor = function() {
                 if (confirm('Entity "' + self._editorActiveObj.name + '" wirklich löschen?')) {
                     self._editorActiveObj.destroy();
                     self._editorActiveObj = null;
+                    self._selectEntity(null);
                     self._refreshOutlinerTree();
                 }
+            };
+        }
+
+        // --- Gizmo Mode Buttons ---
+        ['translate', 'rotate', 'scale'].forEach(function(m) {
+            var btn = document.getElementById('ed-gizmo-mode-' + m);
+            if (btn) {
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    self._setGizmoMode(m);
+                };
+            }
+        });
+        var gizmoToggleBtn = document.getElementById('ed-gizmo-mode-toggle');
+        if (gizmoToggleBtn) {
+            gizmoToggleBtn.onclick = function(e) {
+                e.stopPropagation();
+                self._gizmoEnabled = !self._gizmoEnabled;
+                gizmoToggleBtn.classList.toggle('active', self._gizmoEnabled);
+                self._setGizmoMode(self._gizmoEnabled ? self._gizmoMode : 'none');
             };
         }
     };
@@ -1837,6 +1895,26 @@ UI.prototype._initRealtimeEditor = function() {
         });
     }
 
+    var colSelect3dBtn = document.getElementById('ed-col-select-3d-btn');
+    if (colSelect3dBtn) {
+        colSelect3dBtn.onclick = function(e) {
+            e.stopPropagation();
+            var levelManager = self.app.root.findByName('LevelManager');
+            var dynCol = (levelManager && levelManager.script && levelManager.script.levelManager && levelManager.script.levelManager._dynamicColliderEntity) ||
+                         self.app.root.findByName('DynamicCollider_' + self._currentLevelId);
+            if (dynCol) {
+                if (dynCol.render) dynCol.render.enabled = true;
+                self._selectEntity(dynCol);
+                var tabBtn = document.querySelector('.ed-tab-btn[data-tab="tab-inspector"]');
+                if (tabBtn) tabBtn.click();
+                colSelect3dBtn.innerText = '✅ Collider im 3D-Viewer aktiv!';
+                setTimeout(function() { colSelect3dBtn.innerText = '🎯 Collider im 3D-Viewer auswählen & bewegen'; }, 1500);
+            } else {
+                alert('Kein aktiver Collider für dieses Level geladen.');
+            }
+        };
+    }
+
     // --- 16. Tour Cam Controls ---
     var cinPlayBtn = document.getElementById('ed-cin-play-btn');
     if (cinPlayBtn) {
@@ -2016,7 +2094,7 @@ UI.prototype._selectEntity = function(entity) {
 
         var setVal = function(id, val) {
             var el = document.getElementById(id);
-            if (el) el.value = typeof val === 'number' ? val.toFixed(3) : val;
+            if (el) el.value = typeof val === 'number' ? (Number.isInteger(val) ? val : val.toFixed(3)) : val;
         };
 
         setVal('ed-ins-pos-x', pos.x);
@@ -2029,7 +2107,303 @@ UI.prototype._selectEntity = function(entity) {
         setVal('ed-ins-scale-y', scale.y);
         setVal('ed-ins-scale-z', scale.z);
 
+        // Sync Gizmo attachment
+        if (this._gizmoEnabled && this._gizmoMode !== 'none') {
+            this._setGizmoMode(this._gizmoMode || 'translate');
+        }
+
         this._renderAttributeEditor(entity);
+    } else {
+        if (this._translateGizmo) this._translateGizmo.detach();
+        if (this._rotateGizmo) this._rotateGizmo.detach();
+        if (this._scaleGizmo) this._scaleGizmo.detach();
+        this._renderAttributeEditor(null);
+    }
+};
+
+UI.prototype._initGizmoSystem = function() {
+    var self = this;
+    if (this._gizmoInitialized) return;
+    this._gizmoInitialized = true;
+    this._gizmoMode = 'translate';
+    this._gizmoEnabled = true;
+
+    var camEntity = this.app.root.findByName('Camera');
+    if (!camEntity || !camEntity.camera) return;
+
+    try {
+        var gizmoLayer = this.app.scene.layers.getLayerByName('GizmoLayer');
+        if (!gizmoLayer && pc.Gizmo && pc.Gizmo.createLayer) {
+            gizmoLayer = pc.Gizmo.createLayer(this.app, 'GizmoLayer');
+        }
+
+        if (pc.TranslateGizmo && gizmoLayer) {
+            this._translateGizmo = new pc.TranslateGizmo(camEntity.camera, gizmoLayer);
+            this._rotateGizmo = new pc.RotateGizmo(camEntity.camera, gizmoLayer);
+            this._scaleGizmo = new pc.ScaleGizmo(camEntity.camera, gizmoLayer);
+
+            var onGizmoTransform = function() {
+                if (self._editorActiveObj) {
+                    var p = self._editorActiveObj.getLocalPosition();
+                    var r = self._editorActiveObj.getLocalEulerAngles();
+                    var s = self._editorActiveObj.getLocalScale();
+
+                    var setVal = function(id, val) {
+                        var el = document.getElementById(id);
+                        if (el) el.value = typeof val === 'number' ? (Number.isInteger(val) ? val : val.toFixed(3)) : val;
+                    };
+                    setVal('ed-ins-pos-x', p.x);
+                    setVal('ed-ins-pos-y', p.y);
+                    setVal('ed-ins-pos-z', p.z);
+                    setVal('ed-ins-rot-x', r.x.toFixed(1));
+                    setVal('ed-ins-rot-y', r.y.toFixed(1));
+                    setVal('ed-ins-rot-z', r.z.toFixed(1));
+                    setVal('ed-ins-scale-x', s.x.toFixed(3));
+                    setVal('ed-ins-scale-y', s.y.toFixed(3));
+                    setVal('ed-ins-scale-z', s.z.toFixed(3));
+
+                    if (self._editorActiveObj.name.startsWith('DynamicCollider')) {
+                        setVal('ed-col-pos-x', p.x);
+                        setVal('ed-col-pos-y', p.y);
+                        setVal('ed-col-pos-z', p.z);
+                        setVal('ed-col-rot-x', r.x.toFixed(1));
+                        setVal('ed-col-rot-y', r.y.toFixed(1));
+                        setVal('ed-col-rot-z', r.z.toFixed(1));
+                    }
+
+                    if (self._editorActiveObj.rigidbody) {
+                        self._editorActiveObj.rigidbody.syncEntityToBody();
+                    }
+                }
+            };
+
+            [this._translateGizmo, this._rotateGizmo, this._scaleGizmo].forEach(function(g) {
+                if (g) {
+                    g.on('transform:move', onGizmoTransform);
+                    g.on('transform:end', onGizmoTransform);
+                }
+            });
+            console.log('[UI] 3D Transform Gizmos ready');
+        }
+    } catch(e) {
+        console.warn('[UI] Gizmo initialization error:', e);
+    }
+};
+
+UI.prototype._setGizmoMode = function(mode) {
+    this._gizmoMode = mode;
+    ['translate', 'rotate', 'scale'].forEach(function(m) {
+        var btn = document.getElementById('ed-gizmo-mode-' + m);
+        if (btn) {
+            if (m === mode) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+
+    if (this._translateGizmo) this._translateGizmo.detach();
+    if (this._rotateGizmo) this._rotateGizmo.detach();
+    if (this._scaleGizmo) this._scaleGizmo.detach();
+
+    if (this._editorActiveObj && this._gizmoEnabled && mode !== 'none') {
+        var targetGizmo = mode === 'rotate' ? this._rotateGizmo : (mode === 'scale' ? this._scaleGizmo : this._translateGizmo);
+        if (targetGizmo) targetGizmo.attach([this._editorActiveObj]);
+    }
+};
+
+UI.prototype._initViewportPicker = function() {
+    var self = this;
+    if (this._pickerInitialized) return;
+    this._pickerInitialized = true;
+
+    var canvas = this.app.graphicsDevice.canvas;
+    var pointerDownPos = { x: 0, y: 0 };
+    var pointerDownTime = 0;
+
+    canvas.addEventListener('pointerdown', function(e) {
+        pointerDownPos.x = e.clientX;
+        pointerDownPos.y = e.clientY;
+        pointerDownTime = Date.now();
+    });
+
+    canvas.addEventListener('pointerup', function(e) {
+        if (!self._editorPanelOpen) return;
+        var dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+        if (dist > 6 || Date.now() - pointerDownTime > 300) return;
+
+        var elem = document.elementFromPoint(e.clientX, e.clientY);
+        if (elem && elem !== canvas) return;
+
+        var camEntity = self.app.root.findByName('Camera');
+        if (!camEntity || !camEntity.camera) return;
+
+        var ray = new pc.Ray();
+        camEntity.camera.screenToWorld(e.clientX, e.clientY, camEntity.camera.nearClip, ray.origin);
+        var farWorld = new pc.Vec3();
+        camEntity.camera.screenToWorld(e.clientX, e.clientY, camEntity.camera.farClip, farWorld);
+        ray.direction.sub2(farWorld, ray.origin).normalize();
+
+        var candidates = [];
+        var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+
+        var checkEntity = function(ent) {
+            if (!ent || !ent.enabled || ent._destroyed) return;
+            var isSelectable = (ent.tags && (
+                ent.tags.has('custom-editor-object') ||
+                ent.tags.has('custom-editor-poi') ||
+                ent.tags.has('custom-editor-media') ||
+                ent.tags.has('custom-editor-path') ||
+                ent.tags.has('gsplat')
+            )) || (ent.script && (
+                ent.script.infoHotspot || ent.script.pathVisualizer || ent.script.videoTexture || ent.script.constructionZone
+            )) || ent.name.startsWith('DynamicCollider') || (ent.render && ent !== self.app.root);
+
+            if (isSelectable) {
+                var entPos = ent.getPosition();
+                var scale = ent.getLocalScale ? ent.getLocalScale() : new pc.Vec3(1,1,1);
+                var radius = Math.max(Math.abs(scale.x), Math.abs(scale.y), Math.abs(scale.z)) * 0.8 + 0.3;
+                var toCenter = new pc.Vec3().sub2(entPos, ray.origin);
+                var proj = toCenter.dot(ray.direction);
+                if (proj > 0) {
+                    var closestPoint = new pc.Vec3().copy(ray.direction).mulScalar(proj).add(ray.origin);
+                    var d2 = closestPoint.distance(entPos);
+                    if (d2 <= radius) {
+                        candidates.push({ entity: ent, dist: proj });
+                    }
+                }
+            }
+            if (ent.children) ent.children.forEach(checkEntity);
+        };
+
+        checkEntity(levelContainer);
+        var dynamicCol = self.app.root.findByName('DynamicCollider_' + self._currentLevelId);
+        if (dynamicCol) checkEntity(dynamicCol);
+
+        if (candidates.length > 0) {
+            candidates.sort(function(a, b) { return a.dist - b.dist; });
+            var picked = candidates[0].entity;
+            console.log('[Editor Viewport] Picked entity in 3D:', picked.name);
+            self._selectEntity(picked);
+
+            var tabBtn = document.querySelector('.ed-tab-btn[data-tab="tab-inspector"]');
+            if (tabBtn) tabBtn.click();
+        }
+    });
+
+    // Keyboard Shortcuts for Gizmo (W = Translate, E = Rotate, R = Scale)
+    window.addEventListener('keydown', function(e) {
+        if (!self._editorPanelOpen) return;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].indexOf(e.target.tagName) !== -1) return;
+
+        if (e.key === 'w' || e.key === 'W') {
+            self._setGizmoMode('translate');
+        } else if (e.key === 'e' || e.key === 'E') {
+            self._setGizmoMode('rotate');
+        } else if (e.key === 'r' || e.key === 'R') {
+            self._setGizmoMode('scale');
+        } else if (e.key === 'f' || e.key === 'F') {
+            var focusBtn = document.getElementById('ed-inspect-focus-btn');
+            if (focusBtn) focusBtn.click();
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            var delBtn = document.getElementById('ed-inspect-del-btn');
+            if (delBtn && self._editorActiveObj) delBtn.click();
+        }
+    });
+};
+
+UI.prototype._renderAttributeEditor = function(entity) {
+    var container = document.getElementById('ed-custom-attrs');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!entity) return;
+
+    var self = this;
+
+    // 1. Hotspot component editor
+    if (entity.script && entity.script.infoHotspot) {
+        var hs = entity.script.infoHotspot;
+        var section = document.createElement('div');
+        section.className = 'ed-section';
+        section.innerHTML = '<div class="ed-section-title col-accent">🎯 Hotspot Eigenschaften</div>' +
+            '<div class="ed-field-row"><label class="ed-label">Titel (DE):</label><input type="text" id="ed-hs-title" class="ed-input-text" value="' + (hs.title || '') + '"></div>' +
+            '<div class="ed-field-row"><label class="ed-label">Titel (EN):</label><input type="text" id="ed-hs-title-en" class="ed-input-text" value="' + (hs.titleEn || '') + '"></div>' +
+            '<div class="ed-field-row"><label class="ed-label">Text (DE):</label><input type="text" id="ed-hs-desc" class="ed-input-text" value="' + (hs.description || '') + '"></div>' +
+            '<div class="ed-field-row"><label class="ed-label">Text (EN):</label><input type="text" id="ed-hs-desc-en" class="ed-input-text" value="' + (hs.descriptionEn || '') + '"></div>' +
+            '<div class="ed-field-row"><label class="ed-label">Link URL:</label><input type="text" id="ed-hs-link" class="ed-input-text" value="' + (hs.linkUrl || '') + '"></div>';
+
+        var titleInp = section.querySelector('#ed-hs-title');
+        if (titleInp) titleInp.oninput = function(e) { hs.title = e.target.value; };
+        var titleEnInp = section.querySelector('#ed-hs-title-en');
+        if (titleEnInp) titleEnInp.oninput = function(e) { hs.titleEn = e.target.value; };
+        var descInp = section.querySelector('#ed-hs-desc');
+        if (descInp) descInp.oninput = function(e) { hs.description = e.target.value; };
+        var descEnInp = section.querySelector('#ed-hs-desc-en');
+        if (descEnInp) descEnInp.oninput = function(e) { hs.descriptionEn = e.target.value; };
+        var linkInp = section.querySelector('#ed-hs-link');
+        if (linkInp) linkInp.oninput = function(e) { hs.linkUrl = e.target.value; };
+
+        container.appendChild(section);
+    }
+
+    // 2. Video Texture / Media Screen component editor
+    if (entity.script && entity.script.videoTexture) {
+        var vt = entity.script.videoTexture;
+        var vSec = document.createElement('div');
+        vSec.className = 'ed-section';
+        vSec.innerHTML = '<div class="ed-section-title col-accent">🎬 Video Screen Eigenschaften</div>' +
+            '<div class="ed-field-row"><label class="ed-label">Video URL:</label><input type="text" id="ed-vt-url" class="ed-input-text" value="' + (vt.videoUrl || '') + '"></div>' +
+            '<div class="ed-field-row"><label class="ed-label">Audio:</label><input type="checkbox" id="ed-vt-audio"' + (vt.playAudio ? ' checked' : '') + '></div>';
+
+        var vUrl = vSec.querySelector('#ed-vt-url');
+        if (vUrl) vUrl.oninput = function(e) { vt.videoUrl = e.target.value; };
+        var vAud = vSec.querySelector('#ed-vt-audio');
+        if (vAud) vAud.onchange = function(e) { vt.playAudio = e.target.checked; };
+
+        container.appendChild(vSec);
+    }
+
+    // 3. Construction Zone component editor
+    if (entity.script && entity.script.constructionZone) {
+        var cz = entity.script.constructionZone;
+        var czSec = document.createElement('div');
+        czSec.className = 'ed-section';
+        czSec.innerHTML = '<div class="ed-section-title col-accent">🚧 Baustellen Zone</div>' +
+            '<div class="ed-field-row"><label class="ed-label">Titel:</label><input type="text" id="ed-cz-title" class="ed-input-text" value="' + (cz.title || '') + '"></div>' +
+            '<div class="ed-field-row"><label class="ed-label">Status:</label><input type="text" id="ed-cz-status" class="ed-input-text" value="' + (cz.status || '') + '"></div>' +
+            '<div class="ed-field-row"><label class="ed-label">Fortschritt:</label><input type="range" id="ed-cz-progress" min="0" max="100" value="' + (cz.progress || 50) + '" style="flex:1;"><span id="ed-cz-prog-val">' + (cz.progress || 50) + '%</span></div>';
+
+        var czTitle = czSec.querySelector('#ed-cz-title');
+        if (czTitle) czTitle.oninput = function(e) { cz.title = e.target.value; };
+        var czStatus = czSec.querySelector('#ed-cz-status');
+        if (czStatus) czStatus.oninput = function(e) { cz.status = e.target.value; };
+        var czProg = czSec.querySelector('#ed-cz-progress');
+        var czVal = czSec.querySelector('#ed-cz-prog-val');
+        if (czProg && czVal) czProg.oninput = function(e) { cz.progress = parseInt(e.target.value); czVal.innerText = cz.progress + '%'; };
+
+        container.appendChild(czSec);
+    }
+
+    // 4. Light component editor
+    if (entity.light) {
+        var l = entity.light;
+        var lSec = document.createElement('div');
+        lSec.className = 'ed-section';
+        var hexColor = '#' + Math.round(l.color.r * 255).toString(16).padStart(2, '0') + Math.round(l.color.g * 255).toString(16).padStart(2, '0') + Math.round(l.color.b * 255).toString(16).padStart(2, '0');
+        lSec.innerHTML = '<div class="ed-section-title col-accent">💡 Licht-Quelle</div>' +
+            '<div class="ed-field-row"><label class="ed-label">Farbe:</label><input type="color" id="ed-light-col" value="' + hexColor + '" style="border:none; width:40px; height:24px; border-radius:4px; cursor:pointer;"><label class="ed-label" style="margin-left:8px;">Intensität:</label><input type="range" id="ed-light-int" min="0.1" max="5.0" step="0.1" value="' + (l.intensity || 1) + '" style="flex:1;"></div>' +
+            '<div class="ed-field-row"><label class="ed-label">Reichweite:</label><input type="range" id="ed-light-range" min="1" max="50" step="1" value="' + (l.range || 10) + '" style="flex:1;"><span id="ed-light-range-val">' + (l.range || 10) + 'm</span></div>';
+
+        var colInp = lSec.querySelector('#ed-light-col');
+        if (colInp) colInp.oninput = function(e) {
+            var hex = e.target.value;
+            l.color = new pc.Color(parseInt(hex.substr(1,2),16)/255, parseInt(hex.substr(3,2),16)/255, parseInt(hex.substr(5,2),16)/255);
+        };
+        var intInp = lSec.querySelector('#ed-light-int');
+        if (intInp) intInp.oninput = function(e) { l.intensity = parseFloat(e.target.value) || 1; };
+        var rangeInp = lSec.querySelector('#ed-light-range');
+        var rangeVal = lSec.querySelector('#ed-light-range-val');
+        if (rangeInp && rangeVal) rangeInp.oninput = function(e) { l.range = parseFloat(e.target.value) || 10; rangeVal.innerText = l.range + 'm'; };
+
+        container.appendChild(lSec);
     }
 };
 

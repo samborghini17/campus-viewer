@@ -115,18 +115,22 @@
         </div>
     </div>
 
-    <!-- TABS BAR -->
-    <div class="ed-tabs">
-        <button class="ed-tab-btn active" data-tab="tab-outliner">🌲 Outliner</button>
-        <button class="ed-tab-btn" data-tab="tab-inspector">🎛️ Inspector</button>
-        <button class="ed-tab-btn" data-tab="tab-splat">🌐 World & Splat</button>
-        <button class="ed-tab-btn" data-tab="tab-spawn">📍 Spawn</button>
-        <button class="ed-tab-btn" data-tab="tab-paths">🚶 Laufwege</button>
-        <button class="ed-tab-btn" data-tab="tab-pois">🎯 Hotspots</button>
-        <button class="ed-tab-btn" data-tab="tab-media">🎬 Media</button>
-        <button class="ed-tab-btn" data-tab="tab-col">📦 Collider</button>
-        <button class="ed-tab-btn" data-tab="tab-cinematic">🎥 Tour Cam</button>
-        <button class="ed-tab-btn" data-tab="tab-admin">💾 Export</button>
+    <!-- TABS BAR WITH NAVIGATION ARROWS & HORIZONTAL SCROLL -->
+    <div class="ed-tabs-wrapper">
+        <button id="ed-tabs-scroll-left" class="ed-tab-nav-arrow" title="Nach links scrollen">◀</button>
+        <div class="ed-tabs" id="ed-tabs-bar">
+            <button class="ed-tab-btn active" data-tab="tab-outliner">🌲 Outliner</button>
+            <button class="ed-tab-btn" data-tab="tab-inspector">🎛️ Inspector</button>
+            <button class="ed-tab-btn" data-tab="tab-splat">🌐 World & Splat</button>
+            <button class="ed-tab-btn" data-tab="tab-spawn">📍 Spawn</button>
+            <button class="ed-tab-btn" data-tab="tab-paths">🚶 Laufwege</button>
+            <button class="ed-tab-btn" data-tab="tab-pois">🎯 Hotspots</button>
+            <button class="ed-tab-btn" data-tab="tab-media">🎬 Media</button>
+            <button class="ed-tab-btn" data-tab="tab-col">📦 Collider</button>
+            <button class="ed-tab-btn" data-tab="tab-cinematic">🎥 Tour Cam</button>
+            <button class="ed-tab-btn" data-tab="tab-admin">💾 Export</button>
+        </div>
+        <button id="ed-tabs-scroll-right" class="ed-tab-nav-arrow" title="Nach rechts scrollen">▶</button>
     </div>
 
     <!-- TAB CONTENTS CONTAINER -->
@@ -162,6 +166,13 @@
             <div class="ed-section-header">
                 <span class="ed-section-title col-accent">🎛️ Eigenschaften & Komponenten</span>
                 <span id="ed-inspector-selected-tag" style="font-size:10px; color:var(--text-secondary);">Keine Auswahl</span>
+            </div>
+            <!-- Gizmo Mode Toolbar -->
+            <div class="ed-field-row" style="margin-top:2px; margin-bottom:6px; gap:4px;">
+                <button id="ed-gizmo-mode-translate" class="unified-btn small active" style="flex:1; justify-content:center; padding:3px 4px; font-size:10px;" title="Verschieben (W)">✥ Pos (W)</button>
+                <button id="ed-gizmo-mode-rotate" class="unified-btn small" style="flex:1; justify-content:center; padding:3px 4px; font-size:10px;" title="Rotieren (E)">🔄 Rot (E)</button>
+                <button id="ed-gizmo-mode-scale" class="unified-btn small" style="flex:1; justify-content:center; padding:3px 4px; font-size:10px;" title="Skalieren (R)">⤢ Scale (R)</button>
+                <button id="ed-gizmo-mode-toggle" class="unified-btn small" style="padding:3px 6px; font-size:10px;" title="3D Gizmo im Viewport ein/ausblenden">👁️ Gizmo</button>
             </div>
             <div class="ed-field-row">
                 <label class="ed-label">Name:</label>
@@ -468,6 +479,8 @@
                 <input type="range" id="ed-col-scale-slider" min="0.1" max="3.0" value="1.0" step="0.05" style="flex:1;">
                 <span id="ed-col-scale-val" style="font-size:11px; width:30px; text-align:right;">1.0</span>
             </div>
+
+            <button id="ed-col-select-3d-btn" class="unified-btn" style="width:100%; margin-top:8px; justify-content:center; font-size:11px;">🎯 Collider im 3D-Viewer auswählen & bewegen</button>
         </div>
 
         <!-- TAB 8: CINEMATIC TOUR CAM -->
