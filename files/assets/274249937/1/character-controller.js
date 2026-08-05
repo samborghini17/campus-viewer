@@ -105,11 +105,14 @@ CharacterController.prototype.initialize = function() {
     };
     document.addEventListener('mousemove', this._onMouseMove);
 
-    // Speed scroll
+    // Smooth Speed scroll
+    this._targetSpeedMultiplier = 1.0;
+    this._speedMultiplier = 1.0;
     this._onWheel = function(e) {
         if (!self.enabled) return;
-        if (e.deltaY < 0) self._speedMultiplier = Math.min(5.0, self._speedMultiplier * 1.15);
-        else self._speedMultiplier = Math.max(0.2, self._speedMultiplier / 1.15);
+        var delta = Math.max(-100, Math.min(100, e.deltaY));
+        var factor = Math.exp(-delta * 0.002);
+        self._targetSpeedMultiplier = pc.math.clamp(self._targetSpeedMultiplier * factor, 0.2, 5.0);
     };
     this._canvas.addEventListener('wheel', this._onWheel, { passive: true });
 
@@ -235,6 +238,10 @@ CharacterController.prototype._updateDebugHud = function(dt) {
 // --- UPDATE LOOP ---
 CharacterController.prototype.update = function(dt) {
     if (!this.entity.rigidbody || !this.camera) return;
+
+    if (this._targetSpeedMultiplier !== undefined) {
+        this._speedMultiplier = pc.math.lerp(this._speedMultiplier, this._targetSpeedMultiplier, Math.min(1, dt * 10));
+    }
 
     this._applyCameraHeight();
     this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);

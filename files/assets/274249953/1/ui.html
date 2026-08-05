@@ -48,8 +48,11 @@
             <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 2px;" id="lbl-cull-dist">Culling-Distanz: 70m</label>
             <input type="range" id="culling-distance-slider" min="10" max="200" value="70" step="5" style="width: 100%; accent-color: var(--col-cyan);">
         </div>
-        <button id="menu-debug-toggle" class="menu-item" style="opacity: 0.5;">
-            <span class="icon">🛠️</span> <span id="lbl-debug">Debug Modus</span>
+        <button id="menu-fps-toggle" class="menu-item" style="opacity: 0.5;">
+            <span class="icon">📊</span> <span id="lbl-fps">FPS-Anzeige: AUS</span>
+        </button>
+        <button id="menu-admin-editor" class="menu-item">
+            <span class="icon">🛠️</span> <span id="lbl-admin-editor">Admin & Splat Editor</span>
         </button>
         <button id="menu-screenshot" class="menu-item">
             <span class="icon">📸</span> <span id="lbl-screenshot">Screenshot (F2)</span>
@@ -67,6 +70,444 @@
         <a href="https://kreativ.institute/de" target="_blank" class="menu-item link">
             <span class="icon">ℹ️</span> <span id="lbl-menu-imprint">Impressum</span>
         </a>
+    </div>
+</div>
+
+<div id="fps-counter-badge" class="aeroglass-panel" style="display: none;">
+    <span class="fps-dot">●</span>
+    <span id="fps-val">60</span> <span style="font-size: 10px; opacity: 0.75; font-weight: 500;">FPS</span>
+    <span id="fps-ms" style="margin-left: 6px; font-size: 10px; opacity: 0.65;">16.6ms</span>
+</div>
+
+<div id="admin-auth-modal" class="hidden">
+    <div class="admin-card aeroglass-panel">
+        <button id="admin-close-btn" class="modal-close-btn" aria-label="Schließen">✕</button>
+        <div class="admin-auth-header">
+            <div class="admin-lock-icon">🔒</div>
+            <h3 id="lbl-admin-title">Admin Authentifizierung</h3>
+            <p id="lbl-admin-subtitle">Bitte geben Sie das Administrator-Passwort ein, um den Editor zu öffnen.</p>
+        </div>
+        <form id="admin-auth-form" onsubmit="return false;">
+            <div class="admin-input-group">
+                <input type="password" id="admin-password-input" placeholder="Passwort eingeben..." autocomplete="current-password" autofocus>
+            </div>
+            <div id="admin-auth-error" style="display:none; color:var(--col-red); font-size:12px; margin-top:8px; text-align:center; font-weight:500;">Falsches Passwort!</div>
+            <div class="admin-modal-actions">
+                <button type="button" id="admin-cancel-btn" class="unified-btn">Abbrechen</button>
+                <button type="submit" id="admin-submit-btn" class="unified-btn primary">Freischalten</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- PLAYCANVAS & BLENDER INSPIRED 3D WORKSTATION STUDIO       -->
+<!-- ========================================================= -->
+<div id="editor-workstation-panel" class="aeroglass-panel workstation-docked" style="display: none;">
+    <div id="editor-header" class="ed-header">
+        <div class="ed-header-drag">
+            <span class="ed-logo-badge">STUDIO</span>
+            <span class="ed-title">TH OWL · 3D Campus Engine</span>
+        </div>
+        <div class="ed-header-controls">
+            <button id="ed-min-btn" class="ed-icon-btn" title="Minimieren">─</button>
+            <button id="ed-close-btn" class="ed-icon-btn" title="Schließen">✕</button>
+        </div>
+    </div>
+
+    <!-- TABS BAR -->
+    <div class="ed-tabs">
+        <button class="ed-tab-btn active" data-tab="tab-outliner">🌲 Outliner</button>
+        <button class="ed-tab-btn" data-tab="tab-inspector">🎛️ Inspector</button>
+        <button class="ed-tab-btn" data-tab="tab-splat">🌐 World & Splat</button>
+        <button class="ed-tab-btn" data-tab="tab-spawn">📍 Spawn</button>
+        <button class="ed-tab-btn" data-tab="tab-paths">🚶 Laufwege</button>
+        <button class="ed-tab-btn" data-tab="tab-pois">🎯 Hotspots</button>
+        <button class="ed-tab-btn" data-tab="tab-media">🎬 Media</button>
+        <button class="ed-tab-btn" data-tab="tab-col">📦 Collider</button>
+        <button class="ed-tab-btn" data-tab="tab-cinematic">🎥 Tour Cam</button>
+        <button class="ed-tab-btn" data-tab="tab-admin">💾 Export</button>
+    </div>
+
+    <!-- TAB CONTENTS CONTAINER -->
+    <div class="ed-tab-content-container">
+        <!-- TAB 0: OUTLINER / SCENE TREE -->
+        <div id="tab-outliner" class="ed-tab-pane active">
+            <div class="ed-section-header">
+                <span class="ed-section-title col-accent">🌲 Szenen-Hierarchie</span>
+                <div style="display:flex; gap:4px;">
+                    <select id="ed-add-entity-type" class="ed-select" style="font-size:10px; padding:2px 4px; max-width:110px;">
+                        <option value="empty">+ Entity</option>
+                        <option value="box">📦 Box Mesh</option>
+                        <option value="sphere">⚪ Sphere</option>
+                        <option value="plane">⬜ Plane</option>
+                        <option value="light">💡 Light</option>
+                        <option value="poi">🎯 Hotspot</option>
+                        <option value="path">🚶 Laufweg</option>
+                        <option value="screen">🎬 Video Screen</option>
+                    </select>
+                    <button id="ed-outliner-add-btn" class="unified-btn primary" style="padding:2px 8px; font-size:11px;">Hinzufügen</button>
+                </div>
+            </div>
+            <div class="ed-field-row" style="margin-top:4px;">
+                <input type="text" id="ed-outliner-search" class="ed-input-text" placeholder="🔍 Entity suchen..." style="width:100%;">
+            </div>
+            <div id="ed-outliner-tree" class="ed-item-list" style="max-height:220px; margin-top:6px;">
+                <!-- Dynamically populated with all 3D scene entities -->
+            </div>
+        </div>
+
+        <!-- TAB 1: INSPECTOR & COMPONENTS -->
+        <div id="tab-inspector" class="ed-tab-pane">
+            <div class="ed-section-header">
+                <span class="ed-section-title col-accent">🎛️ Eigenschaften & Komponenten</span>
+                <span id="ed-inspector-selected-tag" style="font-size:10px; color:var(--text-secondary);">Keine Auswahl</span>
+            </div>
+            <div class="ed-field-row">
+                <label class="ed-label">Name:</label>
+                <input type="text" id="ed-inspect-name" class="ed-input-text" placeholder="Entity Name">
+                <button id="ed-inspect-focus-btn" class="unified-btn" style="padding:3px 6px;" title="Kamera auf Objekt fokussieren">🎯</button>
+            </div>
+            <!-- Step Size -->
+            <div class="ed-step-selector">
+                <span class="ed-step-label">Schritt:</span>
+                <button class="ed-step-chip" data-step="0.01">0.01</button>
+                <button class="ed-step-chip active" data-step="0.1">0.1</button>
+                <button class="ed-step-chip" data-step="1.0">1.0</button>
+                <button class="ed-step-chip" data-step="5.0">5.0</button>
+            </div>
+            <!-- Position -->
+            <div class="ed-axis-group">
+                <span class="ed-axis-title">Pos</span>
+                <div class="ed-axis-box"><span class="ed-axis-label x">X</span><input type="number" id="ed-ins-pos-x" class="ed-num-input" value="0" step="0.1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label y">Y</span><input type="number" id="ed-ins-pos-y" class="ed-num-input" value="0" step="0.1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label z">Z</span><input type="number" id="ed-ins-pos-z" class="ed-num-input" value="0" step="0.1"></div>
+            </div>
+            <!-- Rotation -->
+            <div class="ed-axis-group" style="margin-top:6px;">
+                <span class="ed-axis-title">Rot</span>
+                <div class="ed-axis-box"><span class="ed-axis-label x">X°</span><input type="number" id="ed-ins-rot-x" class="ed-num-input" value="0" step="1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label y">Y°</span><input type="number" id="ed-ins-rot-y" class="ed-num-input" value="0" step="1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label z">Z°</span><input type="number" id="ed-ins-rot-z" class="ed-num-input" value="0" step="1"></div>
+            </div>
+            <!-- Scale -->
+            <div class="ed-axis-group" style="margin-top:6px;">
+                <span class="ed-axis-title">Scale</span>
+                <div class="ed-axis-box"><span class="ed-axis-label x">SX</span><input type="number" id="ed-ins-scale-x" class="ed-num-input" value="1" step="0.1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label y">SY</span><input type="number" id="ed-ins-scale-y" class="ed-num-input" value="1" step="0.1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label z">SZ</span><input type="number" id="ed-ins-scale-z" class="ed-num-input" value="1" step="0.1"></div>
+            </div>
+            <!-- Material / Color / Lighting -->
+            <div class="ed-section" style="margin-top:8px;">
+                <div class="ed-section-title">🎨 Material & Farbe</div>
+                <div class="ed-field-row">
+                    <label class="ed-label">Farbe:</label>
+                    <input type="color" id="ed-ins-mat-color" value="#ffffff" style="border:none; width:40px; height:24px; border-radius:4px; cursor:pointer;">
+                    <label class="ed-label" style="margin-left:8px;">Deckkraft:</label>
+                    <input type="range" id="ed-ins-mat-opacity" min="0" max="1" step="0.05" value="1" style="flex:1;">
+                </div>
+            </div>
+            <!-- Custom Component Attributes -->
+            <div id="ed-custom-attrs" style="display:flex; flex-direction:column; gap:6px;"></div>
+            <!-- Entity Actions -->
+            <div class="ed-field-row" style="margin-top:8px;">
+                <button id="ed-inspect-del-btn" class="unified-btn" style="color:var(--col-red); width:100%; justify-content:center; padding:6px;">🗑️ Entity Löschen</button>
+            </div>
+        </div>
+
+        <!-- TAB 2: WORLD & SPLAT -->
+        <div id="tab-splat" class="ed-tab-pane">
+            <div class="ed-section">
+                <div class="ed-field-row">
+                    <label class="ed-label">Level ID:</label>
+                    <select id="ed-level-select" class="ed-select">
+                        <!-- Populated dynamically with all 25+ level IDs -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="ed-section">
+                <div class="ed-section-title col-accent">🌌 Gaussian Splat Transformation</div>
+                <!-- Splat Pos -->
+                <div class="ed-axis-group">
+                    <span class="ed-axis-title">Pos</span>
+                    <div class="ed-axis-box">
+                        <span class="ed-axis-label x">X</span>
+                        <input type="number" id="ed-splat-pos-x" class="ed-num-input" value="0" step="0.1">
+                        <div class="ed-btn-pair">
+                            <button class="ed-step-btn" data-target="splat" data-type="pos" data-axis="x" data-dir="-1">-</button>
+                            <button class="ed-step-btn" data-target="splat" data-type="pos" data-axis="x" data-dir="1">+</button>
+                        </div>
+                    </div>
+                    <div class="ed-axis-box">
+                        <span class="ed-axis-label y">Y</span>
+                        <input type="number" id="ed-splat-pos-y" class="ed-num-input" value="0" step="0.1">
+                        <div class="ed-btn-pair">
+                            <button class="ed-step-btn" data-target="splat" data-type="pos" data-axis="y" data-dir="-1">-</button>
+                            <button class="ed-step-btn" data-target="splat" data-type="pos" data-axis="y" data-dir="1">+</button>
+                        </div>
+                    </div>
+                    <div class="ed-axis-box">
+                        <span class="ed-axis-label z">Z</span>
+                        <input type="number" id="ed-splat-pos-z" class="ed-num-input" value="0" step="0.1">
+                        <div class="ed-btn-pair">
+                            <button class="ed-step-btn" data-target="splat" data-type="pos" data-axis="z" data-dir="-1">-</button>
+                            <button class="ed-step-btn" data-target="splat" data-type="pos" data-axis="z" data-dir="1">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Splat Rot -->
+                <div class="ed-axis-group" style="margin-top: 6px;">
+                    <span class="ed-axis-title">Rot</span>
+                    <div class="ed-axis-box">
+                        <span class="ed-axis-label x">X°</span>
+                        <input type="number" id="ed-splat-rot-x" class="ed-num-input" value="0" step="1">
+                        <div class="ed-btn-pair">
+                            <button class="ed-step-btn" data-target="splat" data-type="rot" data-axis="x" data-dir="-1">-</button>
+                            <button class="ed-step-btn" data-target="splat" data-type="rot" data-axis="x" data-dir="1">+</button>
+                        </div>
+                    </div>
+                    <div class="ed-axis-box">
+                        <span class="ed-axis-label y">Y°</span>
+                        <input type="number" id="ed-splat-rot-y" class="ed-num-input" value="0" step="1">
+                        <div class="ed-btn-pair">
+                            <button class="ed-step-btn" data-target="splat" data-type="rot" data-axis="y" data-dir="-1">-</button>
+                            <button class="ed-step-btn" data-target="splat" data-type="rot" data-axis="y" data-dir="1">+</button>
+                        </div>
+                    </div>
+                    <div class="ed-axis-box">
+                        <span class="ed-axis-label z">Z°</span>
+                        <input type="number" id="ed-splat-rot-z" class="ed-num-input" value="0" step="1">
+                        <div class="ed-btn-pair">
+                            <button class="ed-step-btn" data-target="splat" data-type="rot" data-axis="z" data-dir="-1">-</button>
+                            <button class="ed-step-btn" data-target="splat" data-type="rot" data-axis="z" data-dir="1">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lighting & Atmosphere -->
+            <div class="ed-section">
+                <div class="ed-section-title col-accent">☀️ Licht & Umgebung</div>
+                <div class="ed-field-row">
+                    <label class="ed-label">Umgebungslicht:</label>
+                    <input type="color" id="ed-world-ambient-color" value="#3a4050" style="border:none; width:40px; height:24px; border-radius:4px; cursor:pointer;">
+                    <label class="ed-label" style="margin-left:8px;">Intensität:</label>
+                    <input type="range" id="ed-world-ambient-int" min="0.1" max="2.5" step="0.05" value="1.0" style="flex:1;">
+                </div>
+                <div class="ed-field-row" style="margin-top:6px;">
+                    <label class="ed-label">Splat LOD Dist:</label>
+                    <input type="range" id="ed-splat-lod-range" min="4" max="40" step="1" value="15" style="flex:1;">
+                    <span id="ed-splat-lod-val" style="font-size:11px; width:28px;">15m</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: MULTI-SPAWNPOINTS -->
+        <div id="tab-spawn" class="ed-tab-pane">
+            <div class="ed-section-header">
+                <span class="ed-section-title col-accent">📍 Spawnpoints im Splat</span>
+                <button id="ed-add-spawnpoint-btn" class="unified-btn primary" style="padding: 3px 8px; font-size: 11px;">+ Neuer Spawnpoint</button>
+            </div>
+            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Mehrere Spawnpoints mit eigenen Kamera-Perspektiven und Laufwegen im gleichen Splat:</p>
+            <div id="ed-spawnpoints-list" class="ed-item-list">
+                <!-- Dynamically listed spawnpoints -->
+            </div>
+            <div class="ed-section" style="margin-top:8px;">
+                <div class="ed-section-header">
+                    <span class="ed-section-title">📸 Aktuelle Kameraposition als Start</span>
+                    <button id="ed-cam-capture-btn" class="unified-btn primary" style="padding: 3px 8px; font-size: 10px;">Jetzt erfassen</button>
+                </div>
+                <div class="ed-axis-group" style="margin-top:4px;">
+                    <span class="ed-axis-title">Pos</span>
+                    <div class="ed-axis-box"><span class="ed-axis-label x">X</span><input type="number" id="ed-cam-pos-x" class="ed-num-input" value="0" step="0.1"></div>
+                    <div class="ed-axis-box"><span class="ed-axis-label y">Y</span><input type="number" id="ed-cam-pos-y" class="ed-num-input" value="0" step="0.1"></div>
+                    <div class="ed-axis-box"><span class="ed-axis-label z">Z</span><input type="number" id="ed-cam-pos-z" class="ed-num-input" value="0" step="0.1"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: LAUFWEGE / PATHS -->
+        <div id="tab-paths" class="ed-tab-pane">
+            <div class="ed-section-header">
+                <span class="ed-section-title col-accent">🚶 Laufwege & Wegweiser</span>
+                <button id="ed-add-path-btn" class="unified-btn primary" style="padding: 3px 8px; font-size: 11px;">+ Neuer Laufweg</button>
+            </div>
+            <div class="ed-field-row" style="margin-bottom: 8px;">
+                <label class="ed-label">Laufweg auswählen:</label>
+                <select id="ed-path-select" class="ed-select">
+                    <option value="">-- Kein Laufweg gewählt --</option>
+                </select>
+            </div>
+            <div id="ed-path-details" style="display:none;">
+                <div class="ed-field-row">
+                    <label class="ed-label">Titel:</label>
+                    <input type="text" id="ed-path-title" class="ed-input-text" placeholder="z.B. Zum Audimax">
+                </div>
+                <div class="ed-field-row">
+                    <label class="ed-label">Ziel-Level:</label>
+                    <select id="ed-path-target-level" class="ed-select"></select>
+                </div>
+                <div class="ed-field-row">
+                    <label class="ed-label">Farbe:</label>
+                    <input type="color" id="ed-path-color" value="#ff3b47" style="border:none; width:40px; height:24px; border-radius:4px; cursor:pointer;">
+                    <label class="ed-label" style="margin-left:8px;">Breite (m):</label>
+                    <input type="number" id="ed-path-width" class="ed-num-input" value="0.6" step="0.1" style="width:50px;">
+                </div>
+                <div class="ed-section-header" style="margin-top:10px;">
+                    <span class="ed-section-title" style="font-size:11px;">Wegpunkte</span>
+                    <button id="ed-path-add-point-btn" class="unified-btn primary" style="padding:2px 6px; font-size:10px;">+ Punkt an Kamera</button>
+                </div>
+                <div id="ed-path-points-list" class="ed-item-list" style="max-height:90px;"></div>
+            </div>
+        </div>
+
+        <!-- TAB 5: HOTSPOTS / POIS -->
+        <div id="tab-pois" class="ed-tab-pane">
+            <div class="ed-section-header">
+                <span class="ed-section-title col-accent">🎯 Hotspots & Zonen</span>
+                <div style="display:flex; gap:4px;">
+                    <button id="ed-add-poi-btn" class="unified-btn primary" style="padding: 3px 6px; font-size: 10px;">+ POI</button>
+                    <button id="ed-add-const-btn" class="unified-btn" style="padding: 3px 6px; font-size: 10px;">+ Baustelle</button>
+                </div>
+            </div>
+            <div class="ed-field-row" style="margin-bottom: 8px;">
+                <label class="ed-label">Objekt:</label>
+                <select id="ed-poi-select" class="ed-select">
+                    <option value="">-- Objekt wählen --</option>
+                </select>
+                <button id="ed-poi-del-btn" class="unified-btn" style="color:var(--col-red); padding:3px 6px;">🗑️</button>
+            </div>
+            <div id="ed-poi-details" style="display:none;">
+                <div class="ed-field-row">
+                    <label class="ed-label">Titel (DE):</label>
+                    <input type="text" id="ed-poi-title-de" class="ed-input-text">
+                </div>
+                <div class="ed-field-row">
+                    <label class="ed-label">Titel (EN):</label>
+                    <input type="text" id="ed-poi-title-en" class="ed-input-text">
+                </div>
+                <div class="ed-field-row">
+                    <label class="ed-label">Beschreibung:</label>
+                    <textarea id="ed-poi-desc" class="ed-input-text" rows="2" style="resize:vertical;"></textarea>
+                </div>
+                <div class="ed-field-row">
+                    <label class="ed-label">Link URL:</label>
+                    <input type="text" id="ed-poi-link" class="ed-input-text" placeholder="https://...">
+                </div>
+                <div class="ed-axis-group" style="margin-top: 6px;">
+                    <span class="ed-axis-title">Pos</span>
+                    <div class="ed-axis-box"><span class="ed-axis-label x">X</span><input type="number" id="ed-poi-pos-x" class="ed-num-input" value="0" step="0.1"></div>
+                    <div class="ed-axis-box"><span class="ed-axis-label y">Y</span><input type="number" id="ed-poi-pos-y" class="ed-num-input" value="0" step="0.1"></div>
+                    <div class="ed-axis-box"><span class="ed-axis-label z">Z</span><input type="number" id="ed-poi-pos-z" class="ed-num-input" value="0" step="0.1"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: MEDIA UPLOAD -->
+        <div id="tab-media" class="ed-tab-pane">
+            <div class="ed-section-title col-accent">🎬 Medien Upload (Bilder / Videos)</div>
+            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Füge Fotos oder Videos als 3D-Screens im Splat ein:</p>
+            
+            <div id="ed-media-dropzone" class="ed-upload-box">
+                <input type="file" id="ed-media-file-input" accept="image/*,video/*" style="display:none;">
+                <div style="font-size:24px; margin-bottom:4px;">📁</div>
+                <div style="font-size:12px; font-weight:600; color:var(--text-bright);">Datei auswählen oder hierher ziehen</div>
+                <div style="font-size:10px; color:var(--text-secondary); margin-top:2px;">PNG, JPG, MP4, WebM (Auto-Texturierung)</div>
+            </div>
+
+            <div class="ed-field-row" style="margin-top:10px;">
+                <label class="ed-label">Oder URL:</label>
+                <input type="text" id="ed-media-url-input" class="ed-input-text" placeholder="https://.../video.mp4">
+            </div>
+
+            <div class="ed-field-row" style="margin-top:6px;">
+                <label class="ed-label">Größe (B x H):</label>
+                <input type="number" id="ed-media-w" class="ed-num-input" value="2.0" step="0.1" style="width:45px;">
+                <span style="color:var(--text-secondary);">×</span>
+                <input type="number" id="ed-media-h" class="ed-num-input" value="1.125" step="0.1" style="width:45px;">
+                <label class="ed-label" style="margin-left:8px;">Audio:</label>
+                <input type="checkbox" id="ed-media-audio">
+            </div>
+
+            <button id="ed-spawn-media-btn" class="unified-btn primary" style="width:100%; margin-top:10px; justify-content:center;">✨ Media Screen an Kamera platzieren</button>
+        </div>
+
+        <!-- TAB 7: COLLIDERS & NETLIFY -->
+        <div id="tab-col" class="ed-tab-pane">
+            <div class="ed-section-header">
+                <span class="ed-section-title col-accent">📦 Kollisionen & Physik</span>
+                <button id="ed-toggle-col-vis-btn" class="unified-btn primary" style="padding:3px 8px; font-size:10px;">👁️ Collider anzeigen (C)</button>
+            </div>
+            
+            <div class="ed-field-row" style="margin-bottom:8px;">
+                <label class="ed-label">Quelle:</label>
+                <select id="ed-col-source-select" class="ed-select">
+                    <option value="netlify">🌐 Netlify Cloud Voxel (.voxel.glb)</option>
+                    <option value="standard">📁 GitHub Host (.glb)</option>
+                </select>
+            </div>
+
+            <div class="ed-axis-group">
+                <span class="ed-axis-title">Pos</span>
+                <div class="ed-axis-box"><span class="ed-axis-label x">X</span><input type="number" id="ed-col-pos-x" class="ed-num-input" value="0" step="0.1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label y">Y</span><input type="number" id="ed-col-pos-y" class="ed-num-input" value="0" step="0.1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label z">Z</span><input type="number" id="ed-col-pos-z" class="ed-num-input" value="0" step="0.1"></div>
+            </div>
+
+            <div class="ed-axis-group" style="margin-top: 6px;">
+                <span class="ed-axis-title">Rot</span>
+                <div class="ed-axis-box"><span class="ed-axis-label x">X°</span><input type="number" id="ed-col-rot-x" class="ed-num-input" value="0" step="1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label y">Y°</span><input type="number" id="ed-col-rot-y" class="ed-num-input" value="0" step="1"></div>
+                <div class="ed-axis-box"><span class="ed-axis-label z">Z°</span><input type="number" id="ed-col-rot-z" class="ed-num-input" value="0" step="1"></div>
+            </div>
+
+            <div class="ed-field-row" style="margin-top:8px;">
+                <label class="ed-label">Skalierung:</label>
+                <input type="range" id="ed-col-scale-slider" min="0.1" max="3.0" value="1.0" step="0.05" style="flex:1;">
+                <span id="ed-col-scale-val" style="font-size:11px; width:30px; text-align:right;">1.0</span>
+            </div>
+        </div>
+
+        <!-- TAB 8: CINEMATIC TOUR CAM -->
+        <div id="tab-cinematic" class="ed-tab-pane">
+            <div class="ed-section-header">
+                <span class="ed-section-title col-accent">🎥 Cinematic Kamera-Track</span>
+                <button id="ed-cin-play-btn" class="unified-btn primary" style="padding:3px 8px; font-size:10px;">▶ Tour Testen</button>
+            </div>
+            <div class="ed-field-row">
+                <label class="ed-label">Geschwindigkeit:</label>
+                <input type="range" id="ed-cin-speed" min="0.2" max="3.0" step="0.1" value="1.0" style="flex:1;">
+                <span id="ed-cin-speed-val" style="font-size:11px; width:28px;">1.0x</span>
+            </div>
+            <div class="ed-field-row">
+                <label class="ed-label">Verweildauer:</label>
+                <input type="number" id="ed-cin-dwell" class="ed-num-input" value="20" step="1" style="width:50px;">
+                <span style="font-size:11px; color:var(--text-secondary);">Sekunden pro POI</span>
+            </div>
+            <button id="ed-cin-add-keyframe" class="unified-btn" style="width:100%; margin-top:8px; justify-content:center;">➕ Keyframe an aktueller Position</button>
+            <div id="ed-cin-keyframes-list" class="ed-item-list" style="margin-top:6px; max-height:100px;"></div>
+        </div>
+
+        <!-- TAB 9: ADMIN & EXPORT -->
+        <div id="tab-admin" class="ed-tab-pane">
+            <div class="ed-section-title col-accent">💾 Speichern & Projekt-Export</div>
+            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">Alle Änderungen bleiben im Browser (LocalStorage) gespeichert oder können als fertiger Code exportiert werden:</p>
+            
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <button id="ed-save-local-btn" class="unified-btn primary" style="justify-content:center; padding:8px;">💾 Im Browser speichern (LocalStorage)</button>
+                <button id="ed-copy-config-btn" class="unified-btn" style="justify-content:center; padding:8px;">📋 Konfiguration (JSON) kopieren</button>
+                <button id="ed-download-json-btn" class="unified-btn" style="justify-content:center; padding:8px;">📥 level-config.json herunterladen</button>
+                <button id="ed-reset-defaults-btn" class="unified-btn" style="color:var(--col-red); justify-content:center; padding:8px; margin-top:4px;">🔄 Auf Standard zurücksetzen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WORKSTATION FOOTER -->
+    <div class="ed-actions-footer">
+        <button id="ed-footer-save-btn" class="unified-btn primary">💾 Speichern</button>
+        <button id="ed-footer-copy-btn" class="unified-btn">📋 Copy JSON</button>
     </div>
 </div>
 

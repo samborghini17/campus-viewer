@@ -843,6 +843,106 @@ UI.prototype._initBurgerMenu = function() {
             self._showShortcutsModal();
         };
     }
+
+    // --- FPS Meter Toggle (Standard OFF) ---
+    this._fpsMeterEnabled = false;
+    var fpsToggleBtn = document.getElementById('menu-fps-toggle');
+    var fpsBadge = document.getElementById('fps-counter-badge');
+    var fpsValEl = document.getElementById('fps-val');
+    var fpsMsEl = document.getElementById('fps-ms');
+    var lblFps = document.getElementById('lbl-fps');
+
+    if (fpsToggleBtn) {
+        fpsToggleBtn.onclick = function() {
+            self._fpsMeterEnabled = !self._fpsMeterEnabled;
+            if (fpsBadge) fpsBadge.style.display = self._fpsMeterEnabled ? 'flex' : 'none';
+            fpsToggleBtn.style.opacity = self._fpsMeterEnabled ? '1' : '0.5';
+            fpsToggleBtn.style.color = self._fpsMeterEnabled ? 'var(--col-cyan)' : '';
+            if (lblFps) {
+                lblFps.innerText = self._fpsMeterEnabled 
+                    ? (self.currentLang === 'de' ? 'FPS-Anzeige: AN' : 'FPS Meter: ON')
+                    : (self.currentLang === 'de' ? 'FPS-Anzeige: AUS' : 'FPS Meter: OFF');
+            }
+        };
+    }
+
+    // Real-time FPS Calculation in app update loop
+    var fpsFrameCount = 0;
+    var fpsLastTime = performance.now();
+    this.app.on('update', function(dt) {
+        if (!self._fpsMeterEnabled) return;
+        fpsFrameCount++;
+        var now = performance.now();
+        var elapsed = now - fpsLastTime;
+        if (elapsed >= 500) {
+            var fps = Math.round((fpsFrameCount * 1000) / elapsed);
+            var ms = (dt * 1000).toFixed(1);
+            if (fpsValEl) fpsValEl.innerText = fps;
+            if (fpsMsEl) fpsMsEl.innerText = ms + 'ms';
+            fpsFrameCount = 0;
+            fpsLastTime = now;
+        }
+    });
+
+    // --- Admin & Level Editor (Password Protected: 'kio') ---
+    var adminMenuBtn = document.getElementById('menu-admin-editor');
+    var adminModal = document.getElementById('admin-auth-modal');
+    var adminForm = document.getElementById('admin-auth-form');
+    var adminPwInput = document.getElementById('admin-password-input');
+    var adminError = document.getElementById('admin-auth-error');
+    var adminCloseBtn = document.getElementById('admin-close-btn');
+    var adminCancelBtn = document.getElementById('admin-cancel-btn');
+    var editorPanel = document.getElementById('editor-workstation-panel');
+
+    var openEditor = function() {
+        if (adminModal) adminModal.classList.add('hidden');
+        if (editorPanel) {
+            editorPanel.style.display = 'flex';
+            if (self._populateEditorLevel) self._populateEditorLevel(self._currentLevelId);
+        }
+        self.app.fire('debug:toggle', true);
+        var bContainer = document.getElementById('burger-menu-container');
+        if (bContainer) bContainer.classList.remove('open');
+    };
+
+    if (adminMenuBtn) {
+        adminMenuBtn.onclick = function() {
+            if (sessionStorage.getItem('thowl_admin') === '1') {
+                openEditor();
+            } else {
+                if (adminModal) {
+                    adminModal.classList.remove('hidden');
+                    if (adminPwInput) {
+                        adminPwInput.value = '';
+                        adminPwInput.focus();
+                    }
+                    if (adminError) adminError.style.display = 'none';
+                }
+            }
+        };
+    }
+
+    if (adminCloseBtn) adminCloseBtn.onclick = function() { if (adminModal) adminModal.classList.add('hidden'); };
+    if (adminCancelBtn) adminCancelBtn.onclick = function() { if (adminModal) adminModal.classList.add('hidden'); };
+
+    if (adminForm) {
+        adminForm.onsubmit = function(e) {
+            e.preventDefault();
+            var pw = adminPwInput ? adminPwInput.value.trim() : '';
+            if (pw.toLowerCase() === 'kio') {
+                sessionStorage.setItem('thowl_admin', '1');
+                if (adminError) adminError.style.display = 'none';
+                openEditor();
+            } else {
+                if (adminError) adminError.style.display = 'block';
+                if (adminPwInput) {
+                    adminPwInput.style.borderColor = 'var(--col-red)';
+                    setTimeout(function() { adminPwInput.style.borderColor = ''; }, 1000);
+                }
+            }
+            return false;
+        };
+    }
 };
 UI.prototype._initJoystick = function() {
     var self = this;
@@ -981,90 +1081,61 @@ UI.prototype._initSearch = function() {
 };
 UI.prototype._initRealtimeEditor = function() {
     var self = this;
-    var panel = document.createElement('div');
-    panel.id = 'realtime-editor-panel';
-    Object.assign(panel.style, {
-        position: 'fixed', top: '80px', left: '20px',
-        width: '320px', background: 'rgba(0,0,0,0.85)',
-        border: '1px solid rgba(0,255,136,0.3)', borderRadius: '8px',
-        padding: '12px', fontFamily: 'monospace', fontSize: '11px',
-        color: '#00ff88', zIndex: '10001', display: 'none',
-        pointerEvents: 'auto', userSelect: 'none',
-        maxHeight: '80vh', overflowY: 'auto'
-    });
+    var panel = document.getElementById('editor-workstation-panel');
+    if (!panel) return;
 
-    panel.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">' +
-        '<span style="font-weight:bold; color:#ff0; font-size:13px;">🛠 Realtime Level Editor</span>' +
-        '<button id="ed-close-btn" style="background:none; border:none; color:#888; cursor:pointer; font-size:16px;">×</button>' +
-        '</div>';
-    
-    // Debug Hotkeys info
-    panel.innerHTML += '<div style="font-size: 10px; color: #888; margin-bottom: 12px; line-height: 1.4;">' +
-        '<b style="color: #00ff88;">Hotkeys:</b><br>' +
-        '<b>P</b>: Toggle Debug | <b>C</b>: Collider Vis | <b>K</b>: Culling | <b>F2</b>: Screenshot<br>' +
-        '<b>Numpad 8/2,4/6,7/9,1/3</b>: Transform Collider <i>(+Shift fast)</i>' +
-        '</div>';
+    this._editorStep = 0.1;
+    this._editorActiveObj = null;
 
-    // Step size
-    panel.innerHTML += '<div style="margin-bottom:12px; display:flex; gap:4px; align-items:center; justify-content:center;">' +
-        '<span style="color:#888; font-size:10px;">Step:</span>' +
-        '<button class="step-size-btn" data-step="0.01" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;">0.01</button>' +
-        '<button class="step-size-btn active" data-step="0.1" style="padding:2px 6px;border:1px solid rgba(0,255,136,0.5);background:rgba(0,255,136,0.15);color:white;border-radius:3px;cursor:pointer;">0.1</button>' +
-        '<button class="step-size-btn" data-step="1" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;">1.0</button>' +
-        '<button class="step-size-btn" data-step="5" style="padding:2px 6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:3px;cursor:pointer;">5.0</button>' +
-        '</div>';
+    // --- 1. Draggable Window Logic (Mouse & Touch) ---
+    var header = document.getElementById('editor-header');
+    if (header) {
+        var isDragging = false;
+        var startX = 0, startY = 0;
+        var initialLeft = 0, initialTop = 0;
 
-    var createSection = function(id, title, color) {
-        var html = '<div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:8px;">';
-        html += '<div style="font-weight:bold; color:' + color + '; margin-bottom:6px;">' + title + '</div>';
-        
-        ['pos', 'rot'].forEach(function(type) {
-            html += '<div style="display:flex; gap:4px; margin-bottom:4px;">';
-            html += '<div style="width:24px; color:#888; padding-top:4px;">' + (type === 'pos' ? 'Pos' : 'Rot') + '</div>';
-            ['x', 'y', 'z'].forEach(function(axis) {
-                html += '<div style="flex:1; display:flex; flex-direction:column; align-items:center;">';
-                html += '<span style="color:#888; font-size:9px;">' + axis.toUpperCase() + '</span>';
-                html += '<input type="number" id="ed-' + id + '-' + type + '-' + axis + '" value="0" step="0.1" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); border-radius:3px; padding:2px; color:white; font-family:monospace; font-size:10px; text-align:center; outline:none; box-sizing:border-box;">';
-                html += '<div style="display:flex; width:100%; gap:2px; margin-top:2px;">';
-                html += '<button class="ed-step" data-id="' + id + '" data-type="' + type + '" data-axis="' + axis + '" data-dir="-1" style="flex:1; border:none; background:rgba(255,255,255,0.1); color:white; border-radius:2px; cursor:pointer; font-size:9px;">-</button>';
-                html += '<button class="ed-step" data-id="' + id + '" data-type="' + type + '" data-axis="' + axis + '" data-dir="1" style="flex:1; border:none; background:rgba(255,255,255,0.1); color:white; border-radius:2px; cursor:pointer; font-size:9px;">+</button>';
-                html += '</div></div>';
-            });
-            html += '</div>';
-        });
-        html += '</div>';
-        return html;
-    };
+        var onDragStart = function(e) {
+            if (e.target.closest('.ed-header-controls') || e.target.closest('button')) return;
+            isDragging = true;
+            var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            startX = clientX;
+            startY = clientY;
+            var rect = panel.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            if (document.pointerLockElement) document.exitPointerLock();
+            e.preventDefault();
+        };
 
-    panel.innerHTML += createSection('splat', '🌌 Splat (.sog)', '#4488ff');
-    panel.innerHTML += createSection('cam', '🎥 Camera Start', '#ffaa00');
-    panel.innerHTML += createSection('col', '📦 Collider Mesh', '#ff4444');
+        var onDragMove = function(e) {
+            if (!isDragging) return;
+            var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            var dx = clientX - startX;
+            var dy = clientY - startY;
+            var newLeft = Math.max(10, Math.min(window.innerWidth - panel.offsetWidth - 10, initialLeft + dx));
+            var newTop = Math.max(10, Math.min(window.innerHeight - panel.offsetHeight - 10, initialTop + dy));
+            panel.style.left = newLeft + 'px';
+            panel.style.top = newTop + 'px';
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+        };
 
-    panel.innerHTML += '<div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.1); padding-top:8px;">' +
-        '<div style="font-weight:bold; color:#00ff88; margin-bottom:6px;">✨ Custom Objects</div>' +
-        '<div style="display:flex; gap:4px; margin-bottom:8px;">' +
-        '<select id="ed-custom-obj-select" style="flex:1; background:rgba(255,255,255,0.05); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:3px; padding:4px; font-size:10px;"><option value="">-- No Object Selected --</option></select>' +
-        '</div>' +
-        '<button id="ed-add-poi" style="flex:1; padding:4px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.05); color:white; border-radius:3px; cursor:pointer;">+ POI</button>' +
-        '<button id="ed-add-path" style="flex:1; padding:4px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.05); color:white; border-radius:3px; cursor:pointer;">+ Path</button>' +
-        '<button id="ed-add-const" style="flex:1; padding:4px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.05); color:white; border-radius:3px; cursor:pointer;">+ Const</button>' +
-        '<button id="ed-add-video" style="flex:1; padding:4px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.05); color:white; border-radius:3px; cursor:pointer;">+ Video</button>' +
-        '<button id="ed-delete-obj" style="flex:0.8; padding:4px; border:1px solid rgba(255,68,68,0.5); background:rgba(255,68,68,0.15); color:#ff4444; border-radius:3px; cursor:pointer;">🗑️ Del</button>' +
-        '</div>' +
-        '</div>';
-    
-    panel.innerHTML += createSection('custom', 'Custom Object Transform', '#00ff88');
-    panel.innerHTML += '<div id="ed-custom-attrs" style="margin-top:8px; max-height:250px; overflow-y:auto; padding-right:4px;"></div>';
+        var onDragEnd = function() {
+            isDragging = false;
+        };
 
-    // Action Buttons
-    panel.innerHTML += '<div style="display:flex; gap:6px; margin-top:16px;">' +
-        '<button id="ed-save-btn" style="flex:1;padding:8px;border:1px solid rgba(255,170,0,0.5);background:rgba(255,170,0,0.15);color:#ffaa00;border-radius:4px;cursor:pointer;font-weight:bold;">💾 Save to Disk</button>' +
-        '<button id="ed-dump-btn" style="flex:1;padding:8px;border:1px solid rgba(0,255,136,0.5);background:rgba(0,255,136,0.15);color:#00ff88;border-radius:4px;cursor:pointer;font-weight:bold;">📋 Copy JSON</button>' +
-        '<button id="ed-col-vis-btn" style="flex:1;padding:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:white;border-radius:4px;cursor:pointer;">👁 Col Vis</button>' +
-        '</div>';
+        header.addEventListener('mousedown', onDragStart);
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', onDragEnd);
 
-    document.body.appendChild(panel);
-    
+        header.addEventListener('touchstart', onDragStart, { passive: false });
+        window.addEventListener('touchmove', onDragMove, { passive: false });
+        window.addEventListener('touchend', onDragEnd);
+    }
+
+    // --- 2. Window Controls (Minimize & Close) ---
     var closeBtn = document.getElementById('ed-close-btn');
     if (closeBtn) {
         closeBtn.onclick = function(e) {
@@ -1073,218 +1144,1017 @@ UI.prototype._initRealtimeEditor = function() {
         };
     }
 
-    this._editorStep = 0.1;
+    var minBtn = document.getElementById('ed-min-btn');
+    if (minBtn) {
+        var isMinimized = false;
+        minBtn.onclick = function(e) {
+            e.stopPropagation();
+            isMinimized = !isMinimized;
+            var tabs = panel.querySelector('.ed-tabs');
+            var content = panel.querySelector('.ed-tab-content-container');
+            if (tabs) tabs.style.display = isMinimized ? 'none' : 'flex';
+            if (content) content.style.display = isMinimized ? 'none' : 'flex';
+            minBtn.innerText = isMinimized ? '▢' : '—';
+        };
+    }
 
-    // Step size buttons
-    panel.querySelectorAll('.step-size-btn').forEach(function(btn) {
+    // --- 3. Tab Switching ---
+    var tabBtns = panel.querySelectorAll('.ed-tab-btn');
+    var tabPanes = panel.querySelectorAll('.ed-tab-pane');
+    tabBtns.forEach(function(btn) {
         btn.onclick = function(e) {
             e.stopPropagation();
-            self._editorStep = parseFloat(btn.dataset.step);
-            panel.querySelectorAll('.step-size-btn').forEach(function(b) {
-                b.style.border = '1px solid rgba(255,255,255,0.2)';
-                b.style.background = 'rgba(255,255,255,0.05)';
-            });
-            btn.style.border = '1px solid rgba(0,255,136,0.5)';
-            btn.style.background = 'rgba(0,255,136,0.15)';
+            var targetTab = btn.dataset.tab;
+            tabBtns.forEach(function(b) { b.classList.remove('active'); });
+            tabPanes.forEach(function(p) { p.classList.remove('active'); });
+            btn.classList.add('active');
+            var targetPane = document.getElementById(targetTab) || document.getElementById('pane-' + targetTab);
+            if (targetPane) targetPane.classList.add('active');
+            if (targetTab === 'tab-outliner') self._refreshOutlinerTree();
         };
     });
 
-    // Plus/Minus step buttons
-    panel.querySelectorAll('.ed-step').forEach(function(btn) {
+    // --- 4. Populate Level Dropdowns with ALL 30+ Levels ---
+    var levels = [
+        { id: 'lemgo', name: 'Lemgo Innovation Campus' },
+        { id: 'detmold', name: 'Detmold Kreativ Campus' },
+        { id: 'innospin', name: 'InnoSpin Lemgo' },
+        { id: 'kio-innen-map-fusion', name: 'KIO Innen (Map Fusion)' },
+        { id: 'ciit', name: 'CIIT Außen' },
+        { id: 'ciit-citrus', name: 'CIIT Citrus Innen' },
+        { id: 'fff-innen', name: 'Future Food Factory Innen' },
+        { id: 'fff-labor-neu', name: 'Future Food Factory Labor' },
+        { id: 'audimax', name: 'Audimax TH OWL' },
+        { id: 'berufsfoerderzentrum', name: 'Berufsförderzentrum' },
+        { id: 'pca', name: 'PCA Halle' },
+        { id: 'smartfactory-innen', name: 'SmartFactory OWL' },
+        { id: 'smartfactory-innen-mit-licht', name: 'SmartFactory (Mit Licht)' },
+        { id: 'icl-bistro', name: 'ICL Bistro' },
+        { id: 'icl-grosskueche-mensa', name: 'ICL Großküche Mensa' },
+        { id: 'icl-holz-hauswirtschaft', name: 'ICL Holz & Hauswirtschaft' },
+        { id: 'icl-metallwerkstatt', name: 'ICL Metallwerkstatt' },
+        { id: 'icl-ewerkstatt', name: 'ICL E-Werkstatt' },
+        { id: 'icl-fotostudio', name: 'ICL Fotostudio' },
+        { id: 'icl-mac-raum', name: 'ICL Mac-Labor' },
+        { id: 'icl-sternwarte', name: 'ICL Sternwarte' },
+        { id: 'innospin-medienzentrum', name: 'InnoSpin Medienzentrum' },
+        { id: 'iku-owl-innen', name: 'IKU OWL Innen' },
+        { id: 'lernfabrik-innen', name: 'Lernfabrik OWL' },
+        { id: 'lt-2et', name: 'Labor Trakt 2. OG' },
+        { id: 'lt-eg', name: 'Labor Trakt EG' },
+        { id: 'et-3et', name: 'Elektrotechnik 3. OG' },
+        { id: 'et-4et', name: 'Elektrotechnik 4. OG' },
+        { id: 'gebauede1', name: 'Gebäude 1 Haupttrakt' },
+        { id: 'mensa', name: 'Mensa & Cafeteria Lemgo' }
+    ];
+
+    var levelSelect = document.getElementById('ed-level-select');
+    var pathTargetSelect = document.getElementById('ed-path-target-level');
+
+    var populateSelect = function(sel, includeEmpty) {
+        if (!sel) return;
+        sel.innerHTML = '';
+        if (includeEmpty) {
+            var optNone = document.createElement('option');
+            optNone.value = '';
+            optNone.innerText = '-- Kein Level-Wechsel --';
+            sel.appendChild(optNone);
+        }
+        levels.forEach(function(lvl) {
+            var opt = document.createElement('option');
+            opt.value = lvl.id;
+            opt.innerText = lvl.name + ' (' + lvl.id + ')';
+            sel.appendChild(opt);
+        });
+    };
+
+    populateSelect(levelSelect, false);
+    populateSelect(pathTargetSelect, true);
+
+    if (levelSelect) {
+        levelSelect.addEventListener('change', function(e) {
+            var lvlId = e.target.value;
+            self.app.fire('level:switch', lvlId);
+            self._populateEditorLevel(lvlId);
+        });
+    }
+
+    // --- 5. Step Size Chips ---
+    var stepChips = panel.querySelectorAll('.ed-step-chip');
+    stepChips.forEach(function(chip) {
+        chip.onclick = function(e) {
+            e.stopPropagation();
+            stepChips.forEach(function(c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            self._editorStep = parseFloat(chip.dataset.step) || 0.1;
+        };
+    });
+
+    // --- 6. Step +/- Buttons ---
+    panel.querySelectorAll('.ed-step-btn').forEach(function(btn) {
         btn.onclick = function(e) {
             e.stopPropagation();
-            var id = btn.dataset.id;
-            var type = btn.dataset.type;
-            var axis = btn.dataset.axis;
-            var dir = parseInt(btn.dataset.dir);
-            var input = document.getElementById('ed-' + id + '-' + type + '-' + axis);
+            var target = btn.dataset.target; // 'splat' or 'ins'
+            var type = btn.dataset.type; // 'pos', 'rot', 'scale'
+            var axis = btn.dataset.axis; // 'x', 'y', 'z'
+            var dir = parseFloat(btn.dataset.dir) || 1;
+            
+            var inputId = target === 'splat' ? 'ed-splat-' + type + '-' + axis : 'ed-ins-' + (type === 'scale' ? 'scale-' : type + '-') + axis;
+            var input = document.getElementById(inputId);
             if (!input) return;
-            var step = type === 'rot' ? Math.max(1, self._editorStep * 10) : self._editorStep;
-            input.value = (parseFloat(input.value) + dir * step).toFixed(type === 'rot' ? 1 : 3);
-            self._applyRealtimeTransform(id);
+            var isRot = type === 'rot';
+            var step = isRot ? Math.max(1, self._editorStep * 10) : self._editorStep;
+            var currentVal = parseFloat(input.value) || 0;
+            var newVal = currentVal + dir * step;
+            input.value = isRot ? newVal.toFixed(1) : newVal.toFixed(3);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
         };
     });
 
-    // Input listeners
-    ['splat', 'cam', 'col', 'custom'].forEach(function(id) {
-        ['pos', 'rot'].forEach(function(type) {
+    // --- 7. Transform Inputs Event Handlers ---
+    var setupInputGroup = function(prefix, eventName) {
+        ['pos', 'rot', 'scale'].forEach(function(type) {
             ['x', 'y', 'z'].forEach(function(axis) {
-                var input = document.getElementById('ed-' + id + '-' + type + '-' + axis);
+                var input = document.getElementById('ed-' + prefix + '-' + type + '-' + axis);
                 if (input) {
-                    input.addEventListener('input', function() { self._applyRealtimeTransform(id); });
-                    input.addEventListener('click', function(e) { e.stopPropagation(); });
-                    input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+                    input.addEventListener('input', function() {
+                        self._applyEditorTransform(prefix, eventName);
+                    });
                     input.addEventListener('focus', function() {
                         if (document.pointerLockElement) document.exitPointerLock();
                     });
                 }
             });
         });
-    });
+    };
 
-    // Save to Disk button
-    var saveBtn = document.getElementById('ed-save-btn');
-    if (saveBtn) {
-        saveBtn.onclick = function(e) {
+    setupInputGroup('splat', 'splat:setTransform');
+    setupInputGroup('cam', 'camera:setTransform');
+    setupInputGroup('col', 'collider:setTransform');
+    setupInputGroup('poi', 'poi:setTransform');
+
+    // --- 8. Inspector Two-Way Entity Binding ---
+    var insName = document.getElementById('ed-inspect-name');
+    if (insName) {
+        insName.addEventListener('input', function(e) {
+            if (self._editorActiveObj) {
+                self._editorActiveObj.name = e.target.value;
+                self._refreshOutlinerTree();
+            }
+        });
+    }
+
+    var setupInspectorTransforms = function() {
+        var getNum = function(id) { var el = document.getElementById(id); return el ? parseFloat(el.value) || 0 : 0; };
+        var applyTransform = function() {
+            if (!self._editorActiveObj) return;
+            var px = getNum('ed-ins-pos-x');
+            var py = getNum('ed-ins-pos-y');
+            var pz = getNum('ed-ins-pos-z');
+            var rx = getNum('ed-ins-rot-x');
+            var ry = getNum('ed-ins-rot-y');
+            var rz = getNum('ed-ins-rot-z');
+            var sx = getNum('ed-ins-scale-x');
+            var sy = getNum('ed-ins-scale-y');
+            var sz = getNum('ed-ins-scale-z');
+
+            self._editorActiveObj.setLocalPosition(px, py, pz);
+            self._editorActiveObj.setLocalEulerAngles(rx, ry, rz);
+            self._editorActiveObj.setLocalScale(sx, sy, sz);
+
+            if (self._editorActiveObj.rigidbody) {
+                self._editorActiveObj.rigidbody.syncEntityToBody();
+            }
+        };
+
+        ['ed-ins-pos-x', 'ed-ins-pos-y', 'ed-ins-pos-z',
+         'ed-ins-rot-x', 'ed-ins-rot-y', 'ed-ins-rot-z',
+         'ed-ins-scale-x', 'ed-ins-scale-y', 'ed-ins-scale-z'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', applyTransform);
+                el.addEventListener('focus', function() {
+                    if (document.pointerLockElement) document.exitPointerLock();
+                });
+            }
+        });
+
+        var matColor = document.getElementById('ed-ins-mat-color');
+        var matOpacity = document.getElementById('ed-ins-mat-opacity');
+        if (matColor) {
+            matColor.addEventListener('input', function(e) {
+                if (!self._editorActiveObj || !self._editorActiveObj.render) return;
+                var hex = e.target.value;
+                var r = parseInt(hex.substr(1, 2), 16) / 255;
+                var g = parseInt(hex.substr(3, 2), 16) / 255;
+                var b = parseInt(hex.substr(5, 2), 16) / 255;
+                var mats = self._editorActiveObj.render.meshInstances || [];
+                mats.forEach(function(mi) {
+                    if (mi.material) {
+                        mi.material.diffuse = new pc.Color(r, g, b);
+                        mi.material.update();
+                    }
+                });
+            });
+        }
+        if (matOpacity) {
+            matOpacity.addEventListener('input', function(e) {
+                if (!self._editorActiveObj || !self._editorActiveObj.render) return;
+                var op = parseFloat(e.target.value) || 1.0;
+                var mats = self._editorActiveObj.render.meshInstances || [];
+                mats.forEach(function(mi) {
+                    if (mi.material) {
+                        mi.material.opacity = op;
+                        mi.material.blendType = op < 1.0 ? pc.BLEND_NORMAL : pc.BLEND_NONE;
+                        mi.material.update();
+                    }
+                });
+            });
+        }
+
+        var focusBtn = document.getElementById('ed-inspect-focus-btn');
+        if (focusBtn) {
+            focusBtn.onclick = function(e) {
+                e.stopPropagation();
+                if (!self._editorActiveObj) return;
+                var pos = self._editorActiveObj.getPosition();
+                var cam = self.app.root.findByName('Camera');
+                if (cam) {
+                    var offset = new pc.Vec3(0, 1.5, 3);
+                    cam.setPosition(pos.x + offset.x, pos.y + offset.y, pos.z + offset.z);
+                    cam.lookAt(pos);
+                }
+            };
+        }
+
+        var delBtn = document.getElementById('ed-inspect-del-btn');
+        if (delBtn) {
+            delBtn.onclick = function(e) {
+                e.stopPropagation();
+                if (!self._editorActiveObj) return;
+                if (confirm('Entity "' + self._editorActiveObj.name + '" wirklich löschen?')) {
+                    self._editorActiveObj.destroy();
+                    self._editorActiveObj = null;
+                    self._refreshOutlinerTree();
+                }
+            };
+        }
+    };
+    setupInspectorTransforms();
+
+    // --- 9. Outliner Tree & Entity Creation ---
+    var outlinerSearch = document.getElementById('ed-outliner-search');
+    if (outlinerSearch) {
+        outlinerSearch.addEventListener('input', function() {
+            self._refreshOutlinerTree();
+        });
+    }
+
+    var addEntityBtn = document.getElementById('ed-outliner-add-btn');
+    var addEntityType = document.getElementById('ed-add-entity-type');
+    if (addEntityBtn && addEntityType) {
+        addEntityBtn.onclick = function(e) {
             e.stopPropagation();
-            self.app.fire('level:saveConfig');
-            saveBtn.innerText = '⏳ Saving...';
-            setTimeout(function() { saveBtn.innerText = '💾 Save to Disk'; }, 1500);
+            var type = addEntityType.value;
+            var cam = self.app.root.findByName('Camera');
+            var pos = cam ? cam.getPosition() : new pc.Vec3();
+            var forward = cam ? cam.forward : new pc.Vec3(0, 0, -1);
+            var spawnPos = new pc.Vec3(pos.x + forward.x * 2.5, pos.y + forward.y * 2.5, pos.z + forward.z * 2.5);
+
+            var entity = new pc.Entity(type.toUpperCase() + '_' + Date.now().toString().slice(-4));
+            entity.setPosition(spawnPos);
+            entity.tags.add('custom-editor-object');
+
+            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+
+            if (type === 'box' || type === 'sphere' || type === 'plane') {
+                entity.addComponent('render', { type: type });
+            } else if (type === 'light') {
+                entity.addComponent('light', { type: 'omni', color: new pc.Color(1, 0.95, 0.8), range: 10, intensity: 1 });
+            } else if (type === 'poi') {
+                entity.tags.add('custom-editor-poi');
+                entity.addComponent('script');
+                entity.script.create('infoHotspot', {
+                    attributes: {
+                        title: 'Neuer Hotspot',
+                        titleEn: 'New Hotspot',
+                        description: 'Beschreibung hier eingeben...',
+                        descriptionEn: 'Enter description here...',
+                        linkUrl: ''
+                    }
+                });
+            } else if (type === 'path') {
+                entity.tags.add('custom-editor-path');
+                entity.addComponent('script');
+                entity.script.create('pathVisualizer', {
+                    attributes: {
+                        title: 'Neuer Laufweg',
+                        color: '#00ff88',
+                        width: 0.8,
+                        points: [[spawnPos.x, spawnPos.y - 1.5, spawnPos.z]]
+                    }
+                });
+            } else if (type === 'screen') {
+                entity.tags.add('custom-editor-media');
+                entity.addComponent('render', { type: 'plane' });
+                entity.setLocalScale(2.0, 1.125, 1.0);
+            }
+
+            levelContainer.addChild(entity);
+            self._refreshOutlinerTree();
+            self._selectEntity(entity);
         };
     }
 
-    // Copy JSON dump button
-    var dumpBtn = document.getElementById('ed-dump-btn');
-    if (dumpBtn) {
-        dumpBtn.onclick = function(e) {
+    // --- 10. World, Splat & Lighting Controls ---
+    var ambientCol = document.getElementById('ed-world-ambient-color');
+    var ambientInt = document.getElementById('ed-world-ambient-int');
+    var splatLodRange = document.getElementById('ed-splat-lod-range');
+    var splatLodVal = document.getElementById('ed-splat-lod-val');
+
+    if (ambientCol) {
+        ambientCol.addEventListener('input', function(e) {
+            var hex = e.target.value;
+            var r = parseInt(hex.substr(1, 2), 16) / 255;
+            var g = parseInt(hex.substr(3, 2), 16) / 255;
+            var b = parseInt(hex.substr(5, 2), 16) / 255;
+            var intensity = ambientInt ? parseFloat(ambientInt.value) || 1.0 : 1.0;
+            self.app.scene.ambientLight = new pc.Color(r * intensity, g * intensity, b * intensity);
+        });
+    }
+    if (ambientInt) {
+        ambientInt.addEventListener('input', function(e) {
+            if (ambientCol) ambientCol.dispatchEvent(new Event('input'));
+        });
+    }
+    if (splatLodRange && splatLodVal) {
+        splatLodRange.addEventListener('input', function(e) {
+            splatLodVal.innerText = e.target.value + 'm';
+            var dist = parseFloat(e.target.value) || 15;
+            var splats = self.app.root.findByTag('gsplat') || [];
+            splats.forEach(function(s) {
+                if (s.script && s.script.gsplat) s.script.gsplat.lodBaseDistance = dist;
+            });
+        });
+    }
+
+    // --- 11. Multi-Spawnpoint Management ---
+    var addSpawnBtn = document.getElementById('ed-add-spawnpoint-btn') || document.getElementById('ed-add-spawn-btn');
+    if (addSpawnBtn) {
+        addSpawnBtn.onclick = function(e) {
             e.stopPropagation();
-            self.app.fire('level:dumpConfig');
-            dumpBtn.innerText = '✅ JSON Copied!';
-            setTimeout(function() { dumpBtn.innerText = '📋 Copy Level JSON'; }, 1500);
+            var cam = self.app.root.findByName('Camera');
+            var pos = cam ? cam.getPosition() : new pc.Vec3();
+            var playerRig = self.app.root.findByName('Character_Controller');
+            var charCtrl = playerRig && playerRig.script ? playerRig.script['character-controller'] : null;
+            var yaw = charCtrl ? charCtrl.yaw : (cam ? cam.getEulerAngles().y : 0);
+
+            var spawnTitle = prompt('Name für diesen Spawnpoint:', 'Spawn ' + (document.querySelectorAll('.ed-spawnpoint-item').length + 1));
+            if (!spawnTitle) return;
+
+            var newSpawn = {
+                id: 'spawn_' + Date.now(),
+                title: spawnTitle,
+                position: [parseFloat(pos.x.toFixed(2)), parseFloat(pos.y.toFixed(2)), parseFloat(pos.z.toFixed(2))],
+                rotation: [0, parseFloat(yaw.toFixed(1)), 0]
+            };
+
+            self._addSpawnpointUI(newSpawn);
         };
     }
 
-    // Visibility toggle
-    var visBtn = document.getElementById('ed-col-vis-btn');
-    if (visBtn) {
-        visBtn.onclick = function(e) {
+    var camCaptureBtn = document.getElementById('ed-cam-capture-btn');
+    if (camCaptureBtn) {
+        camCaptureBtn.onclick = function(e) {
             e.stopPropagation();
-            self.app.fire('collider:toggleVisibility');
-        };
-    }
-
-    // Toggle Debug UI
-    this.app.on('debug:toggle', function(enabled) {
-        panel.style.display = enabled ? 'block' : 'none';
-        // When opening the panel, populate current camera position automatically
-        if (enabled) {
             var playerRig = self.app.root.findByName('Character_Controller');
             var cam = self.app.root.findByName('Camera');
             var pos = playerRig ? playerRig.getPosition() : (cam ? cam.getPosition() : new pc.Vec3());
             var charCtrl = playerRig ? playerRig.script['character-controller'] : null;
             var rx = charCtrl ? charCtrl.pitch : 0;
             var ry = charCtrl ? charCtrl.yaw : 0;
-            var rz = 0;
-            
-            document.getElementById('ed-cam-pos-x').value = pos.x.toFixed(2);
-            document.getElementById('ed-cam-pos-y').value = pos.y.toFixed(2);
-            document.getElementById('ed-cam-pos-z').value = pos.z.toFixed(2);
-            document.getElementById('ed-cam-rot-x').value = rx.toFixed(0);
-            document.getElementById('ed-cam-rot-y').value = ry.toFixed(0);
-            document.getElementById('ed-cam-rot-z').value = rz.toFixed(0);
-            
-            self._refreshCustomObjectsList();
-        }
-    });
 
-    // Populate Collider data when loaded
-    this.app.on('collider:loaded', function(pos, rot) {
-        document.getElementById('ed-col-pos-x').value = pos.x.toFixed(3);
-        document.getElementById('ed-col-pos-y').value = pos.y.toFixed(3);
-        document.getElementById('ed-col-pos-z').value = pos.z.toFixed(3);
-        document.getElementById('ed-col-rot-x').value = rot.x.toFixed(1);
-        document.getElementById('ed-col-rot-y').value = rot.y.toFixed(1);
-        document.getElementById('ed-col-rot-z').value = rot.z.toFixed(1);
-    });
+            var setVal = function(id, val) {
+                var el = document.getElementById(id);
+                if (el) el.value = val;
+            };
 
-    // Custom Object Selection Logic
-    document.getElementById('ed-custom-obj-select').addEventListener('change', function(e) {
-        var objId = e.target.value;
-        if (!objId) {
-            document.getElementById('ed-custom-attrs').innerHTML = '';
-            return;
-        }
-        var entity = self.app.root.findByGuid(objId);
-        if (entity) {
-            var pos = entity.getLocalPosition();
-            var rot = entity.getLocalEulerAngles();
-            document.getElementById('ed-custom-pos-x').value = pos.x.toFixed(3);
-            document.getElementById('ed-custom-pos-y').value = pos.y.toFixed(3);
-            document.getElementById('ed-custom-pos-z').value = pos.z.toFixed(3);
-            document.getElementById('ed-custom-rot-x').value = rot.x.toFixed(1);
-            document.getElementById('ed-custom-rot-y').value = rot.y.toFixed(1);
-            document.getElementById('ed-custom-rot-z').value = rot.z.toFixed(1);
-            self._renderAttributeEditor(entity);
-        }
-    });
+            setVal('ed-cam-pos-x', pos.x.toFixed(2));
+            setVal('ed-cam-pos-y', pos.y.toFixed(2));
+            setVal('ed-cam-pos-z', pos.z.toFixed(2));
+            setVal('ed-cam-rot-x', rx.toFixed(1));
+            setVal('ed-cam-rot-y', ry.toFixed(1));
+            setVal('ed-cam-rot-z', '0.0');
 
-    var spawnCustom = function(type) {
-        var entity = new pc.Entity(type + '_' + Math.floor(Math.random() * 10000));
-        var camPos = self.app.root.findByName('Camera').getPosition();
-        var forward = self.app.root.findByName('Camera').forward;
-        entity.setPosition(camPos.x + forward.x * 2, camPos.y + forward.y * 2, camPos.z + forward.z * 2);
-        entity.tags.add('custom-editor-object');
-        entity.addComponent('script');
-        
-        if (type === 'POI') {
-            entity.script.create('infoHotspot', { attributes: { title: 'New POI' } });
-        } else if (type === 'Path') {
-            entity.script.create('pathVisualizer', { attributes: { title: 'New Path' } });
-        } else if (type === 'Const') {
-            entity.script.create('constructionZone', { attributes: { title: 'New Construction' } });
-        } else if (type === 'Video') {
-            entity.script.create('videoTexture', { attributes: { videoUrl: 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4', playAudio: false, videoScale: 1.0 } });
-            entity.setLocalScale(2, 1.125, 1);
+            camCaptureBtn.innerText = '✅ Position erfasst!';
+            setTimeout(function() { camCaptureBtn.innerText = '📸 Aktuelle Kameraposition übernehmen'; }, 1200);
+        };
+    }
+
+    // --- 12. Laufwege (Walkway / Path Visualizer) Management ---
+    var addPathBtn = document.getElementById('ed-add-path-btn');
+    if (addPathBtn) {
+        addPathBtn.onclick = function(e) {
+            e.stopPropagation();
+            var pathName = prompt('Name für den neuen Laufweg:', 'Laufweg Campus');
+            if (!pathName) return;
+
+            var pathEntity = new pc.Entity(pathName);
+            pathEntity.tags.add('custom-editor-path');
+            pathEntity.addComponent('script');
+            pathEntity.script.create('pathVisualizer', {
+                attributes: {
+                    title: pathName,
+                    color: '#ff3b47',
+                    width: 0.6,
+                    points: []
+                }
+            });
+            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            levelContainer.addChild(pathEntity);
+            self._refreshPathsList(pathEntity.getGuid());
+        };
+    }
+
+    var addPathPointBtn = document.getElementById('ed-path-add-point-btn') || document.getElementById('ed-add-path-point-btn');
+    if (addPathPointBtn) {
+        addPathPointBtn.onclick = function(e) {
+            e.stopPropagation();
+            var pathSelect = document.getElementById('ed-path-select');
+            if (!pathSelect || !pathSelect.value) {
+                alert('Bitte wählen Sie zuerst einen Laufweg aus!');
+                return;
+            }
+            var pathEntity = self.app.root.findByGuid(pathSelect.value);
+            if (!pathEntity || !pathEntity.script || !pathEntity.script.pathVisualizer) return;
+
+            var cam = self.app.root.findByName('Camera');
+            var pos = cam ? cam.getPosition() : new pc.Vec3();
+            var pt = [parseFloat(pos.x.toFixed(2)), parseFloat((pos.y - 1.5).toFixed(2)), parseFloat(pos.z.toFixed(2))];
+
+            var pv = pathEntity.script.pathVisualizer;
+            if (!pv.points) pv.points = [];
+            pv.points.push(pt);
+            if (pv.redraw) pv.redraw();
+
+            self._refreshPathPointsUI(pv.points);
+            addPathPointBtn.innerText = '✅ Punkt hinzugefügt (' + pv.points.length + ')';
+            setTimeout(function() { addPathPointBtn.innerText = '+ Punkt an Kamera'; }, 1000);
+        };
+    }
+
+    var pathSelectEl = document.getElementById('ed-path-select');
+    if (pathSelectEl) {
+        pathSelectEl.addEventListener('change', function(e) {
+            var guid = e.target.value;
+            var details = document.getElementById('ed-path-details');
+            if (!guid) {
+                if (details) details.style.display = 'none';
+                return;
+            }
+            if (details) details.style.display = 'block';
+            var ent = self.app.root.findByGuid(guid);
+            if (ent && ent.script && ent.script.pathVisualizer) {
+                var pv = ent.script.pathVisualizer;
+                var titleInp = document.getElementById('ed-path-title');
+                if (titleInp) titleInp.value = pv.title || ent.name;
+                var colorInp = document.getElementById('ed-path-color');
+                if (colorInp && pv.color) colorInp.value = pv.color;
+                var widthInp = document.getElementById('ed-path-width');
+                if (widthInp && pv.width) widthInp.value = pv.width;
+                self._refreshPathPointsUI(pv.points || []);
+            }
+        });
+    }
+
+    // --- 13. Hotspots & POIs Management ---
+    var addPoiBtn = document.getElementById('ed-add-poi-btn');
+    if (addPoiBtn) {
+        addPoiBtn.onclick = function(e) {
+            e.stopPropagation();
+            var cam = self.app.root.findByName('Camera');
+            var pos = cam ? cam.getPosition() : new pc.Vec3();
+            var forward = cam ? cam.forward : new pc.Vec3(0, 0, -1);
+
+            var entity = new pc.Entity('POI_' + Date.now().toString().slice(-4));
+            entity.setPosition(pos.x + forward.x * 2.5, pos.y + forward.y * 2.5, pos.z + forward.z * 2.5);
+            entity.tags.add('custom-editor-poi');
+            entity.addComponent('script');
+            entity.script.create('infoHotspot', {
+                attributes: {
+                    title: 'Neuer Hotspot',
+                    titleEn: 'New Hotspot',
+                    description: 'Beschreibung hier eingeben...',
+                    descriptionEn: 'Enter description here...',
+                    linkUrl: ''
+                }
+            });
+            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            levelContainer.addChild(entity);
+            self._refreshPoiList(entity.getGuid());
+        };
+    }
+
+    var addConstBtn = document.getElementById('ed-add-const-btn');
+    if (addConstBtn) {
+        addConstBtn.onclick = function(e) {
+            e.stopPropagation();
+            var cam = self.app.root.findByName('Camera');
+            var pos = cam ? cam.getPosition() : new pc.Vec3();
+            var forward = cam ? cam.forward : new pc.Vec3(0, 0, -1);
+
+            var entity = new pc.Entity('Baustelle_' + Date.now().toString().slice(-4));
+            entity.setPosition(pos.x + forward.x * 3, pos.y + forward.y * 3, pos.z + forward.z * 3);
+            entity.tags.add('custom-editor-poi');
+            entity.addComponent('script');
+            entity.script.create('constructionZone', {
+                attributes: {
+                    title: 'Baustelle Campus',
+                    description: 'Modernisierungsarbeiten im Gange.',
+                    status: 'In Bearbeitung',
+                    progress: 60
+                }
+            });
+            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            levelContainer.addChild(entity);
+            self._refreshPoiList(entity.getGuid());
+        };
+    }
+
+    var poiSelectEl = document.getElementById('ed-poi-select');
+    if (poiSelectEl) {
+        poiSelectEl.addEventListener('change', function(e) {
+            var guid = e.target.value;
+            var details = document.getElementById('ed-poi-details');
+            if (!guid) {
+                if (details) details.style.display = 'none';
+                return;
+            }
+            if (details) details.style.display = 'block';
+            var ent = self.app.root.findByGuid(guid);
+            if (ent && ent.script) {
+                var hs = ent.script.infoHotspot || ent.script.constructionZone;
+                if (hs) {
+                    var titleDe = document.getElementById('ed-poi-title-de');
+                    if (titleDe) titleDe.value = hs.title || '';
+                    var titleEn = document.getElementById('ed-poi-title-en');
+                    if (titleEn) titleEn.value = hs.titleEn || hs.title_en || '';
+                    var desc = document.getElementById('ed-poi-desc');
+                    if (desc) desc.value = hs.description || '';
+                    var link = document.getElementById('ed-poi-link');
+                    if (link) link.value = hs.linkUrl || '';
+                    var pos = ent.getPosition();
+                    var px = document.getElementById('ed-poi-pos-x'); if (px) px.value = pos.x.toFixed(2);
+                    var py = document.getElementById('ed-poi-pos-y'); if (py) py.value = pos.y.toFixed(2);
+                    var pz = document.getElementById('ed-poi-pos-z'); if (pz) pz.value = pos.z.toFixed(2);
+                }
+            }
+        });
+    }
+
+    var poiDelBtn = document.getElementById('ed-poi-del-btn');
+    if (poiDelBtn) {
+        poiDelBtn.onclick = function(e) {
+            e.stopPropagation();
+            var select = document.getElementById('ed-poi-select');
+            if (!select || !select.value) return;
+            var ent = self.app.root.findByGuid(select.value);
+            if (ent) {
+                ent.destroy();
+                self._refreshPoiList();
+                var details = document.getElementById('ed-poi-details');
+                if (details) details.style.display = 'none';
+            }
+        };
+    }
+
+    // --- 14. Media Upload & 3D Video/Image Screen Placement ---
+    var mediaDropzone = document.getElementById('ed-media-dropzone');
+    var mediaFileInput = document.getElementById('ed-media-file-input');
+    var mediaUrlInput = document.getElementById('ed-media-url-input') || document.getElementById('ed-media-url');
+    var spawnMediaBtn = document.getElementById('ed-spawn-media-btn') || document.getElementById('ed-create-screen-btn');
+
+    if (mediaDropzone && mediaFileInput) {
+        mediaDropzone.onclick = function() { mediaFileInput.click(); };
+        mediaFileInput.onchange = function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var objectUrl = URL.createObjectURL(file);
+            if (mediaUrlInput) mediaUrlInput.value = objectUrl;
+            var dropText = mediaDropzone.querySelector('div:nth-child(2)');
+            if (dropText) dropText.innerText = '✅ ' + file.name;
+        };
+
+        mediaDropzone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            mediaDropzone.style.borderColor = 'var(--col-accent)';
+            mediaDropzone.style.background = 'rgba(255, 59, 71, 0.1)';
+        });
+        mediaDropzone.addEventListener('dragleave', function() {
+            mediaDropzone.style.borderColor = '';
+            mediaDropzone.style.background = '';
+        });
+        mediaDropzone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            mediaDropzone.style.borderColor = '';
+            mediaDropzone.style.background = '';
+            var file = e.dataTransfer.files[0];
+            if (file) {
+                var objectUrl = URL.createObjectURL(file);
+                if (mediaUrlInput) mediaUrlInput.value = objectUrl;
+                var dropText = mediaDropzone.querySelector('div:nth-child(2)');
+                if (dropText) dropText.innerText = '✅ ' + file.name;
+            }
+        });
+    }
+
+    if (spawnMediaBtn) {
+        spawnMediaBtn.onclick = function(e) {
+            e.stopPropagation();
+            var url = mediaUrlInput ? mediaUrlInput.value.trim() : '';
+            if (!url) {
+                alert('Bitte wählen Sie zuerst ein Foto/Video aus oder geben Sie eine URL ein.');
+                return;
+            }
+            var isVideo = url.endsWith('.mp4') || url.endsWith('.webm') || url.indexOf('video') !== -1 || url.startsWith('blob:');
+            var cam = self.app.root.findByName('Camera');
+            var pos = cam ? cam.getPosition() : new pc.Vec3();
+            var forward = cam ? cam.forward : new pc.Vec3(0, 0, -1);
+
+            var w = document.getElementById('ed-media-w') ? parseFloat(document.getElementById('ed-media-w').value) || 2.0 : 2.0;
+            var h = document.getElementById('ed-media-h') ? parseFloat(document.getElementById('ed-media-h').value) || 1.125 : 1.125;
+
+            var screenEntity = new pc.Entity('MediaScreen_' + Date.now().toString().slice(-4));
+            screenEntity.setPosition(pos.x + forward.x * 3, pos.y + forward.y * 3, pos.z + forward.z * 3);
+            screenEntity.lookAt(pos.x, pos.y, pos.z);
+            screenEntity.rotateLocal(0, 180, 0);
+            screenEntity.setLocalScale(w, h, 1);
+            screenEntity.tags.add('custom-editor-media');
+
+            screenEntity.addComponent('render', { type: 'plane' });
+            screenEntity.addComponent('script');
+
+            if (isVideo) {
+                screenEntity.script.create('videoTexture', {
+                    attributes: {
+                        videoUrl: url,
+                        playAudio: document.getElementById('ed-media-audio') ? document.getElementById('ed-media-audio').checked : false,
+                        videoScale: 1.0
+                    }
+                });
+            }
+
+            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            levelContainer.addChild(screenEntity);
+            spawnMediaBtn.innerText = '✅ 3D Screen platziert!';
+            setTimeout(function() { spawnMediaBtn.innerText = '✨ Media Screen an Kamera platzieren'; }, 1500);
+        };
+    }
+
+    // --- 15. Colliders & Netlify Switcher ---
+    var colVisToggle = document.getElementById('ed-toggle-col-vis-btn') || document.getElementById('ed-col-vis-toggle');
+    if (colVisToggle) {
+        colVisToggle.onclick = function(e) {
+            e.stopPropagation();
+            self.app.fire('collider:toggleVisibility');
+        };
+    }
+
+    var colSourceSelect = document.getElementById('ed-col-source-select');
+    if (colSourceSelect) {
+        colSourceSelect.onchange = function(e) {
+            self.app.fire('collider:setSource', e.target.value);
+        };
+    }
+
+    var colScaleSlider = document.getElementById('ed-col-scale-slider');
+    var colScaleVal = document.getElementById('ed-col-scale-val');
+    if (colScaleSlider) {
+        colScaleSlider.addEventListener('input', function(e) {
+            var s = parseFloat(e.target.value) || 1.0;
+            if (colScaleVal) colScaleVal.innerText = s.toFixed(2);
+            self.app.fire('collider:setScale', s, s, s);
+        });
+    }
+
+    // --- 16. Tour Cam Controls ---
+    var cinPlayBtn = document.getElementById('ed-cin-play-btn');
+    if (cinPlayBtn) {
+        cinPlayBtn.onclick = function(e) {
+            e.stopPropagation();
+            self.app.fire('tour:toggle');
+        };
+    }
+    var cinSpeed = document.getElementById('ed-cin-speed');
+    var cinSpeedVal = document.getElementById('ed-cin-speed-val');
+    if (cinSpeed && cinSpeedVal) {
+        cinSpeed.addEventListener('input', function(e) {
+            cinSpeedVal.innerText = e.target.value + 'x';
+        });
+    }
+
+    // --- 17. Save, Copy, Download & Reset ---
+    var bindSaveBtns = function(id, text) {
+        var btn = document.getElementById(id);
+        if (btn) {
+            btn.onclick = function(e) {
+                e.stopPropagation();
+                self.app.fire('level:saveConfig');
+                btn.innerText = '✅ Gespeichert!';
+                setTimeout(function() { btn.innerText = text; }, 1500);
+            };
         }
-        self.app.root.findByName('LevelContainer').addChild(entity);
-        
-        var select = document.getElementById('ed-custom-obj-select');
-        var opt = document.createElement('option');
-        opt.value = entity.getGuid();
-        opt.text = entity.name;
-        select.appendChild(opt);
-        select.value = opt.value;
-        select.dispatchEvent(new Event('change'));
     };
-    
-    document.getElementById('ed-add-poi').onclick = function(e) { e.stopPropagation(); spawnCustom('POI'); };
-    document.getElementById('ed-add-path').onclick = function(e) { e.stopPropagation(); spawnCustom('Path'); };
-    document.getElementById('ed-add-const').onclick = function(e) { e.stopPropagation(); spawnCustom('Const'); };
-    document.getElementById('ed-add-video').onclick = function(e) { e.stopPropagation(); spawnCustom('Video'); };
+    bindSaveBtns('ed-save-local-btn', '💾 Im Browser speichern (LocalStorage)');
+    bindSaveBtns('ed-footer-save-btn', '💾 Speichern');
 
-    document.getElementById('ed-delete-obj').onclick = function(e) {
-        e.stopPropagation();
-        var objId = document.getElementById('ed-custom-obj-select').value;
-        if (!objId) return;
-        var entity = self.app.root.findByGuid(objId);
-        if (entity) {
-            entity.destroy();
-            self._refreshCustomObjectsList();
+    var bindCopyBtns = function(id, text) {
+        var btn = document.getElementById(id);
+        if (btn) {
+            btn.onclick = function(e) {
+                e.stopPropagation();
+                self.app.fire('level:dumpConfig');
+                btn.innerText = '📋 JSON Kopiert!';
+                setTimeout(function() { btn.innerText = text; }, 1500);
+            };
         }
     };
+    bindCopyBtns('ed-copy-config-btn', '📋 Konfiguration (JSON) kopieren');
+    bindCopyBtns('ed-copy-json-btn', '📋 Konfiguration (JSON) kopieren');
+    bindCopyBtns('ed-footer-copy-btn', '📋 Copy JSON');
 
-    console.log('[UI] Realtime Editor initialized');
-    
-    // Hide debug toggle unless ?admin=1
-    var debugToggleBtn = document.getElementById('menu-debug-toggle');
-    if (debugToggleBtn) {
-        if (!window.location.search.includes('admin=1')) {
-            debugToggleBtn.style.display = 'none';
+    var downloadJsonBtn = document.getElementById('ed-download-json-btn');
+    if (downloadJsonBtn) {
+        downloadJsonBtn.onclick = function(e) {
+            e.stopPropagation();
+            self.app.fire('level:downloadConfig');
+            downloadJsonBtn.innerText = '📥 Heruntergeladen!';
+            setTimeout(function() { downloadJsonBtn.innerText = '📥 level-config.json herunterladen'; }, 1500);
+        };
+    }
+
+    var resetDefaultsBtn = document.getElementById('ed-reset-defaults-btn');
+    if (resetDefaultsBtn) {
+        resetDefaultsBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (confirm('Möchten Sie alle benutzerdefinierten Änderungen auf Werkseinstellungen zurücksetzen?')) {
+                localStorage.removeItem('thowl_custom_levels');
+                window.location.reload();
+            }
+        };
+    }
+
+    // --- 18. Listen to Collider App Events ---
+    this.app.on('collider:loaded', function(pos, rot, scale) {
+        var setVal = function(id, val) {
+            var el = document.getElementById(id);
+            if (el && val !== undefined) el.value = typeof val === 'number' ? val.toFixed(3) : val;
+        };
+        if (pos) {
+            setVal('ed-col-pos-x', pos.x);
+            setVal('ed-col-pos-y', pos.y);
+            setVal('ed-col-pos-z', pos.z);
         }
+        if (rot) {
+            setVal('ed-col-rot-x', rot.x);
+            setVal('ed-col-rot-y', rot.y);
+            setVal('ed-col-rot-z', rot.z);
+        }
+        if (scale) {
+            setVal('ed-col-scale-x', scale.x);
+            setVal('ed-col-scale-y', scale.y);
+            setVal('ed-col-scale-z', scale.z);
+        }
+    });
+
+    console.log('[UI] 3D Studio Workstation initialized');
+};
+
+UI.prototype._refreshOutlinerTree = function() {
+    var tree = document.getElementById('ed-outliner-tree');
+    if (!tree) return;
+    tree.innerHTML = '';
+    var search = document.getElementById('ed-outliner-search') ? document.getElementById('ed-outliner-search').value.toLowerCase().trim() : '';
+    var self = this;
+
+    var getNodeIcon = function(entity) {
+        if (entity.name.toLowerCase().indexOf('splat') !== -1 || entity.tags.has('gsplat')) return '🌐';
+        if (entity.name.toLowerCase().indexOf('cam') !== -1 || entity.camera) return '🎥';
+        if (entity.name.toLowerCase().indexOf('controller') !== -1 || entity.name === 'Character_Controller') return '🏃';
+        if (entity.light) return '💡';
+        if (entity.script && entity.script.infoHotspot) return '🎯';
+        if (entity.script && entity.script.pathVisualizer) return '🚶';
+        if (entity.script && entity.script.videoTexture) return '🎬';
+        if (entity.script && entity.script.constructionZone) return '🚧';
+        if (entity.render) return '📦';
+        return '📁';
+    };
+
+    var renderNode = function(entity, depth) {
+        if (!entity || entity._destroyed) return;
+        if (search && entity.name.toLowerCase().indexOf(search) === -1 && depth === 0) {
+            var hasMatchingChild = false;
+            var checkChildren = function(c) {
+                if (c.name.toLowerCase().indexOf(search) !== -1) hasMatchingChild = true;
+                c.children.forEach(checkChildren);
+            };
+            entity.children.forEach(checkChildren);
+            if (!hasMatchingChild) return;
+        }
+
+        var row = document.createElement('div');
+        row.className = 'ed-tree-node' + (self._editorActiveObj === entity ? ' selected' : '');
+        row.style.paddingLeft = (depth * 14 + 6) + 'px';
+
+        var icon = getNodeIcon(entity);
+        var hasChildren = entity.children && entity.children.length > 0;
+        var arrowHtml = hasChildren ? '<span class="ed-tree-arrow">▼</span>' : '<span style="width:14px; display:inline-block;"></span>';
+        var eyeClass = entity.enabled ? 'ed-tree-eye' : 'ed-tree-eye disabled';
+
+        row.innerHTML = arrowHtml +
+            '<span class="ed-tree-icon">' + icon + '</span>' +
+            '<span class="ed-tree-name">' + entity.name + '</span>' +
+            '<span class="' + eyeClass + '" title="Ein-/Ausblenden">👁️</span>';
+
+        var eye = row.querySelector('.ed-tree-eye');
+        if (eye) {
+            eye.onclick = function(e) {
+                e.stopPropagation();
+                entity.enabled = !entity.enabled;
+                self._refreshOutlinerTree();
+            };
+        }
+
+        row.onclick = function(e) {
+            e.stopPropagation();
+            self._selectEntity(entity);
+        };
+
+        tree.appendChild(row);
+        entity.children.forEach(function(child) {
+            renderNode(child, depth + 1);
+        });
+    };
+
+    var rootNode = this.app.root.findByName('LevelContainer') || this.app.root;
+    renderNode(rootNode, 0);
+};
+
+UI.prototype._selectEntity = function(entity) {
+    this._editorActiveObj = entity;
+    this._refreshOutlinerTree();
+
+    var tag = document.getElementById('ed-inspector-selected-tag');
+    var nameInp = document.getElementById('ed-inspect-name');
+    if (tag) tag.innerText = entity ? entity.name : 'Keine Auswahl';
+    if (nameInp && entity) nameInp.value = entity.name;
+
+    if (entity) {
+        var pos = entity.getLocalPosition();
+        var rot = entity.getLocalEulerAngles();
+        var scale = entity.getLocalScale();
+
+        var setVal = function(id, val) {
+            var el = document.getElementById(id);
+            if (el) el.value = typeof val === 'number' ? val.toFixed(3) : val;
+        };
+
+        setVal('ed-ins-pos-x', pos.x);
+        setVal('ed-ins-pos-y', pos.y);
+        setVal('ed-ins-pos-z', pos.z);
+        setVal('ed-ins-rot-x', rot.x.toFixed(1));
+        setVal('ed-ins-rot-y', rot.y.toFixed(1));
+        setVal('ed-ins-rot-z', rot.z.toFixed(1));
+        setVal('ed-ins-scale-x', scale.x);
+        setVal('ed-ins-scale-y', scale.y);
+        setVal('ed-ins-scale-z', scale.z);
+
+        this._renderAttributeEditor(entity);
     }
 };
 
-UI.prototype._applyRealtimeTransform = function(id) {
-    var px = parseFloat(document.getElementById('ed-' + id + '-pos-x').value) || 0;
-    var py = parseFloat(document.getElementById('ed-' + id + '-pos-y').value) || 0;
-    var pz = parseFloat(document.getElementById('ed-' + id + '-pos-z').value) || 0;
-    var rx = parseFloat(document.getElementById('ed-' + id + '-rot-x').value) || 0;
-    var ry = parseFloat(document.getElementById('ed-' + id + '-rot-y').value) || 0;
-    var rz = parseFloat(document.getElementById('ed-' + id + '-rot-z').value) || 0;
-    
-    if (id === 'splat') this.app.fire('splat:setTransform', px, py, pz, rx, ry, rz);
-    else if (id === 'cam') this.app.fire('camera:setTransform', px, py, pz, rx, ry, rz);
-    else if (id === 'col') this.app.fire('collider:setTransform', px, py, pz, rx, ry, rz);
-    else if (id === 'custom') {
-        var objId = document.getElementById('ed-custom-obj-select').value;
-        if (objId) {
-            var entity = this.app.root.findByGuid(objId);
-            if (entity) {
-                entity.setLocalPosition(px, py, pz);
-                entity.setLocalEulerAngles(rx, ry, rz);
-            }
-        }
+UI.prototype._applyEditorTransform = function(prefix, eventName) {
+    var getNum = function(id) {
+        var el = document.getElementById(id);
+        return el ? parseFloat(el.value) || 0 : 0;
+    };
+    var px = getNum('ed-' + prefix + '-pos-x');
+    var py = getNum('ed-' + prefix + '-pos-y');
+    var pz = getNum('ed-' + prefix + '-pos-z');
+    var rx = getNum('ed-' + prefix + '-rot-x');
+    var ry = getNum('ed-' + prefix + '-rot-y');
+    var rz = getNum('ed-' + prefix + '-rot-z');
+    var sx = getNum('ed-' + prefix + '-scale-x');
+    var sy = getNum('ed-' + prefix + '-scale-y');
+    var sz = getNum('ed-' + prefix + '-scale-z');
+
+    if (eventName) {
+        this.app.fire(eventName, px, py, pz, rx, ry, rz, sx, sy, sz);
     }
+};
+
+UI.prototype._populateEditorLevel = function(levelId) {
+    var sel = document.getElementById('ed-level-select');
+    if (sel && levelId) sel.value = levelId;
+
+    var levelContainer = this.app.root.findByName('LevelContainer');
+    if (!levelContainer) return;
+
+    var splatEntity = levelContainer.findByName('Splat') || levelContainer.findByName('GSplat');
+    if (splatEntity) {
+        var pos = splatEntity.getLocalPosition();
+        var rot = splatEntity.getLocalEulerAngles();
+        var scale = splatEntity.getLocalScale();
+
+        var setVal = function(id, val) {
+            var el = document.getElementById(id);
+            if (el) el.value = val.toFixed(3);
+        };
+        setVal('ed-splat-pos-x', pos.x);
+        setVal('ed-splat-pos-y', pos.y);
+        setVal('ed-splat-pos-z', pos.z);
+        setVal('ed-splat-rot-x', rot.x);
+        setVal('ed-splat-rot-y', rot.y);
+        setVal('ed-splat-rot-z', rot.z);
+        setVal('ed-splat-scale-x', scale.x);
+        setVal('ed-splat-scale-y', scale.y);
+        setVal('ed-splat-scale-z', scale.z);
+    }
+};
+
+UI.prototype._addSpawnpointUI = function(spawn) {
+    var list = document.getElementById('ed-spawnpoints-list');
+    if (!list) return;
+
+    var row = document.createElement('div');
+    row.className = 'ed-item-row ed-spawnpoint-item';
+    row.innerHTML = '<div style="display:flex; flex-direction:column; gap:2px; flex:1;">' +
+        '<span style="font-weight:600; color:var(--text-bright);">' + spawn.title + '</span>' +
+        '<span style="font-size:9px; color:var(--text-secondary); font-family:monospace;">[' + spawn.position.join(', ') + ']</span>' +
+        '</div>' +
+        '<button class="unified-btn small ed-teleport-spawn" style="padding:2px 6px; font-size:10px;">🎯 Teleport</button>' +
+        '<button class="unified-btn small ed-delete-spawn" style="padding:2px 6px; font-size:10px; color:var(--col-red);">🗑️</button>';
+
+    var teleportBtn = row.querySelector('.ed-teleport-spawn');
+    if (teleportBtn) {
+        teleportBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.app.fire('camera:setTransform', spawn.position[0], spawn.position[1], spawn.position[2], spawn.rotation[0], spawn.rotation[1], spawn.rotation[2]);
+        };
+    }
+
+    var delBtn = row.querySelector('.ed-delete-spawn');
+    if (delBtn) {
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            row.remove();
+        };
+    }
+
+    list.appendChild(row);
+};
+
+UI.prototype._refreshPathsList = function(selectedGuid) {
+    var select = document.getElementById('ed-path-select');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Laufweg auswählen --</option>';
+
+    var paths = this.app.root.findByTag('custom-editor-path');
+    paths.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.getGuid();
+        opt.innerText = p.name;
+        if (p.getGuid() === selectedGuid) opt.selected = true;
+        select.appendChild(opt);
+    });
+};
+
+UI.prototype._refreshPathPointsUI = function(points) {
+    var list = document.getElementById('ed-path-points-list');
+    if (!list) return;
+    list.innerHTML = '';
+    points.forEach(function(pt, idx) {
+        var row = document.createElement('div');
+        row.className = 'ed-item-row';
+        row.style.fontSize = '10px';
+        row.innerHTML = '<span>Punkt #' + (idx + 1) + ' (' + pt.join(', ') + ')</span>';
+        list.appendChild(row);
+    });
+};
+
+UI.prototype._refreshPoiList = function(selectedGuid) {
+    var select = document.getElementById('ed-poi-select');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Hotspot auswählen --</option>';
+
+    var pois = this.app.root.findByTag('custom-editor-poi');
+    pois.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.getGuid();
+        opt.innerText = p.name;
+        if (p.getGuid() === selectedGuid) opt.selected = true;
+        select.appendChild(opt);
+    });
 };
 UI.prototype._showShortcutsModal = function() {
     var isDE = this.currentLang === 'de';

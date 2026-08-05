@@ -858,6 +858,27 @@ LevelManager.prototype.initialize = function() {
         playerRig.script['auto-tour'].play(points);
     }, this);
 
+    // Merge saved custom level overrides from LocalStorage
+    try {
+        var savedOverrides = localStorage.getItem('thowl_custom_levels');
+        if (savedOverrides) {
+            var parsed = JSON.parse(savedOverrides);
+            if (Array.isArray(parsed)) {
+                parsed.forEach(function(customLvl) {
+                    var idx = this.levelConfig.findIndex(function(l) { return l.id === customLvl.id; });
+                    if (idx !== -1) {
+                        Object.assign(this.levelConfig[idx], customLvl);
+                    } else {
+                        this.levelConfig.push(customLvl);
+                    }
+                }.bind(this));
+                console.log('[LevelManager] Merged custom overrides from localStorage:', parsed.length, 'levels updated');
+            }
+        }
+    } catch(e) {
+        console.warn('[LevelManager] Could not parse localStorage custom levels:', e);
+    }
+
     this.app.on('tour:stop', function() {
         var playerRig = this.app.root.findByName('Character_Controller');
         if (playerRig && playerRig.script && playerRig.script['auto-tour']) {
@@ -995,14 +1016,14 @@ LevelManager.prototype.initialize = function() {
         var playerRig = this.app.root.findByName('Character_Controller');
         var camPos = playerRig ? playerRig.getPosition() : this.cameraEntity.getPosition();
         var charCtrl = playerRig ? playerRig.script['character-controller'] : null;
-        var cx = camPos.x.toFixed(2), cy = camPos.y.toFixed(2), cz = camPos.z.toFixed(2);
-        var crx = charCtrl ? charCtrl.pitch.toFixed(0) : 0;
-        var cry = charCtrl ? charCtrl.yaw.toFixed(0) : 0;
+        var cx = parseFloat(camPos.x.toFixed(2)), cy = parseFloat(camPos.y.toFixed(2)), cz = parseFloat(camPos.z.toFixed(2));
+        var crx = charCtrl ? parseFloat(charCtrl.pitch.toFixed(1)) : 0;
+        var cry = charCtrl ? parseFloat(charCtrl.yaw.toFixed(1)) : 0;
         
         var sp = this.mainSplatEntity ? this.mainSplatEntity.getLocalPosition() : pc.Vec3.ZERO;
         var sr = this.mainSplatEntity ? this.mainSplatEntity.getLocalEulerAngles() : pc.Vec3.ZERO;
-        var sx = sp.x.toFixed(2), sy = sp.y.toFixed(2), sz = sp.z.toFixed(2);
-        var srx = sr.x.toFixed(0), sry = sr.y.toFixed(0), srz = sr.z.toFixed(0);
+        var sx = parseFloat(sp.x.toFixed(2)), sy = parseFloat(sp.y.toFixed(2)), sz = parseFloat(sp.z.toFixed(2));
+        var srx = parseFloat(sr.x.toFixed(1)), sry = parseFloat(sr.y.toFixed(1)), srz = parseFloat(sr.z.toFixed(1));
 
         var colPos = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalPosition() : pc.Vec3.ZERO;
         var colRot = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalEulerAngles() : pc.Vec3.ZERO;
@@ -1017,20 +1038,63 @@ LevelManager.prototype.initialize = function() {
             splatRot: [srx, sry, srz],
             cameraStart: [cx, cy, cz],
             cameraStartRot: [crx, cry, 0],
-            colliderPos: [colPos.x.toFixed(2), colPos.y.toFixed(2), colPos.z.toFixed(2)],
-            colliderRot: [colRot.x.toFixed(0), colRot.y.toFixed(0), colRot.z.toFixed(0)],
-            colliderScale: [colScale.x.toFixed(3), colScale.y.toFixed(3), colScale.z.toFixed(3)],
+            colliderPos: [parseFloat(colPos.x.toFixed(2)), parseFloat(colPos.y.toFixed(2)), parseFloat(colPos.z.toFixed(2))],
+            colliderRot: [parseFloat(colRot.x.toFixed(1)), parseFloat(colRot.y.toFixed(1)), parseFloat(colRot.z.toFixed(1))],
+            colliderScale: [parseFloat(colScale.x.toFixed(3)), parseFloat(colScale.y.toFixed(3)), parseFloat(colScale.z.toFixed(3))],
             mode: 'fly'
         };
 
+        // 1. Update in-memory levelConfig
+        var idx = this.levelConfig.findIndex(function(l) { return l.id === data.id; });
+        if (idx !== -1) {
+            Object.assign(this.levelConfig[idx], data);
+        }
+
+        // 2. Persist to LocalStorage
+        try {
+            var allSaved = [];
+            var existing = localStorage.getItem('thowl_custom_levels');
+            if (existing) allSaved = JSON.parse(existing);
+            var saveIdx = allSaved.findIndex(function(l) { return l.id === data.id; });
+            if (saveIdx !== -1) allSaved[saveIdx] = data;
+            else allSaved.push(data);
+            localStorage.setItem('thowl_custom_levels', JSON.stringify(allSaved));
+            console.log('✅ Level saved to LocalStorage:', data.id);
+        } catch(e) {
+            console.warn('LocalStorage save error:', e);
+        }
+
+        // 3. Persist to dev backend if running
         fetch('/__save-level', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         }).then(res => res.json()).then(res => {
             if(res.success) console.log("✅ Level saved successfully to disk!");
-            else console.error("❌ Failed to save level:", res.error);
-        }).catch(err => console.error("❌ Failed to fetch save-level API:", err));
+            else console.log("ℹ️ Local dev save skipped (running static)");
+        }).catch(err => console.log("ℹ️ Static hosting mode: Saved to LocalStorage."));
+    }, this);
+
+    this.app.on('level:downloadConfig', function() {
+        var jsonStr = JSON.stringify(this.levelConfig, null, 2);
+        var blob = new Blob([jsonStr], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'thowl-campus-levels-config.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('✅ Level config downloaded as JSON');
+    }, this);
+
+    this.app.on('collider:setSource', function(source) {
+        console.log('[Collider] Switch source to:', source);
+        this._colliderSourceOverride = source;
+        if (this.currentLevelId) {
+            this.loadCollider(this.currentLevelId);
+        }
     }, this);
 
     this.app.on('collider:toggleVisibility', function() {
@@ -1170,14 +1234,25 @@ LevelManager.prototype.destroyDynamicCollider = function() {
 
 LevelManager.prototype.loadCollisionFromUrl = function(levelId, data, callback) {
     var self = this;
-    var glbFile = COLLIDER_MAP[levelId];
+    var glbFile = null;
     var url = '';
+    var sourceMode = this._colliderSourceOverride || 'auto';
 
-    if (glbFile) {
-        url = COLLIDER_BASE + glbFile;
-    } else if (COLLIDER_NETLIFY_MAP[levelId]) {
+    if (sourceMode === 'netlify' && COLLIDER_NETLIFY_MAP[levelId]) {
         glbFile = COLLIDER_NETLIFY_MAP[levelId];
         url = COLLIDER_NETLIFY_BASE + glbFile;
+    } else if (sourceMode === 'standard' && COLLIDER_MAP[levelId]) {
+        glbFile = COLLIDER_MAP[levelId];
+        url = COLLIDER_BASE + glbFile;
+    } else {
+        // Auto mode
+        if (COLLIDER_MAP[levelId]) {
+            glbFile = COLLIDER_MAP[levelId];
+            url = COLLIDER_BASE + glbFile;
+        } else if (COLLIDER_NETLIFY_MAP[levelId]) {
+            glbFile = COLLIDER_NETLIFY_MAP[levelId];
+            url = COLLIDER_NETLIFY_BASE + glbFile;
+        }
     }
 
     if (!glbFile) {
@@ -1186,7 +1261,7 @@ LevelManager.prototype.loadCollisionFromUrl = function(levelId, data, callback) 
         return;
     }
 
-    console.log('[Collision] Loading: ' + url);
+    console.log('[Collision] Loading (' + sourceMode + '): ' + url);
 
     var asset = new pc.Asset('Collider_' + levelId, 'container', { url: url });
     this._dynamicColliderAsset = asset;
@@ -1206,18 +1281,27 @@ LevelManager.prototype.loadCollisionFromUrl = function(levelId, data, callback) 
 
         var entity = new pc.Entity('DynamicCollider_' + levelId);
 
-        // Add render component but HIDE it — collision meshes are invisible boundaries
+        // Add render component for collider visualization
         entity.addComponent('render', {
             type: 'asset',
             asset: renders[0],
             castShadows: false,
             receiveShadows: false
         });
+        
+        // Setup visual material for collider debugging
+        try {
+            var mat = new pc.StandardMaterial();
+            mat.diffuse = new pc.Color(0, 0.9, 1);
+            mat.opacity = 0.35;
+            mat.blendType = pc.BLEND_NORMAL;
+            mat.cull = pc.CULLFACE_NONE;
+            mat.update();
+            entity.render.material = mat;
+        } catch(e) {}
+
         entity.render.enabled = false;
 
-        // The collision meshes are already aligned to world origin (0,0,0) with pre-baked rotations
-        // in Blender. So we do NOT apply splatPos/splatRot to them to avoid double-transformation!
-        
         var cPos = [0,0,0];
         var cRot = [0,0,0];
         var cScale = [1,1,1];
@@ -1248,12 +1332,13 @@ LevelManager.prototype.loadCollisionFromUrl = function(levelId, data, callback) 
 
         console.log('[Collision] Entity pos:', entity.getPosition().toString());
         console.log('[Collision] Entity rot:', entity.getEulerAngles().toString());
-        console.log('[Collision] Ready: ' + levelId + ' (waiting for physics settle)');
+        console.log('[Collision] Ready: ' + levelId + ' (settling physics)');
 
-        // Notify UI debug panel with current collider transform
+        // Notify UI editor panel with current collider transform
         var colPos = entity.getLocalPosition();
         var colRot = entity.getLocalEulerAngles();
-        self.app.fire('collider:loaded', colPos, colRot);
+        var colScale = entity.getLocalScale();
+        self.app.fire('collider:loaded', colPos, colRot, colScale);
 
         // Wait for Ammo.js to register the new body before placing the player
         setTimeout(function() {
@@ -1519,32 +1604,44 @@ LevelManager.prototype.switchLevel = function(id) {
 
 LevelManager.prototype._takeScreenshot = function() {
     var self = this;
-    // Hide all UI
-    var uiElements = document.querySelectorAll('#gsplat-controls, #poi-sidebar, .aeroglass-panel, #fps-crosshair, #fps-hint, #debug-hud');
+    // Hide UI elements smoothly
+    var uiElements = document.querySelectorAll('#gsplat-controls, #poi-sidebar, #poi-navbar, #editor-workstation-panel, .aeroglass-panel, #fps-crosshair, #fps-hint, #debug-hud, #burger-menu-container, #burger-dropdown');
     var visibility = [];
     uiElements.forEach(function(el) {
-        visibility.push(el.style.display);
-        el.style.display = 'none';
+        visibility.push(el.style.visibility || '');
+        el.style.visibility = 'hidden';
     });
 
-    // Wait a frame for UI to hide, then capture
-    setTimeout(function() {
-        var canvas = self.app.graphicsDevice.canvas;
+    // In PlayCanvas/WebGL, capture immediately in the render callback / frameend
+    var captureFrame = function() {
         try {
+            var canvas = self.app.graphicsDevice.canvas;
             var dataUrl = canvas.toDataURL('image/png');
-            var link = document.createElement('a');
-            link.download = 'campus-viewer-' + self.currentLevelId + '-' + Date.now() + '.png';
-            link.href = dataUrl;
-            link.click();
-            console.log('[Screenshot] Saved!');
+            
+            if (dataUrl && dataUrl.length > 500) {
+                var link = document.createElement('a');
+                link.download = 'thowl-campus-' + (self.currentLevelId || 'view') + '-' + Date.now() + '.png';
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                console.log('📸 [Screenshot] Saved (' + canvas.width + 'x' + canvas.height + ')');
+            } else {
+                console.warn('📸 [Screenshot] Frame buffer was empty.');
+            }
         } catch (e) {
-            console.error('[Screenshot] Failed:', e);
+            console.error('📸 [Screenshot] Failed:', e);
+        } finally {
+            // Restore UI visibility
+            uiElements.forEach(function(el, i) {
+                el.style.visibility = visibility[i];
+            });
         }
-        // Restore UI
-        uiElements.forEach(function(el, i) {
-            el.style.display = visibility[i];
-        });
-    }, 100);
+    };
+
+    // Hook frameend to guarantee we capture the freshly rendered WebGL frame
+    self.app.once('frameend', captureFrame);
+    if (self.app.renderNextFrame !== undefined) self.app.renderNextFrame = true;
 };
 
 // --- ADAPTIVE QUALITY ---

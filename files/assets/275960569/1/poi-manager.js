@@ -143,10 +143,10 @@ PoiManager.prototype.getTourNode = function(index) {
             tempEnt2.destroy();
         }
     } else {
-        var offset = new pc.Vec3(0, 0.5, 1).normalize();
-        var dist = this.lookDistance;
-        if (target.type === 'construction') { dist *= 2.5; offset.set(1, 1, 1).normalize(); } 
-        else if (target.type === 'path') { dist *= 1.5; offset.set(0, 0.8, 1).normalize(); }
+        var offset = new pc.Vec3(0, 1.2, 1.5).normalize();
+        var dist = this.lookDistance * 1.25;
+        if (target.type === 'construction') { dist *= 2.2; offset.set(0.8, 1.4, 1.2).normalize(); } 
+        else if (target.type === 'path') { dist *= 1.5; offset.set(0, 1.2, 1.4).normalize(); }
         offset.scale(dist);
         camPos = targetPos.clone().add(offset);
         
@@ -202,23 +202,57 @@ PoiManager.prototype._restoreCameraControls = function() {
     }
 };
 
+PoiManager.prototype.getOrbitalTransform = function(index, angle) {
+    if (index < 0 || index >= this.pois.length) return null;
+    var target = this.pois[index];
+    if (!target || !target.entity) return null;
+    var targetPos = target.entity.getPosition().clone();
+    var baseTransform = this.getTargetCamTransform(index);
+    if (!baseTransform) return null;
+
+    var basePos = baseTransform.pos;
+    var centerPos = baseTransform.targetPos || targetPos;
+
+    var currentAngle = (typeof angle === 'number') ? angle : (this.orbitAngle || 0);
+    var rotQuat = new pc.Quat().setFromEulerAngles(0, currentAngle, 0);
+    var relPos = new pc.Vec3().sub2(basePos, centerPos);
+    var rotatedRelPos = rotQuat.transformVector(relPos);
+    var camPos = new pc.Vec3().add2(centerPos, rotatedRelPos);
+
+    var camRot;
+    if (baseTransform.rot) {
+        camRot = new pc.Quat().mul2(rotQuat, baseTransform.rot);
+    } else {
+        camRot = this._calcLookAtRot(camPos, centerPos);
+    }
+
+    return { pos: camPos, rot: camRot, targetPos: centerPos };
+};
+
 PoiManager.prototype.update = function(dt) {
+    var orbitSpeed = 15.0; // 15 degrees per second (24s for a full 360)
+    this.orbitAngle = ((this.orbitAngle || 0) + orbitSpeed * dt) % 360.0;
+
     if (!this.isAutoTouring || !this.tourNodes || this.tourNodes.length === 0) return;
+    if (this._isTransitioning) return;
     
     this.tourTimer += dt;
     
     var count = this.tourNodes.length;
     if (count <= 1) {
         if (count === 1 && this.cameraEntity) {
-            this.cameraEntity.setPosition(this.tourNodes[0].pos);
-            this.cameraEntity.setRotation(this.tourNodes[0].rot);
+            var singleTransform = this.getOrbitalTransform(this.tourNodes[0].idx, this.orbitAngle);
+            if (singleTransform) {
+                this.cameraEntity.setPosition(singleTransform.pos);
+                this.cameraEntity.setRotation(singleTransform.rot);
+            }
         }
         return;
     }
     
     // Each segment: dwellTime at node + flyTime between nodes
-    var dwellTime = 24.0;  // Stay longer at each POI and rotate slower
-    var flyTime = this.autoTourDelay; // time to fly between POIs
+    var dwellTime = 24.0;
+    var flyTime = this.autoTourDelay || 4.0;
     var segmentDuration = dwellTime + flyTime;
     var totalDuration = count * segmentDuration;
     if (this.tourTimer >= totalDuration) this.tourTimer = 0;
@@ -231,31 +265,12 @@ PoiManager.prototype.update = function(dt) {
     var n1 = this.tourNodes[segIndex];
     
     if (segTime < dwellTime) {
-        // DWELL PHASE: orbit around the POI slowly
+        // DWELL PHASE: orbit around the POI continuously
         if (this.cameraEntity) {
-            var actualPoi = this.pois[n1.idx];
-            if (actualPoi) {
-                var centerPos = actualPoi.entity.getPosition();
-                var radius = new pc.Vec3().sub2(n1.pos, centerPos).length();
-                if (radius < 0.1) radius = this.lookDistance;
-                
-                // Use smoothstep easing for the orbit to eliminate speed jumps at start/end
-                var t = segTime / dwellTime;
-                var easedT = t * t * (3 - 2 * t);
-                var currentAngle = easedT * 360;
-                
-                var relPos = new pc.Vec3().sub2(n1.pos, centerPos);
-                var rotQuat = new pc.Quat().setFromEulerAngles(0, currentAngle, 0);
-                var rotatedRelPos = rotQuat.transformVector(relPos);
-                var newCamPos = new pc.Vec3().add2(centerPos, rotatedRelPos);
-                
-                var newCamRotQuat = new pc.Quat().mul2(rotQuat, n1.rot);
-                
-                this.cameraEntity.setPosition(newCamPos);
-                this.cameraEntity.setRotation(newCamRotQuat);
-            } else {
-                this.cameraEntity.setPosition(n1.pos);
-                this.cameraEntity.setRotation(n1.rot);
+            var transform = this.getOrbitalTransform(n1.idx, this.orbitAngle);
+            if (transform) {
+                this.cameraEntity.setPosition(transform.pos);
+                this.cameraEntity.setRotation(transform.rot);
             }
         }
         if (this.currentIndex !== n1.idx) {
@@ -266,64 +281,42 @@ PoiManager.prototype.update = function(dt) {
     } else {
         // FLY PHASE: interpolate to the next POI
         var f = (segTime - dwellTime) / flyTime;
-        
         var ease = f < 0.5 ? 2 * f * f : -1 + (4 - 2 * f) * f;
         f = (f * 0.3) + (ease * 0.7);
         
-        var i0 = (segIndex - 1 + count) % count;
         var i2 = (segIndex + 1) % count;
-        var i3 = (segIndex + 2) % count;
-        
-        var n0 = this.tourNodes[i0];
         var n2 = this.tourNodes[i2];
-        var n3 = this.tourNodes[i3];
         
-        // Return to start position of orbit for seamless fly
-        var flyStartPos = n1.pos;
-        var flyStartRot = n1.rot;
+        var t1 = this.getOrbitalTransform(n1.idx, this.orbitAngle);
+        var t2 = this.getOrbitalTransform(n2.idx, this.orbitAngle);
         
-        // Ensure shortest path for quaternions
-        var qResult = new pc.Quat();
-        var dot = flyStartRot.x * n2.rot.x + flyStartRot.y * n2.rot.y + flyStartRot.z * n2.rot.z + flyStartRot.w * n2.rot.w;
-        var tRot = n2.rot.clone();
-        if (dot < 0) {
-            tRot.x *= -1; tRot.y *= -1; tRot.z *= -1; tRot.w *= -1;
-        }
-        
-        var pos = this.getCatmullRom(n0.pos, flyStartPos, n2.pos, n3.pos, f);
-        qResult.slerp(flyStartRot, tRot, f);
-        
-        if (this.cameraEntity) {
+        if (t1 && t2 && this.cameraEntity) {
+            var pos = new pc.Vec3().lerp(t1.pos, t2.pos, f);
+            var rot = new pc.Quat().slerp(t1.rot, t2.rot, f);
             this.cameraEntity.setPosition(pos);
-            this.cameraEntity.setRotation(qResult);
+            this.cameraEntity.setRotation(rot);
         }
         
-        // Show the NEXT POI title as soon as we start flying toward it
         if (this.currentIndex !== n2.idx) {
             this.currentIndex = n2.idx;
             this.highlightListItem(n2.idx);
-            this.updateNavTitle(n2.title); // Removed arrow
+            this.updateNavTitle(n2.title);
         }
     }
 };
 
-PoiManager.prototype.jumpTo = function(index) {
-    if (index < 0 || index >= this.pois.length) return;
-    
-    this.currentIndex = index;
+PoiManager.prototype.getTargetCamTransform = function(index) {
+    if (index < 0 || index >= this.pois.length) return null;
     var target = this.pois[index];
     var entity = target.entity;
     var targetPos = entity.getPosition().clone(); 
 
     var camPos, camRot;
 
-    // 1. Entity?
     if (target.customView) {
         camPos = target.customView.getPosition().clone();
         camRot = target.customView.getRotation().clone();
-    } 
-    // 2. Koordinaten?
-    else if (target.customPos && (target.customPos.x !== 0 || target.customPos.y !== 0 || target.customPos.z !== 0)) {
+    } else if (target.customPos && (target.customPos.x !== 0 || target.customPos.y !== 0 || target.customPos.z !== 0)) {
         camPos = target.customPos.clone();
         if (target.customRot && (target.customRot.x !== 0 || target.customRot.y !== 0 || target.customRot.z !== 0)) {
             var tempEnt = new pc.Entity();
@@ -331,30 +324,69 @@ PoiManager.prototype.jumpTo = function(index) {
             camRot = tempEnt.getRotation().clone();
             tempEnt.destroy();
         }
-    }
-    // 3. Fallback
-    else {
-        var offset = new pc.Vec3(0, 0.5, 1).normalize();
-        var dist = this.lookDistance;
+    } else {
+        var offset = new pc.Vec3(0, 1.2, 1.5).normalize();
+        var dist = this.lookDistance * 1.25;
 
-        if (target.type === 'construction') { dist *= 2.5; offset.set(1, 1, 1).normalize(); } 
-        else if (target.type === 'path') { dist *= 1.5; offset.set(0, 0.8, 1).normalize(); }
+        if (target.type === 'construction') { dist *= 2.2; offset.set(0.8, 1.4, 1.2).normalize(); } 
+        else if (target.type === 'path') { dist *= 1.5; offset.set(0, 1.2, 1.4).normalize(); }
 
         offset.scale(dist);
         camPos = targetPos.clone().add(offset);
+        
+        var tempEnt4 = new pc.Entity();
+        tempEnt4.setPosition(camPos);
+        tempEnt4.lookAt(targetPos);
+        camRot = tempEnt4.getRotation().clone();
+        tempEnt4.destroy();
     }
 
+    return { pos: camPos, rot: camRot, targetPos: targetPos };
+};
+
+PoiManager.prototype.jumpTo = function(index, immediate) {
+    if (index < 0 || index >= this.pois.length) return;
+    
+    this.currentIndex = index;
+    var target = this.pois[index];
+    var flightDur = 1.3;
+    var orbitSpeed = 15.0;
+    var projectedAngle = ((this.orbitAngle || 0) + orbitSpeed * flightDur) % 360.0;
+    var transform = this.getOrbitalTransform(index, immediate ? (this.orbitAngle || 0) : projectedAngle) || this.getTargetCamTransform(index);
+    if (!transform) return;
+
+    var camPos = transform.pos;
+    var camRot = transform.rot || this._calcLookAtRot(camPos, transform.targetPos);
+    var targetPos = transform.targetPos;
+
+    var self = this;
     if (this.cameraEntity) {
-        this.cameraEntity.setPosition(camPos);
-        if (camRot) this.cameraEntity.setRotation(camRot);
-        else this.cameraEntity.lookAt(targetPos);
-        
-        // Sync Character Controller so controls are not buggy when moving manually
-        var playerRig = this.app.root.findByName('Character_Controller');
-        if (playerRig) {
-            playerRig.setPosition(this.cameraEntity.getPosition());
-            var euler = this.cameraEntity.getLocalEulerAngles();
-            playerRig.setLocalEulerAngles(0, euler.y, 0);
+        if (immediate) {
+            if (this._activeFlightAnim) {
+                cancelAnimationFrame(this._activeFlightAnim);
+                this._activeFlightAnim = null;
+            }
+            this._isTransitioning = false;
+            this.cameraEntity.setPosition(camPos);
+            if (camRot) this.cameraEntity.setRotation(camRot);
+            else this.cameraEntity.lookAt(targetPos);
+            
+            var playerRig = this.app.root.findByName('Character_Controller');
+            if (playerRig) {
+                playerRig.setPosition(this.cameraEntity.getPosition());
+                var euler = this.cameraEntity.getLocalEulerAngles();
+                playerRig.setLocalEulerAngles(0, euler.y, 0);
+            }
+        } else {
+            var activeIdx = this.activePois.indexOf(index);
+            this._startSmoothFlight(camPos, camRot, flightDur, function() {
+                if (self.isAutoTouring && self.tourNodes && activeIdx !== -1) {
+                    var dwellTime = 24.0;
+                    var flyTime = self.autoTourDelay || 4.0;
+                    var segmentDuration = dwellTime + flyTime;
+                    self.tourTimer = activeIdx * segmentDuration;
+                }
+            });
         }
     }
 
@@ -364,24 +396,139 @@ PoiManager.prototype.jumpTo = function(index) {
         else if (controls.pivotPoint) controls.pivotPoint.copy(targetPos);
     }
 
-    this.tourTimer = 0;
     this.highlightListItem(index);
     this.updateNavTitle(target.title);
+};
+
+PoiManager.prototype._calcLookAtRot = function(fromPos, toPos) {
+    var temp = new pc.Entity();
+    temp.setPosition(fromPos);
+    temp.lookAt(toPos);
+    var rot = temp.getRotation().clone();
+    temp.destroy();
+    return rot;
+};
+
+PoiManager.prototype._startSmoothFlight = function(targetPos, targetRot, duration, onComplete) {
+    if (!this.cameraEntity) return;
+    if (this._activeFlightAnim) {
+        cancelAnimationFrame(this._activeFlightAnim);
+        this._activeFlightAnim = null;
+    }
+    this._isTransitioning = true;
+    var startPos = this.cameraEntity.getPosition().clone();
+    var startRot = this.cameraEntity.getRotation().clone();
+    var startTime = performance.now();
+    var dur = (duration || 1.3) * 1000;
+    var self = this;
+
+    // Check shortest quaternion path
+    var endRot = targetRot.clone();
+    var dot = startRot.x * endRot.x + startRot.y * endRot.y + startRot.z * endRot.z + startRot.w * endRot.w;
+    if (dot < 0) {
+        endRot.x *= -1; endRot.y *= -1; endRot.z *= -1; endRot.w *= -1;
+    }
+
+    var animateFlight = function(now) {
+        var elapsed = now - startTime;
+        var p = Math.min(1.0, elapsed / dur);
+        // Smooth cubic ease in-out
+        var ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+        var currentPos = new pc.Vec3().lerp(startPos, targetPos, ease);
+        var currentRot = new pc.Quat().slerp(startRot, endRot, ease);
+
+        if (self.cameraEntity) {
+            self.cameraEntity.setPosition(currentPos);
+            self.cameraEntity.setRotation(currentRot);
+        }
+
+        var playerRig = self.app.root.findByName('Character_Controller');
+        if (playerRig) {
+            playerRig.setPosition(currentPos);
+            var euler = self.cameraEntity.getLocalEulerAngles();
+            playerRig.setLocalEulerAngles(0, euler.y, 0);
+        }
+
+        if (p < 1.0) {
+            self._activeFlightAnim = requestAnimationFrame(animateFlight);
+        } else {
+            self._activeFlightAnim = null;
+            self._isTransitioning = false;
+            if (onComplete) onComplete();
+        }
+    };
+    self._activeFlightAnim = requestAnimationFrame(animateFlight);
 };
 
 PoiManager.prototype.next = function() {
     if (this.activePois.length === 0) return;
     var currentActiveIdx = this.activePois.indexOf(this.currentIndex);
-    var nextActiveIdx = (currentActiveIdx + 1) % this.activePois.length;
-    this.jumpTo(this.activePois[nextActiveIdx]);
+    var nextActiveIdx;
+    if (currentActiveIdx === -1) {
+        nextActiveIdx = 0;
+    } else {
+        nextActiveIdx = (currentActiveIdx + 1) % this.activePois.length;
+    }
+    var nextPoiIndex = this.activePois[nextActiveIdx];
+
+    this.currentIndex = nextPoiIndex;
+    this.highlightListItem(this.currentIndex);
+    this.updateNavTitle(this.pois[nextPoiIndex].title);
+
+    var flightDur = 1.3;
+    var orbitSpeed = 15.0;
+    var projectedAngle = ((this.orbitAngle || 0) + orbitSpeed * flightDur) % 360.0;
+    var targetTransform = this.getOrbitalTransform(nextPoiIndex, projectedAngle) || this.getTargetCamTransform(nextPoiIndex);
+    if (!targetTransform) return;
+
+    var self = this;
+    if (this.isAutoTouring && this.tourNodes && this.tourNodes.length > 0) {
+        var dwellTime = 24.0;
+        var flyTime = this.autoTourDelay || 4.0;
+        var segmentDuration = dwellTime + flyTime;
+        
+        this._startSmoothFlight(targetTransform.pos, targetTransform.rot, flightDur, function() {
+            self.tourTimer = nextActiveIdx * segmentDuration;
+        });
+    } else {
+        this._startSmoothFlight(targetTransform.pos, targetTransform.rot, flightDur);
+    }
 };
 
 PoiManager.prototype.prev = function() {
     if (this.activePois.length === 0) return;
     var currentActiveIdx = this.activePois.indexOf(this.currentIndex);
-    if (currentActiveIdx === -1) currentActiveIdx = 0;
-    var prevActiveIdx = (currentActiveIdx - 1 + this.activePois.length) % this.activePois.length;
-    this.jumpTo(this.activePois[prevActiveIdx]);
+    var prevActiveIdx;
+    if (currentActiveIdx === -1) {
+        prevActiveIdx = this.activePois.length - 1;
+    } else {
+        prevActiveIdx = (currentActiveIdx - 1 + this.activePois.length) % this.activePois.length;
+    }
+    var prevPoiIndex = this.activePois[prevActiveIdx];
+
+    this.currentIndex = prevPoiIndex;
+    this.highlightListItem(this.currentIndex);
+    this.updateNavTitle(this.pois[prevPoiIndex].title);
+
+    var flightDur = 1.3;
+    var orbitSpeed = 15.0;
+    var projectedAngle = ((this.orbitAngle || 0) + orbitSpeed * flightDur) % 360.0;
+    var targetTransform = this.getOrbitalTransform(prevPoiIndex, projectedAngle) || this.getTargetCamTransform(prevPoiIndex);
+    if (!targetTransform) return;
+
+    var self = this;
+    if (this.isAutoTouring && this.tourNodes && this.tourNodes.length > 0) {
+        var dwellTime = 24.0;
+        var flyTime = this.autoTourDelay || 4.0;
+        var segmentDuration = dwellTime + flyTime;
+        
+        this._startSmoothFlight(targetTransform.pos, targetTransform.rot, flightDur, function() {
+            self.tourTimer = prevActiveIdx * segmentDuration;
+        });
+    } else {
+        this._startSmoothFlight(targetTransform.pos, targetTransform.rot, flightDur);
+    }
 };
 
 PoiManager.prototype.toggleAutoTour = function() {
@@ -395,7 +542,7 @@ PoiManager.prototype.toggleAutoTour = function() {
         if (this.currentIndex !== -1) {
             var idx = this.activePois.indexOf(this.currentIndex);
             if (idx !== -1) {
-                var dwellTime = 5.0;
+                var dwellTime = 24.0;
                 var flyTime = this.autoTourDelay;
                 var segmentDuration = dwellTime + flyTime;
                 this.tourTimer = idx * segmentDuration;
@@ -467,8 +614,8 @@ PoiManager.prototype.createUI = function() {
     document.body.appendChild(this.navBar);
 
     var self = this;
-    document.getElementById('poi-prev-btn').onclick = function() { self.prev(); self.isAutoTouring = false; self.updatePlayBtn(); };
-    document.getElementById('poi-next-btn').onclick = function() { self.next(); self.isAutoTouring = false; self.updatePlayBtn(); };
+    document.getElementById('poi-prev-btn').onclick = function() { self.prev(); };
+    document.getElementById('poi-next-btn').onclick = function() { self.next(); };
     document.getElementById('poi-play-btn').onclick = function() { self.toggleAutoTour(); };
 };
 
