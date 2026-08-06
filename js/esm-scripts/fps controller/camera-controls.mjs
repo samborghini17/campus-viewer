@@ -394,8 +394,10 @@ class CameraControls extends Script {
         const moveMult = (this._state.shift ? this.moveFastSpeed : this._state.ctrl ? this.moveSlowSpeed : this.moveSpeed) * dt;
         
         // Granular, smooth exponential zoom: OrbitController natively applies dist * move.z
-        // Standardized fractional zoom per wheel tick gives fine, non-jumping, stutter-free steps
-        const zoomMult = (this.zoomSpeed || 0.04);
+        // Clamp raw wheel to ±1 so each tick is a single smooth step
+        const rawWheel = wheel[0];
+        const clampedWheel = rawWheel === 0 ? 0 : (rawWheel > 0 ? 1 : -1);
+        const zoomMult = (this.zoomSpeed || 0.015);
         const zoomTouchMult = zoomMult * (this.zoomPinchSens || 1.0) * 0.2;
         const rotateMult = this.rotateSpeed * 60 * dt;
         const rotateJoystickMult = this.rotateSpeed * this.rotateJoystickSens * 60 * dt;
@@ -409,10 +411,10 @@ class CameraControls extends Script {
         
         // Wheel navigation for both Orbit (zoom) and Fly (forward/backward dolly)
         if (orbit) {
-            const wheelMove = tmpV2.set(0, 0, wheel[0] * zoomMult);
+            const wheelMove = tmpV2.set(0, 0, clampedWheel * zoomMult);
             v.add(wheelMove);
-        } else if (fly && wheel[0] !== 0) {
-            const flyWheelStep = -(wheel[0] > 0 ? 1 : -1) * moveMult * 2.5;
+        } else if (fly && clampedWheel !== 0) {
+            const flyWheelStep = -(clampedWheel) * moveMult * 1.5;
             v.z += flyWheelStep;
         }
         
@@ -660,7 +662,7 @@ class CameraControls extends Script {
      * @attribute
      * @title Zoom Speed
      * @type {number}
-     */ _define_property(this, "zoomSpeed", 0.05), /**
+     */ _define_property(this, "zoomSpeed", 0.015), /**
      * The joystick event name for the UI position for the base and stick elements.
      * The event name is appended with the side: 'left' or 'right'.
      *

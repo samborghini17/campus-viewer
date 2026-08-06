@@ -922,11 +922,7 @@ UI.prototype._initBurgerMenu = function() {
 
     if (adminMenuBtn) {
         adminMenuBtn.onclick = function() {
-            if (sessionStorage.getItem('thowl_admin') === '1') {
-                openEditor();
-            } else {
-                promptAdminAuth();
-            }
+            promptAdminAuth();
         };
     }
 
@@ -1151,6 +1147,18 @@ UI.prototype._initRealtimeEditor = function() {
         closeBtn.onclick = function(e) {
             e.stopPropagation();
             panel.style.display = 'none';
+            self._editorPanelOpen = false;
+            sessionStorage.removeItem('thowl_admin');
+        };
+    }
+
+    var lockBtn = document.getElementById('ed-lock-btn');
+    if (lockBtn) {
+        lockBtn.onclick = function(e) {
+            e.stopPropagation();
+            panel.style.display = 'none';
+            self._editorPanelOpen = false;
+            sessionStorage.removeItem('thowl_admin');
         };
     }
 
@@ -2434,16 +2442,22 @@ UI.prototype._populateEditorLevel = function(levelId) {
     var levelContainer = this.app.root.findByName('LevelContainer');
     if (!levelContainer) return;
 
+    var setVal = function(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.value = (typeof val === 'number') ? (Number.isInteger(val) ? val : val.toFixed(3)) : val;
+    };
+
+    // --- Splat Discovery ---
     var splatEntity = levelContainer.findByName('Splat') || levelContainer.findByName('GSplat');
+    if (!splatEntity) {
+        // search by tag or script
+        var splats = this.app.root.findByTag('gsplat');
+        if (splats.length > 0) splatEntity = splats[0];
+    }
     if (splatEntity) {
         var pos = splatEntity.getLocalPosition();
         var rot = splatEntity.getLocalEulerAngles();
         var scale = splatEntity.getLocalScale();
-
-        var setVal = function(id, val) {
-            var el = document.getElementById(id);
-            if (el) el.value = val.toFixed(3);
-        };
         setVal('ed-splat-pos-x', pos.x);
         setVal('ed-splat-pos-y', pos.y);
         setVal('ed-splat-pos-z', pos.z);
@@ -2454,6 +2468,111 @@ UI.prototype._populateEditorLevel = function(levelId) {
         setVal('ed-splat-scale-y', scale.y);
         setVal('ed-splat-scale-z', scale.z);
     }
+
+    // --- POI / Hotspot Discovery ---
+    var poiSelect = document.getElementById('ed-poi-select');
+    if (poiSelect) {
+        poiSelect.innerHTML = '<option value="">-- Hotspot auswählen --</option>';
+        var allHotspots = [];
+        var findHotspots = function(ent) {
+            if (!ent || ent._destroyed) return;
+            if (ent.script && ent.script.infoHotspot) allHotspots.push(ent);
+            if (ent.script && ent.script.constructionZone) allHotspots.push(ent);
+            if (ent.tags && ent.tags.has('custom-editor-poi')) {
+                if (allHotspots.indexOf(ent) === -1) allHotspots.push(ent);
+            }
+            if (ent.children) ent.children.forEach(findHotspots);
+        };
+        findHotspots(levelContainer);
+        findHotspots(this.app.root);
+        
+        // Deduplicate
+        var seen = {};
+        allHotspots = allHotspots.filter(function(e) {
+            var g = e.getGuid();
+            if (seen[g]) return false;
+            seen[g] = true;
+            return true;
+        });
+
+        allHotspots.forEach(function(ent) {
+            var opt = document.createElement('option');
+            opt.value = ent.getGuid();
+            var icon = ent.script && ent.script.constructionZone ? '🚧' : '🎯';
+            opt.innerText = icon + ' ' + ent.name;
+            poiSelect.appendChild(opt);
+        });
+    }
+
+    // --- Path / Laufwege Discovery ---
+    var pathSelect = document.getElementById('ed-path-select');
+    if (pathSelect) {
+        pathSelect.innerHTML = '<option value="">-- Laufweg auswählen --</option>';
+        var allPaths = [];
+        var findPaths = function(ent) {
+            if (!ent || ent._destroyed) return;
+            if (ent.script && ent.script.pathVisualizer) allPaths.push(ent);
+            if (ent.tags && ent.tags.has('custom-editor-path')) {
+                if (allPaths.indexOf(ent) === -1) allPaths.push(ent);
+            }
+            if (ent.children) ent.children.forEach(findPaths);
+        };
+        findPaths(levelContainer);
+        
+        allPaths.forEach(function(ent) {
+            var opt = document.createElement('option');
+            opt.value = ent.getGuid();
+            opt.innerText = '🚶 ' + ent.name;
+            pathSelect.appendChild(opt);
+        });
+    }
+
+    // --- Spawnpoint Discovery ---
+    var spawnList = document.getElementById('ed-spawnpoints-list');
+    if (spawnList) {
+        spawnList.innerHTML = '';
+        var self = this;
+        // Read from level data if available
+        if (this._levelData && levelId && this._levelData[levelId]) {
+            var lvlData = this._levelData[levelId];
+            if (lvlData.startPos) {
+                self._addSpawnpointUI({
+                    title: 'Start (' + levelId + ')',
+                    position: lvlData.startPos,
+                    rotation: lvlData.startRot || [0, 0, 0]
+                });
+            }
+            if (lvlData.spawnpoints) {
+                lvlData.spawnpoints.forEach(function(sp) {
+                    self._addSpawnpointUI(sp);
+                });
+            }
+        }
+    }
+
+    // --- Collider Discovery ---
+    var dynCol = this.app.root.findByName('DynamicCollider_' + levelId);
+    if (dynCol) {
+        var colPos = dynCol.getLocalPosition();
+        var colRot = dynCol.getLocalEulerAngles();
+        var colScale = dynCol.getLocalScale();
+        setVal('ed-col-pos-x', colPos.x);
+        setVal('ed-col-pos-y', colPos.y);
+        setVal('ed-col-pos-z', colPos.z);
+        setVal('ed-col-rot-x', colRot.x);
+        setVal('ed-col-rot-y', colRot.y);
+        setVal('ed-col-rot-z', colRot.z);
+        setVal('ed-col-scale-x', colScale.x);
+        setVal('ed-col-scale-y', colScale.y);
+        setVal('ed-col-scale-z', colScale.z);
+    }
+
+    // Refresh outliner tree
+    this._refreshOutlinerTree();
+
+    console.log('[Editor] Level populated:', levelId, 
+        '| Splat:', !!splatEntity, 
+        '| Collider:', !!dynCol);
 };
 
 UI.prototype._addSpawnpointUI = function(spawn) {
