@@ -2,7 +2,7 @@
     <button id="burger-btn" aria-label="Menü">
         <span class="icon">☰</span> <span id="lbl-menu-btn">Menü</span>
     </button>
-    <div id="burger-dropdown">
+    <div id="burger-dropdown" class="aeroglass-panel">
         <div id="menu-lang-container" dir="ltr" style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; padding: 4px; margin-bottom: 4px; pointer-events: auto;">
             <button class="lang-btn menu-item" data-lang="de" style="flex: 1; padding: 6px 0; justify-content: center;" title="Deutsch">🇩🇪</button>
             <button class="lang-btn menu-item" data-lang="en" style="flex: 1; padding: 6px 0; justify-content: center;" title="English">🇬🇧</button>
@@ -209,6 +209,9 @@
                 <div class="ed-axis-box"><span class="ed-axis-label y">SY</span><input type="number" id="ed-ins-scale-y" class="ed-num-input" value="1" step="0.1"></div>
                 <div class="ed-axis-box"><span class="ed-axis-label z">SZ</span><input type="number" id="ed-ins-scale-z" class="ed-num-input" value="1" step="0.1"></div>
             </div>
+
+            <div id="ed-inspector-custom-props" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;"></div>
+
             <!-- Material / Color / Lighting -->
             <div class="ed-section" style="margin-top:8px;">
                 <div class="ed-section-title">🎨 Material & Farbe</div>
@@ -534,7 +537,7 @@
     </div>
 </div>
 
-<div id="gsplat-controls" class="header">
+<div id="gsplat-controls" class="header aeroglass-panel">
     <div class="branding">
         <a href="https://www.th-owl.de" target="_blank" rel="noopener noreferrer" class="logo-link">
             <img src="./icl.jpg" alt="Logo" class="logo" id="header-logo" onerror="this.onerror=null; this.src='./public/icl.jpg';">

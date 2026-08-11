@@ -362,6 +362,7 @@ class CameraControls extends Script {
     /**
      * @param {number} dt - The time delta.
      */ update(dt) {
+        if (!this.enabled) return;
         const { keyCode } = KeyboardMouseSource;
         const { key, button, mouse, wheel } = this._desktopInput.read();
         const { touch, pinch, count } = this._orbitMobileInput.read();
@@ -393,11 +394,10 @@ class CameraControls extends Script {
         
         const moveMult = (this._state.shift ? this.moveFastSpeed : this._state.ctrl ? this.moveSlowSpeed : this.moveSpeed) * dt;
         
-        // Granular, smooth exponential zoom: OrbitController natively applies dist * move.z
-        // Clamp raw wheel to ±1 so each tick is a single smooth step
+        // Granular, smooth proportional zoom with no stutter steps
         const rawWheel = wheel[0];
-        const clampedWheel = rawWheel === 0 ? 0 : (rawWheel > 0 ? 1 : -1);
-        const zoomMult = (this.zoomSpeed || 0.015);
+        const normalizedWheel = rawWheel !== 0 ? Math.sign(rawWheel) * Math.min(1.0, Math.abs(rawWheel) / 100.0) : 0;
+        const zoomMult = (this.zoomSpeed || 0.007);
         const zoomTouchMult = zoomMult * (this.zoomPinchSens || 1.0) * 0.2;
         const rotateMult = this.rotateSpeed * 60 * dt;
         const rotateJoystickMult = this.rotateSpeed * this.rotateJoystickSens * 60 * dt;
@@ -411,10 +411,10 @@ class CameraControls extends Script {
         
         // Wheel navigation for both Orbit (zoom) and Fly (forward/backward dolly)
         if (orbit) {
-            const wheelMove = tmpV2.set(0, 0, clampedWheel * zoomMult);
+            const wheelMove = tmpV2.set(0, 0, normalizedWheel * zoomMult);
             v.add(wheelMove);
-        } else if (fly && clampedWheel !== 0) {
-            const flyWheelStep = -(clampedWheel) * moveMult * 1.5;
+        } else if (fly && normalizedWheel !== 0) {
+            const flyWheelStep = -(normalizedWheel) * moveMult * 0.8;
             v.z += flyWheelStep;
         }
         

@@ -1,14 +1,14 @@
 :root {
     /* Aeroglass Theme Tokens - Apple-grade Uniform Brighter Aeroglass */
-    --bg-glass: rgba(40, 48, 66, 0.70);
-    --bg-glass-card: rgba(45, 54, 74, 0.80);
-    --bg-glass-btn: rgba(255, 255, 255, 0.10);
-    --bg-glass-btn-hover: rgba(255, 255, 255, 0.15);
-    --bg-glass-btn-active: rgba(255, 255, 255, 0.28);
+    --bg-glass: rgba(65, 75, 95, 0.72);
+    --bg-glass-card: rgba(75, 84, 104, 0.76);
+    --bg-glass-btn: rgba(255, 255, 255, 0.14);
+    --bg-glass-btn-hover: rgba(255, 255, 255, 0.22);
+    --bg-glass-btn-active: rgba(255, 255, 255, 0.32);
     
-    --border-glass: rgba(255, 255, 255, 0.20);
-    --border-glass-hover: rgba(255, 255, 255, 0.38);
-    --border-glass-active: rgba(255, 255, 255, 0.55);
+    --border-glass: rgba(255, 255, 255, 0.26);
+    --border-glass-hover: rgba(255, 255, 255, 0.44);
+    --border-glass-active: rgba(255, 255, 255, 0.58);
 
     --text-primary: rgba(255, 255, 255, 0.95);
     --text-secondary: rgba(235, 240, 250, 0.75);
@@ -23,8 +23,8 @@
     
     --spacing-md: 10px;
     --blur-strong: blur(20px) saturate(180%);
-    --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.20);
-    --shadow-glass-sm: 0 4px 16px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    --shadow-glass-sm: 0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.18);
     --shadow-ui: 0 4px 14px rgba(0, 0, 0, 0.18);
     --logo-height: 36px;
     
@@ -50,8 +50,14 @@ body {
 .pc-only { display: flex !important; }
 
 /* === GLOBALE KLICK-RETTUNG & POINTER EVENTS === */
-#gsplat-controls, #burger-menu-container, #controls-card, #poi-sidebar, #poi-navbar, #collider-debug-panel, #debug-panel, #btn-mobile-map, #editor-workstation-panel, .aeroglass-panel {
-    pointer-events: auto !important;
+#gsplat-controls, #controls-card, #poi-sidebar, #poi-navbar, #collider-debug-panel, #debug-panel, #btn-mobile-map, #editor-workstation-panel, .aeroglass-panel {
+    pointer-events: auto;
+}
+#burger-menu-container {
+    pointer-events: none; /* Let clicks pass through empty space */
+}
+#burger-menu-container > * {
+    pointer-events: auto; /* Buttons inside are clickable */
 }
 
 /* Dropdown blockiert im geschlossenen Zustand niemals Klicks auf den 3D Canvas */
@@ -101,8 +107,6 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 #gsplat-controls {
     position: absolute; top: calc(var(--safe-top) + 12px); left: 50%; transform: translateX(-50%);
     width: 90%; max-width: 1000px; padding: 8px 14px;
-    background: var(--bg-glass); backdrop-filter: var(--blur-strong); -webkit-backdrop-filter: var(--blur-strong);
-    border-radius: var(--radius-ui); border: 1px solid var(--border-glass); box-shadow: var(--shadow-glass);
     display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; z-index: 1000;
 }
 
@@ -166,33 +170,45 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 }
 #btn-switch-campus { padding: 6px 16px; border-radius: var(--radius-ui); justify-content: center; min-width: 220px; }
 
+/* --- UNIFIED AEROGLASS PANEL DESIGN --- */
+.aeroglass-panel {
+    background: var(--bg-glass-card) !important;
+    backdrop-filter: var(--blur-strong) !important;
+    -webkit-backdrop-filter: var(--blur-strong) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: var(--radius-ui) !important;
+    box-shadow: var(--shadow-glass) !important;
+    color: var(--text-primary) !important;
+}
 /* --- BURGER MENU (AEROGLASS HARMONIZED) --- */
 #burger-menu-container {
     position: absolute;
     top: calc(var(--safe-top) + 12px);
     right: calc(var(--safe-right) + 12px);
-    z-index: 2000;
+    z-index: 10001;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    pointer-events: none; /* Let clicks pass through container */
 }
 #burger-btn {
+    pointer-events: auto !important; /* Fix unclickable menu */
     padding: 0 14px;
     height: 42px;
-    background: var(--bg-glass);
-    backdrop-filter: var(--blur-strong);
-    -webkit-backdrop-filter: var(--blur-strong);
-    border: 1px solid var(--border-glass);
-    border-radius: var(--radius-ui);
-    color: var(--text-primary);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    background: var(--bg-glass-card) !important;
+    backdrop-filter: var(--blur-strong) !important;
+    -webkit-backdrop-filter: var(--blur-strong) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: var(--radius-ui) !important;
+    box-shadow: var(--shadow-glass) !important;
+    color: var(--text-primary) !important;
+    font-size: 14px;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 6px;
-    box-shadow: var(--shadow-glass);
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     box-sizing: border-box;
     position: relative;
     z-index: 2001;
@@ -962,6 +978,8 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
     background: rgba(0, 0, 0, 0.22);
     border-bottom: 1px solid var(--border-glass);
     padding: 0 4px;
+    max-width: 100%;
+    overflow: hidden;
 }
 .ed-tab-nav-arrow {
     flex-shrink: 0;

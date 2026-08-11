@@ -178,34 +178,74 @@ PoiManager.prototype.getCatmullRom = function(p0, p1, p2, p3, t) {
 };
 
 PoiManager.prototype._disableCameraControls = function() {
-    if (!this.cameraEntity) return;
-    var controls = this.cameraEntity.script ? this.cameraEntity.script.cameraControls : null;
-    if (controls) {
-        this._savedControlsEnabled = controls.enabled;
-        controls.enabled = false;
+    if (this.cameraEntity && this.cameraEntity.script && this.cameraEntity.script.cameraControls) {
+        this.cameraEntity.script.cameraControls.enabled = false;
+    }
+    var player = this.app.root.findByName('Character_Controller');
+    if (player) {
+        if (player.script && player.script['character-controller']) {
+            player.script['character-controller'].enabled = false;
+        }
+        if (player.rigidbody) {
+            player.rigidbody.enabled = false;
+        }
     }
 };
 
 PoiManager.prototype._restoreCameraControls = function() {
-    if (!this.cameraEntity) return;
-    var controls = this.cameraEntity.script ? this.cameraEntity.script.cameraControls : null;
-    if (controls) {
-        controls.enabled = true;
-        if (controls._pose && controls._controller) {
-            var pos = this.cameraEntity.getPosition();
-            var forward = this.cameraEntity.forward;
-            var target = this._currentOrbitCenter || new pc.Vec3().copy(pos).add(new pc.Vec3().copy(forward).mulScalar(5.0));
-            controls._controller.attach(controls._pose.look(pos, target), false);
+    var cam = this.cameraEntity;
+    if (!cam) return;
+    
+    // Get the camera's WORLD position and forward vector BEFORE re-parenting
+    var worldPos = cam.getPosition().clone();
+    var fwd = cam.forward.clone();
+    
+    // Extract pitch/yaw from camera's current world-space forward vector
+    // This matches the algorithm in character-controller.js setStartRotation()
+    var pitch = Math.asin(pc.math.clamp(fwd.y, -1, 1)) * pc.math.RAD_TO_DEG;
+    pitch = pc.math.clamp(pitch, -89, 89);
+    var yaw = Math.atan2(-fwd.x, -fwd.z) * pc.math.RAD_TO_DEG;
+    
+    var player = this.app.root.findByName('Character_Controller');
+    if (player) {
+        var charCtrl = (player.script && player.script['character-controller']) ? player.script['character-controller'] : null;
+        var camH = charCtrl ? (charCtrl.cameraHeight || 1.0) : 1.0;
+        
+        // 1. Teleport the player body to the camera's world position (adjusted for camera height)
+        if (player.rigidbody) {
+            player.rigidbody.enabled = true;
+            player.rigidbody.teleport(worldPos.x, worldPos.y - camH, worldPos.z);
+            player.rigidbody.linearVelocity = pc.Vec3.ZERO;
+            player.rigidbody.angularVelocity = pc.Vec3.ZERO;
+        } else {
+            player.setPosition(worldPos.x, worldPos.y - camH, worldPos.z);
+        }
+        player.setLocalEulerAngles(0, yaw, 0);
+        
+        // 2. Reset camera to local offset within player (camera is child of player)
+        cam.setLocalPosition(0, camH, 0);
+        cam.setLocalEulerAngles(pitch, yaw, 0);
+        
+        // 3. Sync the CharacterController script state so it continues from this orientation
+        if (charCtrl) {
+            charCtrl.yaw = yaw;
+            charCtrl.pitch = pitch;
+            charCtrl.enabled = true;
         }
     }
     
-    // Sync Character Controller so controls are not buggy when moving manually after tour/jump
-    var playerRig = this.app.root.findByName('Character_Controller');
-    if (playerRig) {
-        playerRig.setPosition(this.cameraEntity.getPosition());
-        var euler = this.cameraEntity.getLocalEulerAngles();
-        playerRig.setLocalEulerAngles(0, euler.y, 0);
+    // Re-enable orbit camera controls if present
+    if (cam.script && cam.script.cameraControls) {
+        var controls = cam.script.cameraControls;
+        controls.enabled = true;
+        if (controls._pose && controls._controller) {
+            var target = this._currentOrbitCenter || new pc.Vec3().copy(worldPos).add(new pc.Vec3().copy(fwd).mulScalar(5.0));
+            controls._controller.attach(controls._pose.look(worldPos, target), false);
+        }
     }
+    
+    this._isOrbiting = false;
+    this._flight = null;
 };
 
 PoiManager.prototype.getOrbitalTransform = function(index, angleDeg) {
@@ -214,6 +254,30 @@ PoiManager.prototype.getOrbitalTransform = function(index, angleDeg) {
     if (!target || !target.entity) return null;
     var targetPos = target.entity.getPosition().clone();
     
+    // Check if custom viewpoint is specified on hotspot or POI
+    if (target.entity.script && target.entity.script.infoHotspot && target.entity.script.infoHotspot.customPos) {
+        var cp = target.entity.script.infoHotspot.customPos;
+        var cx = cp.x !== undefined ? cp.x : (cp[0] || 0);
+        var cy = cp.y !== undefined ? cp.y : (cp[1] || 0);
+        var cz = cp.z !== undefined ? cp.z : (cp[2] || 0);
+        
+        // Treat exactly 0,0,0 as unset (default PlayCanvas vec3 attribute value)
+        if (Math.abs(cx) > 0.001 || Math.abs(cy) > 0.001 || Math.abs(cz) > 0.001) {
+            var cr = target.entity.script.infoHotspot.customRot || {x:0, y:0, z:0};
+            var rx = cr.x !== undefined ? cr.x : (cr[0] || 0);
+            var ry = cr.y !== undefined ? cr.y : (cr[1] || 0);
+            var rz = cr.z !== undefined ? cr.z : (cr[2] || 0);
+            
+            return {
+                pos: new pc.Vec3(cx, cy, cz),
+                rot: new pc.Quat().setFromEulerAngles(rx, ry, rz),
+                targetPos: targetPos,
+                radius: 5.0,
+                height: 1.6
+            };
+        }
+    }
+
     var r = this.lookDistance * 1.25;
     var h = 1.6;
     if (target.type === 'construction') { r *= 2.2; h = 2.4; }
@@ -231,34 +295,30 @@ PoiManager.prototype.getOrbitalTransform = function(index, angleDeg) {
 };
 
 PoiManager.prototype.update = function(dt) {
-    var orbitSpeed = 12.0; // 12 deg/sec -> 30s full 360 circle
+    var orbitSpeed = 10.0; // 10 deg/sec for smooth, elegant orbit
 
-    // 1. ACTIVE FLIGHT PHASE (Interpolating between fixed start and fixed arrival anchor)
+    // 1. ACTIVE FLIGHT PHASE (Interpolating smoothly with ease-in-out S-curve and parabolic arc)
     if (this._flight && this._flight.active) {
         this._flight.elapsed += dt;
         var p = Math.min(1.0, this._flight.elapsed / Math.max(0.001, this._flight.duration));
         
-        // Smooth sinusoidal S-curve ease-in-out
+        // Quintic / Sinusoidal smooth ease-in-out
         var u = 0.5 - 0.5 * Math.cos(Math.PI * p);
         
-        // Parabolic vertical lift during flight for cinematic drone feel
-        var arcLift = 4.0 * u * (1.0 - u) * (this._flight.arcHeight || 1.5);
+        // Gentle parabolic vertical lift
+        var arcLift = 4.0 * u * (1.0 - u) * (this._flight.arcHeight || 1.2);
         
         var curPos = new pc.Vec3().lerp(this._flight.startPos, this._flight.endPos, u);
         curPos.y += arcLift;
         
         var curRot = new pc.Quat().slerp(this._flight.startRot, this._flight.endRot, u);
         
+        // Move ONLY the camera during flight - do NOT move the player!
+        // The camera is a child of Character_Controller, so we set its world position directly.
+        // The CharacterController is disabled so it won't interfere.
         if (this.cameraEntity) {
             this.cameraEntity.setPosition(curPos);
             this.cameraEntity.setRotation(curRot);
-        }
-
-        var playerRig = this.app.root.findByName('Character_Controller');
-        if (playerRig) {
-            playerRig.setPosition(curPos);
-            var euler = this.cameraEntity.getLocalEulerAngles();
-            playerRig.setLocalEulerAngles(0, euler.y, 0);
         }
 
         if (p >= 1.0) {
@@ -283,7 +343,7 @@ PoiManager.prototype.update = function(dt) {
         return;
     }
 
-    // 2. ORBITING / DWELL PHASE (Manual or AutoTour)
+    // 2. ORBITING / DWELL PHASE
     if (this._isOrbiting && this._currentOrbitCenter && this.cameraEntity) {
         this.orbitAngle = ((this.orbitAngle || 0) + orbitSpeed * dt) % 360.0;
         var rad = this.orbitAngle * Math.PI / 180.0;
@@ -298,22 +358,16 @@ PoiManager.prototype.update = function(dt) {
         );
         var orbitRot = this._calcLookAtRot(orbitPos, c);
 
+        // Move ONLY the camera during orbit - player stays put (CharacterController is disabled)
         this.cameraEntity.setPosition(orbitPos);
         this.cameraEntity.setRotation(orbitRot);
-
-        var playerRig = this.app.root.findByName('Character_Controller');
-        if (playerRig) {
-            playerRig.setPosition(orbitPos);
-            var euler = this.cameraEntity.getLocalEulerAngles();
-            playerRig.setLocalEulerAngles(0, euler.y, 0);
-        }
     }
 
     // 3. AUTO-TOUR AUTOMATIC SEQUENCING
     if (!this.isAutoTouring || this.activePois.length <= 1) return;
 
     this.tourTimer += dt;
-    var dwellDuration = 14.0; // Orbit around each POI for 14 seconds
+    var dwellDuration = 12.0; // Orbit around each POI for 12 seconds
 
     if (this.tourTimer >= dwellDuration) {
         this.tourTimer = 0;
@@ -366,6 +420,9 @@ PoiManager.prototype.jumpTo = function(index, immediate) {
 };
 
 PoiManager.prototype._calcLookAtRot = function(fromPos, toPos) {
+    if (fromPos.distance(toPos) < 0.001) {
+        return new pc.Quat(); // Fallback to avoid NaN
+    }
     var temp = new pc.Entity();
     temp.setPosition(fromPos);
     temp.lookAt(toPos);
@@ -392,21 +449,46 @@ PoiManager.prototype._startSmoothFlight = function(targetIndex, duration, onComp
     if (target.type === 'construction') { r *= 2.2; h = 2.4; }
     else if (target.type === 'path') { r *= 1.5; h = 1.8; }
 
-    // Compute entry arrival angle matching the departure vector
-    var dx = startPos.x - targetPos.x;
-    var dz = startPos.z - targetPos.z;
-    var arrivalAngleRad = Math.atan2(dz, dx);
-    var arrivalAngleDeg = arrivalAngleRad * 180.0 / Math.PI;
+    // Check if custom viewpoint is set
+    var endPos, endRot, arrivalAngleDeg;
+    var hasCustomView = false;
+    
+    if (target.entity.script && target.entity.script.infoHotspot && target.entity.script.infoHotspot.customPos) {
+        var cp = target.entity.script.infoHotspot.customPos;
+        var cx = cp.x !== undefined ? cp.x : (cp[0] || 0);
+        var cy = cp.y !== undefined ? cp.y : (cp[1] || 0);
+        var cz = cp.z !== undefined ? cp.z : (cp[2] || 0);
+        
+        if (Math.abs(cx) > 0.001 || Math.abs(cy) > 0.001 || Math.abs(cz) > 0.001) {
+            var cr = target.entity.script.infoHotspot.customRot || {x:0, y:0, z:0};
+            var rx = cr.x !== undefined ? cr.x : (cr[0] || 0);
+            var ry = cr.y !== undefined ? cr.y : (cr[1] || 0);
+            var rz = cr.z !== undefined ? cr.z : (cr[2] || 0);
+            
+            endPos = new pc.Vec3(cx, cy, cz);
+            endRot = new pc.Quat().setFromEulerAngles(rx, ry, rz);
+            arrivalAngleDeg = 0;
+            hasCustomView = true;
+        }
+    }
+    
+    if (!hasCustomView) {
+        // Compute tangent entry angle matching departure vector for ultra-smooth trajectory
+        var dx = startPos.x - targetPos.x;
+        var dz = startPos.z - targetPos.z;
+        var arrivalAngleRad = Math.atan2(dz, dx);
+        arrivalAngleDeg = arrivalAngleRad * 180.0 / Math.PI;
 
-    var endPos = new pc.Vec3(
-        targetPos.x + r * Math.cos(arrivalAngleRad),
-        targetPos.y + h,
-        targetPos.z + r * Math.sin(arrivalAngleRad)
-    );
-    var endRot = this._calcLookAtRot(endPos, targetPos);
+        endPos = new pc.Vec3(
+            targetPos.x + r * Math.cos(arrivalAngleRad),
+            targetPos.y + h,
+            targetPos.z + r * Math.sin(arrivalAngleRad)
+        );
+        endRot = this._calcLookAtRot(endPos, targetPos);
+    }
 
     var travelDist = startPos.distance(endPos);
-    var arcHeight = Math.min(3.5, Math.max(1.0, travelDist * 0.15));
+    var arcHeight = Math.min(3.0, Math.max(0.8, travelDist * 0.12));
     var flightDuration = duration || Math.max(1.2, Math.min(3.0, travelDist / 12.0));
 
     this._flight = {
@@ -516,6 +598,7 @@ PoiManager.prototype.applyVisibility = function() {
 PoiManager.prototype.createUI = function() {
     this.listContainer = document.createElement('div');
     this.listContainer.id = 'poi-sidebar';
+    this.listContainer.className = 'aeroglass-panel';
     this.listContainer.className = 'aeroglass-panel collapsed'; 
     
     this.listContainer.innerHTML = 

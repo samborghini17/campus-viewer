@@ -237,7 +237,7 @@ CharacterController.prototype._updateDebugHud = function(dt) {
 
 // --- UPDATE LOOP ---
 CharacterController.prototype.update = function(dt) {
-    if (!this.entity.rigidbody || !this.camera) return;
+    if (!this.enabled || !this.entity.rigidbody || !this.camera) return;
 
     if (this._targetSpeedMultiplier !== undefined) {
         this._speedMultiplier = pc.math.lerp(this._speedMultiplier, this._targetSpeedMultiplier, Math.min(1, dt * 10));

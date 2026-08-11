@@ -9,9 +9,6 @@ AutoTour.prototype.initialize = function() {
     this._duration = 0;
     this._points = [];
     
-    this._posCurve = new pc.CurveSet();
-    this._rotCurve = new pc.CurveSet();
-    
     this.app.on('tour:play', this.play, this);
     this.app.on('tour:stop', this.stop, this);
 };
@@ -21,7 +18,6 @@ AutoTour.prototype.play = function() {
         this.cameraRig = this.app.root.findByName('Character_Controller') || this.app.root.findByName('Camera');
     }
     
-    // Fetch active POIs from PoiManager
     var scripts = this.app.root.findComponents('script');
     var poiManager = null;
     for (var i = 0; i < scripts.length; i++) {
@@ -31,160 +27,213 @@ AutoTour.prototype.play = function() {
         }
     }
     
-    var pointsData = [];
-    var camPos = this.cameraRig.getPosition();
-    var camRot = this.cameraRig.getEulerAngles();
-    pointsData.push({ pos: [camPos.x, camPos.y, camPos.z], rot: [camRot.x, camRot.y, camRot.z], duration: 0 });
+    this._targets = [];
     
     if (poiManager && poiManager.activePois.length > 0) {
         for (var j = 0; j < poiManager.activePois.length; j++) {
             var index = poiManager.activePois[j];
             var target = poiManager.pois[index];
+            if (!target) continue;
             
-            var tp, tr;
-            if (target.customView) {
-                var cp = target.customView.getPosition();
-                var cr = target.customView.getEulerAngles();
-                tp = [cp.x, cp.y, cp.z];
-                tr = [cr.x, cr.y, cr.z];
-            } else if (target.customPos && (target.customPos.x !== 0 || target.customPos.y !== 0 || target.customPos.z !== 0)) {
-                tp = [target.customPos.x, target.customPos.y, target.customPos.z];
-                if (target.customRot) {
-                    var tempEnt = new pc.Entity();
-                    tempEnt.setEulerAngles(target.customRot);
-                    var er = tempEnt.getEulerAngles();
-                    tr = [er.x, er.y, er.z];
-                    tempEnt.destroy();
-                } else {
-                    tr = [-30, 0, 0];
-                }
+            var centerPos;
+            if (target.customPos && (target.customPos.x !== 0 || target.customPos.y !== 0 || target.customPos.z !== 0)) {
+                centerPos = target.customPos.clone();
+                centerPos.y -= 1.0; 
+            } else if (target.entity) {
+                centerPos = target.entity.getPosition().clone();
             } else {
-                var entPos = target.entity.getPosition();
-                var offset = new pc.Vec3(0, 0.5, 1).normalize().scale(5);
-                var camP = entPos.clone().add(offset);
-                tp = [camP.x, camP.y, camP.z];
-                var tempEnt2 = new pc.Entity();
-                this.app.root.addChild(tempEnt2);
-                tempEnt2.setPosition(camP);
-                tempEnt2.lookAt(entPos);
-                var er2 = tempEnt2.getEulerAngles();
-                tr = [er2.x, er2.y, er2.z];
-                tempEnt2.destroy();
+                continue;
             }
             
-            var lastP = pointsData[pointsData.length - 1].pos;
-            var dx = tp[0] - lastP[0], dy = tp[1] - lastP[1], dz = tp[2] - lastP[2];
-            var dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-            // Speed = 8 units per sec. Minimum 1s so we don't snap
-            var dur = Math.max(1.0, dist / 8.0);
-            
-            pointsData.push({ pos: tp, rot: tr, duration: dur });
+            this._targets.push({
+                center: centerPos,
+                radius: 6.0,
+                heightOffset: 0.5,
+                orbitDuration: 6.0,
+                orbitAngleStart: j * 45
+            });
         }
     } else {
-        pointsData.push({ pos: [camPos.x, camPos.y + 5, camPos.z], rot: [camRot.x - 30, camRot.y + 45, camRot.z], duration: 4 });
-        pointsData.push({ pos: [camPos.x + 5, camPos.y + 5, camPos.z + 5], rot: [camRot.x - 30, camRot.y + 90, camRot.z], duration: 4 });
+        var camPos = this.cameraRig.getPosition();
+        this._targets.push({ center: new pc.Vec3(camPos.x, camPos.y, camPos.z - 5), radius: 5, heightOffset: 0, orbitDuration: 5, orbitAngleStart: 0 });
+        this._targets.push({ center: new pc.Vec3(camPos.x + 10, camPos.y, camPos.z - 5), radius: 5, heightOffset: 0, orbitDuration: 5, orbitAngleStart: 90 });
     }
     
-    if (pointsData.length < 2) return;
+    if (this._targets.length < 1) return;
     
-    this._points = pointsData;
-    this._posCurve = new pc.CurveSet();
-    this._posCurve.curves = [new pc.Curve(), new pc.Curve(), new pc.Curve()];
-    this._rotCurve = new pc.CurveSet();
-    this._rotCurve.curves = [new pc.Curve(), new pc.Curve(), new pc.Curve()];
+    this._currentTargetIndex = 0;
+    this._state = 'FLY'; 
+    this._stateTime = 0;
     
-    var currentTime = 0;
-    var lastRot = [pointsData[0].rot[0], pointsData[0].rot[1], pointsData[0].rot[2]];
-    for (var i = 0; i < this._points.length; i++) {
-        var p = this._points[i];
-        
-        this._posCurve.curves[0].add(currentTime, p.pos[0]);
-        this._posCurve.curves[1].add(currentTime, p.pos[1]);
-        this._posCurve.curves[2].add(currentTime, p.pos[2]);
-        
-        // Prevent naive Euler wrap-around flipping by finding shortest path
-        var rx = p.rot[0], ry = p.rot[1], rz = p.rot[2];
-        if (i > 0) {
-            while (rx - lastRot[0] > 180) rx -= 360;
-            while (rx - lastRot[0] < -180) rx += 360;
-            while (ry - lastRot[1] > 180) ry -= 360;
-            while (ry - lastRot[1] < -180) ry += 360;
-            while (rz - lastRot[2] > 180) rz -= 360;
-            while (rz - lastRot[2] < -180) rz += 360;
-        }
-        
-        this._rotCurve.curves[0].add(currentTime, rx);
-        this._rotCurve.curves[1].add(currentTime, ry);
-        this._rotCurve.curves[2].add(currentTime, rz);
-        
-        lastRot = [rx, ry, rz];
-        currentTime += (p.duration || 5.0) / this.speed;
-    }
+    // Determine which camera script we have
+    this._ccScript = this.cameraRig.script['character-controller'];
+    this._ufcScript = this.cameraRig.script['universalFlyCam'];
     
-    this._posCurve.type = pc.CURVE_SPLINE; // Catmull-Rom
-    this._rotCurve.type = pc.CURVE_SPLINE;
-    
-    this._duration = currentTime;
-    this._time = 0;
-    this._isPlaying = true;
-    
-    // Disable character controller & rigidbody during tour
-    var cc = this.cameraRig.script['character-controller'];
-    if (cc) cc.enabled = false;
+    // Disable them
+    if (this._ccScript) this._ccScript.enabled = false;
+    if (this._ufcScript) this._ufcScript.enabled = false;
     
     if (this.cameraRig.rigidbody) {
         this._wasRigidbodyEnabled = this.cameraRig.rigidbody.enabled;
         this.cameraRig.rigidbody.enabled = false;
     }
     
-    console.log("[AutoTour] Started cinematic tour, duration: " + this._duration + "s");
-};
-
-AutoTour.prototype.stop = function() {
-    this._isPlaying = false;
-    // Re-enable character controller
-    if (this.cameraRig) {
-        var cc = this.cameraRig.script['character-controller'];
-        if (cc) cc.enabled = true;
-        
-        // Re-enable rigidbody and teleport
-        if (this.cameraRig.rigidbody && this._wasRigidbodyEnabled) {
-            this.cameraRig.rigidbody.enabled = true;
-            this.cameraRig.rigidbody.teleport(this.cameraRig.getPosition());
-            this.cameraRig.rigidbody.activate();
-        }
+    // Calculate start pos/rot safely
+    this._flyStartPos = this.cameraRig.getPosition().clone();
+    
+    // If we have CC, the actual visual camera is a child
+    if (this._ccScript && this._ccScript.camera) {
+        this._flyStartQuat = this._ccScript.camera.getRotation().clone();
+    } else {
+        this._flyStartQuat = this.cameraRig.getRotation().clone();
     }
     
-    // Notify UI
-    this.app.fire('tour:stop');
-    console.log("[AutoTour] Stopped cinematic tour.");
+    var dest = this._getOrbitTransform(this._targets[0], 0);
+    this._flyEndPos = dest.pos;
+    this._flyEndQuat = dest.quat;
+    
+    var dist = this._flyStartPos.distance(this._flyEndPos);
+    this._flyDuration = Math.max(2.0, dist / 12.0); 
+    
+    this._isPlaying = true;
+    console.log("[AutoTour] Started cinematic tour state machine.");
+};
+
+AutoTour.prototype._getOrbitTransform = function(target, progress) {
+    var angle = target.orbitAngleStart + (progress * 90);
+    var rad = angle * pc.math.DEG_TO_RAD;
+    
+    var ox = target.center.x + Math.sin(rad) * target.radius;
+    var oz = target.center.z + Math.cos(rad) * target.radius;
+    var oy = target.center.y + target.heightOffset;
+    
+    var pos = new pc.Vec3(ox, oy, oz);
+    
+    var tempEnt = new pc.Entity();
+    this.app.root.addChild(tempEnt);
+    tempEnt.setPosition(pos);
+    
+    // Prevent exactly identical points causing NaN LookAt
+    var diff = new pc.Vec3().sub2(target.center, pos);
+    if (diff.lengthSq() < 0.0001) {
+        tempEnt.setEulerAngles(0,0,0);
+    } else {
+        tempEnt.lookAt(target.center);
+    }
+    
+    var quat = tempEnt.getRotation().clone();
+    tempEnt.destroy();
+    
+    return { pos: pos, quat: quat };
 };
 
 AutoTour.prototype.update = function(dt) {
     if (!this._isPlaying) return;
     
-    this._time += dt;
-    if (this._time > this._duration) {
-        this.stop(); 
-        return;
+    this._stateTime += dt * this.speed;
+    
+    if (this._state === 'FLY') {
+        var progress = this._stateTime / this._flyDuration;
+        if (progress >= 1.0) {
+            progress = 1.0;
+            this._state = 'ORBIT';
+            this._stateTime = 0;
+        }
+        
+        var u = progress * progress * (3 - 2 * progress); // smoothstep
+        var curPos = new pc.Vec3().lerp(this._flyStartPos, this._flyEndPos, u);
+        
+        // Prevent slerp identical quat crash
+        var curQuat = new pc.Quat();
+        var dot = this._flyStartQuat.x * this._flyEndQuat.x + this._flyStartQuat.y * this._flyEndQuat.y + this._flyStartQuat.z * this._flyEndQuat.z + this._flyStartQuat.w * this._flyEndQuat.w;
+        if (Math.abs(dot) > 0.9999) {
+            curQuat.copy(this._flyEndQuat);
+        } else {
+            curQuat.slerp(this._flyStartQuat, this._flyEndQuat, u);
+        }
+        
+        this._applyTransform(curPos, curQuat);
+        
+    } else if (this._state === 'ORBIT') {
+        var target = this._targets[this._currentTargetIndex];
+        var progress = this._stateTime / target.orbitDuration;
+        
+        if (progress >= 1.0) {
+            this._currentTargetIndex = (this._currentTargetIndex + 1) % this._targets.length;
+            var nextTarget = this._targets[this._currentTargetIndex];
+            
+            this._flyStartPos = this.cameraRig.getPosition().clone();
+            if (this._ccScript && this._ccScript.camera) {
+                this._flyStartQuat = this._ccScript.camera.getRotation().clone();
+            } else {
+                this._flyStartQuat = this.cameraRig.getRotation().clone();
+            }
+            
+            var dest = this._getOrbitTransform(nextTarget, 0);
+            this._flyEndPos = dest.pos;
+            this._flyEndQuat = dest.quat;
+            
+            var dist = this._flyStartPos.distance(this._flyEndPos);
+            this._flyDuration = Math.max(2.0, dist / 12.0);
+            
+            this._state = 'FLY';
+            this._stateTime = 0;
+            return;
+        }
+        
+        var transform = this._getOrbitTransform(target, progress);
+        this._applyTransform(transform.pos, transform.quat);
     }
+};
+
+AutoTour.prototype._applyTransform = function(pos, quat) {
+    this.cameraRig.setPosition(pos);
     
-    var px = this._posCurve.curves[0].value(this._time);
-    var py = this._posCurve.curves[1].value(this._time);
-    var pz = this._posCurve.curves[2].value(this._time);
-    
-    var rx = this._rotCurve.curves[0].value(this._time);
-    var ry = this._rotCurve.curves[1].value(this._time);
-    var rz = this._rotCurve.curves[2].value(this._time);
-    
-    this.cameraRig.setPosition(px, py, pz);
-    
-    var cc = this.cameraRig.script['character-controller'];
-    if (cc) {
-        cc.pitch = rx;
-        cc.yaw = ry;
-        cc.camera.setLocalEulerAngles(rx, ry, rz);
+    if (this._ccScript && this._ccScript.camera) {
+        this._ccScript.camera.setRotation(quat);
     } else {
-        this.cameraRig.setLocalEulerAngles(rx, ry, rz);
+        this.cameraRig.setRotation(quat);
     }
+};
+
+AutoTour.prototype.stop = function() {
+    this._isPlaying = false;
+    
+    if (this.cameraRig) {
+        // We must sync the camera's visual rotation back to the controller's internal variables
+        var finalRot = new pc.Vec3();
+        if (this._ccScript && this._ccScript.camera) {
+            finalRot = this._ccScript.camera.getEulerAngles();
+        } else {
+            finalRot = this.cameraRig.getEulerAngles();
+        }
+        
+        // Restore Character Controller
+        if (this._ccScript) {
+            this._ccScript.pitch = finalRot.x;
+            this._ccScript.yaw = finalRot.y;
+            this._ccScript.enabled = true;
+            if (this._ccScript.controller) {
+                this._ccScript.controller.look.set(finalRot.y, finalRot.x);
+            }
+        }
+        
+        // Restore Universal Fly Cam
+        if (this._ufcScript) {
+            this._ufcScript.pitch = finalRot.x;
+            this._ufcScript.yaw = finalRot.y;
+            this._ufcScript.enabled = true;
+        }
+        
+        // Restore Rigidbody
+        if (this.cameraRig.rigidbody && this._wasRigidbodyEnabled) {
+            this.cameraRig.rigidbody.teleport(this.cameraRig.getPosition());
+            this.cameraRig.rigidbody.linearVelocity = pc.Vec3.ZERO;
+            this.cameraRig.rigidbody.angularVelocity = pc.Vec3.ZERO;
+            this.cameraRig.rigidbody.enabled = true;
+        }
+    }
+    
+    this.app.fire('tour:stop');
+    console.log("[AutoTour] Stopped cinematic tour.");
 };
