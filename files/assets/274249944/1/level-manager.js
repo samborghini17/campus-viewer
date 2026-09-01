@@ -1362,6 +1362,17 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
 
     this.currentLevelId = id; 
 
+    // --- Laufwege Auto-Inheritance ---
+    if (id.toLowerCase().includes('laufwege')) {
+        var lemgoData = this.getConfigById('lemgo');
+        if (lemgoData) {
+            data.url = lemgoData.url;
+            data.envUrl = lemgoData.envUrl;
+            data.collider = lemgoData.collider;
+            data.mode = 'orbit'; // Same as Lemgo
+        }
+    }
+
     // --- Dynamically create FB_MP Hotspot for Detmold ---
     if (id === 'detmold') {
         var existingHotspot = this.app.root.findByName('Hotspot_FB_MP');

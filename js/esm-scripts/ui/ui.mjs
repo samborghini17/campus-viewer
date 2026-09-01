@@ -2027,141 +2027,165 @@ UI.prototype._initRealtimeEditor = function() {
 UI.prototype._refreshOutlinerTree = function() {
     var tree = document.getElementById('ed-outliner-tree');
     if (!tree) return;
-    tree.innerHTML = '';
-    var search = document.getElementById('ed-outliner-search') ? document.getElementById('ed-outliner-search').value.toLowerCase().trim() : '';
-    var self = this;
+    
+    try {
+        tree.innerHTML = '';
+        var self = this;
+        var search = (this._editorSearchQuery || '').toLowerCase();
 
-    var lm = this.app.root.findByName('LevelManager');
-    var levels = (lm && lm.script && lm.script.levelManager) ? lm.script.levelManager.levelConfig : [];
-
-    // Helper to render a tree row
-    var renderRow = function(name, icon, depth, isSelected, onClick, onEyeClick, isEnabled) {
-        if (search && name.toLowerCase().indexOf(search) === -1) return;
-        var row = document.createElement('div');
-        row.className = 'ed-tree-node' + (isSelected ? ' selected' : '');
-        row.style.paddingLeft = (depth * 14 + 6) + 'px';
-        
-        var arrowHtml = depth === 0 ? '<span class="ed-tree-arrow" style="transform:rotate(90deg)">▶</span>' : '<span style="width:14px; display:inline-block;"></span>';
-        var eyeClass = (isEnabled !== false) ? 'ed-tree-eye' : 'ed-tree-eye disabled';
-        var eyeHtml = onEyeClick ? '<span class="' + eyeClass + '" title="Ein-/Ausblenden">👁️</span>' : '';
-        
-        row.innerHTML = arrowHtml +
-            '<span class="ed-tree-icon">' + icon + '</span>' +
-            '<span class="ed-tree-name">' + name + '</span>' +
-            eyeHtml;
+        var renderRow = function(name, icon, depth, isSelected, onClick, onEyeClick, isEnabled) {
+            if (search && name.toLowerCase().indexOf(search) === -1) return;
+            var row = document.createElement('div');
+            row.className = 'ed-tree-node' + (isSelected ? ' selected' : '');
+            row.style.paddingLeft = (depth * 14 + 6) + 'px';
             
-        if (onEyeClick) {
-            var eye = row.querySelector('.ed-tree-eye');
-            if (eye) eye.onclick = onEyeClick;
-        }
-        if (onClick) {
-            row.onclick = onClick;
-        }
-        tree.appendChild(row);
-    };
-
-    // Find all entities that are part of the scene (Hotspots, Zones, Paths, Screens)
-    var allSceneEntities = self.app.root.find(function(node) {
-        return node.script && (node.script.infoHotspot || node.script.constructionZone || node.script.pathVisualizer || node.script.videoTexture);
-    });
-    
-    var entitiesByLevel = {};
-    var sublevelIdsSet = new Set();
-    
-    allSceneEntities.forEach(function(ent) {
-        var belongsTo = 'lemgo'; // Default root level
-        
-        // Track sublevels so we don't render them as root levels
-        if (ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds) {
-            ent.script.infoHotspot.sublevelIds.forEach(id => sublevelIdsSet.add(id));
-        }
-        
-        var curr = ent;
-        while (curr) {
-            if (curr.parent && curr.parent.name === 'LevelContainer' && curr.name !== 'LevelContainer') {
-                belongsTo = curr.name;
-                break;
+            var arrowHtml = depth === 0 ? '<span class="ed-tree-arrow" style="transform:rotate(90deg)">▶</span>' : '<span style="width:14px; display:inline-block;"></span>';
+            var eyeClass = (isEnabled !== false) ? 'ed-tree-eye' : 'ed-tree-eye disabled';
+            var eyeHtml = onEyeClick ? '<span class="' + eyeClass + '" title="Ein-/Ausblenden">👁️</span>' : '';
+            
+            row.innerHTML = arrowHtml + '<span class="ed-tree-icon">' + icon + '</span>' + '<span class="ed-tree-name">' + name + '</span>' + eyeHtml;
+                
+            if (onEyeClick) {
+                var eye = row.querySelector('.ed-tree-eye');
+                if (eye) eye.onclick = onEyeClick;
             }
-            curr = curr.parent;
-        }
-        
-        if (!entitiesByLevel[belongsTo]) entitiesByLevel[belongsTo] = [];
-        entitiesByLevel[belongsTo].push(ent);
-    });
+            if (onClick) row.onclick = onClick;
+            tree.appendChild(row);
+        };
 
-    var renderLevel = function(lvl, depth) {
-        var isLevelSelected = self._editorActiveObj && self._editorActiveObj._isLevelNode && self._editorActiveObj.id === lvl.id;
-        renderRow(lvl.id, '📁', depth, isLevelSelected, function(e) {
+        var isGlobalSelected = self._editorActiveObj && self._editorActiveObj._isGlobalNode;
+        renderRow('App Settings & Export', '⚙️', 0, isGlobalSelected, function(e) {
             e.stopPropagation();
-            self._selectEntity({ _isLevelNode: true, id: lvl.id, name: 'Level: ' + lvl.id, config: lvl });
+            self._selectEntity({ _isGlobalNode: true, name: 'Global Settings' });
         });
 
-        // Spawnpoints
-        if (lvl.spawnpoints) {
-            lvl.spawnpoints.forEach(function(sp) {
-                var isSpSelected = self._editorActiveObj === sp;
-                renderRow(sp.name || sp.id, '📍', depth + 1, isSpSelected, function(e) {
-                    e.stopPropagation();
-                    self._selectEntity(sp); 
-                });
+        var levels = [];
+        var lm = self.app.root.findByName('LevelManager');
+        if (lm && lm.script && lm.script.levelManager && lm.script.levelManager.levelConfig) {
+            levels = lm.script.levelManager.levelConfig;
+        }
+
+        var allSceneEntities = [];
+        var traverse = function(node) {
+            if (node.script && (node.script.infoHotspot || node.script.constructionZone || node.script.pathVisualizer || node.script.videoTexture)) {
+                allSceneEntities.push(node);
+            }
+            if (node.children) node.children.forEach(traverse);
+        };
+        traverse(self.app.root);
+
+        var entitiesByLevel = {};
+        var sublevelIdsSet = new Set();
+        
+        allSceneEntities.forEach(function(ent) {
+            var belongsTo = 'lemgo'; 
+            if (ent.script && ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds && Array.isArray(ent.script.infoHotspot.sublevelIds)) {
+                ent.script.infoHotspot.sublevelIds.forEach(id => sublevelIdsSet.add(id));
+            }
+            var curr = ent;
+            while (curr) {
+                if (curr.parent && curr.parent.name === 'LevelContainer' && curr.name !== 'LevelContainer') {
+                    belongsTo = curr.name;
+                    break;
+                }
+                curr = curr.parent;
+            }
+            if (!entitiesByLevel[belongsTo]) entitiesByLevel[belongsTo] = [];
+            entitiesByLevel[belongsTo].push(ent);
+        });
+
+        var rootLevelIds = [];
+        levels.forEach(function(l) {
+            if (!sublevelIdsSet.has(l.id)) rootLevelIds.push(l.id);
+        });
+        
+        if (rootLevelIds.length === 0) {
+            Object.keys(entitiesByLevel).forEach(function(k) {
+                if (!sublevelIdsSet.has(k)) rootLevelIds.push(k);
             });
         }
 
-        // Entities (Hotspots, Zones, Paths)
-        var levelEntities = entitiesByLevel[lvl.id] || [];
-        levelEntities.forEach(function(ent) {
-            var isEntSelected = self._editorActiveObj === ent;
-            var icon = '🎯';
-            if (ent.script.constructionZone) icon = '🚧';
-            if (ent.script.pathVisualizer) icon = '🛣️';
-            if (ent.script.videoTexture) icon = '🎬';
-            
-            var nameToDisplay = ent.name;
-            if (ent.script.infoHotspot && ent.script.infoHotspot.title) nameToDisplay += ' (' + ent.script.infoHotspot.title + ')';
-            
-            renderRow(nameToDisplay, icon, depth + 1, isEntSelected, function(e) {
+        var renderLevelFolder = function(levelId, depth) {
+            var lvlConfig = levels.find(l => l.id === levelId) || { id: levelId, name: levelId };
+            var isLevelSelected = self._editorActiveObj && self._editorActiveObj._isLevelNode && self._editorActiveObj.id === levelId;
+            renderRow(lvlConfig.name || lvlConfig.id, '📁', depth, isLevelSelected, function(e) {
                 e.stopPropagation();
-                self._selectEntity(ent);
-            }, function(e) {
-                e.stopPropagation();
-                ent.enabled = !ent.enabled;
-                self._refreshOutlinerTree();
-            }, ent.enabled);
-            
-            // Sublevels attached to this Hotspot
-            if (ent.script && ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds) {
-                ent.script.infoHotspot.sublevelIds.forEach(function(subId) {
-                    var subLvl = levels.find(l => l.id === subId);
-                    if (subLvl) {
-                        renderLevel(subLvl, depth + 2);
+                self._selectEntity({ _isLevelNode: true, id: lvlConfig.id, name: lvlConfig.name || lvlConfig.id, config: lvlConfig });
+            });
+
+            var lvlEnts = entitiesByLevel[levelId] || [];
+
+            if (lvlConfig.spawnpoints && Array.isArray(lvlConfig.spawnpoints)) {
+                if (lvlConfig.spawnpoints.length > 0) {
+                    renderRow('Spawnpoints', '📍', depth + 1, false, null);
+                    lvlConfig.spawnpoints.forEach(function(sp, idx) {
+                        var isSpSelected = self._editorActiveObj && self._editorActiveObj._isSpawnNode && self._editorActiveObj.idx === idx && self._editorActiveObj.lvlId === lvlConfig.id;
+                        renderRow(sp.name || 'Spawnpoint ' + (idx + 1), '📍', depth + 2, isSpSelected, function(e) {
+                            e.stopPropagation();
+                            self._selectEntity({ _isSpawnNode: true, sp: sp, idx: idx, lvlId: lvlConfig.id, name: sp.name || 'Spawnpoint' });
+                        });
+                    });
+                }
+            }
+
+            var hotspots = lvlEnts.filter(e => e.script && (e.script.infoHotspot || e.script.constructionZone));
+            if (hotspots.length > 0) {
+                renderRow('Hotspots & Zones', '🎯', depth + 1, false, null);
+                hotspots.forEach(function(ent) {
+                    var isSelected = self._editorActiveObj === ent;
+                    var n = ent.name;
+                    if (ent.script.infoHotspot && ent.script.infoHotspot.title) n += ' (' + ent.script.infoHotspot.title + ')';
+                    renderRow(n, ent.script.constructionZone ? '🚧' : '🎯', depth + 2, isSelected, function(e) {
+                        e.stopPropagation(); self._selectEntity(ent);
+                    }, function(e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+
+                    if (ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds && Array.isArray(ent.script.infoHotspot.sublevelIds)) {
+                        ent.script.infoHotspot.sublevelIds.forEach(function(subId) {
+                            renderLevelFolder(subId, depth + 3);
+                        });
                     }
                 });
             }
+
+            var paths = lvlEnts.filter(e => e.script && e.script.pathVisualizer);
+            if (paths.length > 0) {
+                renderRow('Laufwege', '🛣️', depth + 1, false, null);
+                paths.forEach(function(ent) {
+                    var isSelected = self._editorActiveObj === ent;
+                    renderRow(ent.name, '🛣️', depth + 2, isSelected, function(e) {
+                        e.stopPropagation(); self._selectEntity(ent);
+                    }, function(e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+                });
+            }
+
+            var media = lvlEnts.filter(e => e.script && e.script.videoTexture);
+            if (media.length > 0) {
+                renderRow('Media Screens', '🎬', depth + 1, false, null);
+                media.forEach(function(ent) {
+                    var isSelected = self._editorActiveObj === ent;
+                    renderRow(ent.name, '🎬', depth + 2, isSelected, function(e) {
+                        e.stopPropagation(); self._selectEntity(ent);
+                    }, function(e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+                });
+            }
+
+            var colName = 'DynamicCollider_' + levelId;
+            var colEnt = self.app.root.findByName(colName);
+            if (colEnt) {
+                renderRow(colEnt.name, '📦', depth + 1, self._editorActiveObj === colEnt, function(e) {
+                    e.stopPropagation(); self._selectEntity(colEnt);
+                }, function(e) { e.stopPropagation(); colEnt.enabled = !colEnt.enabled; self._refreshOutlinerTree(); }, colEnt.enabled);
+            }
+        };
+
+        rootLevelIds.forEach(function(id) {
+            renderLevelFolder(id, 0);
         });
-        
-        // Colliders
-        var colName = 'DynamicCollider_' + lvl.id;
-        var colEnt = self.app.root.findByName(colName);
-        if (colEnt) {
-            renderRow(colEnt.name, '📦', depth + 1, self._editorActiveObj === colEnt, function(e) {
-                e.stopPropagation();
-                self._selectEntity(colEnt);
-            }, function(e) {
-                e.stopPropagation();
-                colEnt.enabled = !colEnt.enabled;
-                self._refreshOutlinerTree();
-            }, colEnt.enabled);
-        }
-    };
 
-    // Render root levels (not part of any sublevel)
-    levels.forEach(function(lvl) {
-        if (!sublevelIdsSet.has(lvl.id)) {
-            renderLevel(lvl, 0);
-        }
-    });
+    } catch (err) {
+        document.getElementById('ed-outliner-tree').innerHTML = '<div style="color:#ff5555; font-size:11px; padding:10px;"><b>UI Error:</b><br>' + err.message + '</div>';
+    }
 };
-
 UI.prototype._selectEntity = function(entity) {
     this._editorActiveObj = entity;
     this._refreshOutlinerTree();
@@ -2395,99 +2419,170 @@ UI.prototype._initViewportPicker = function() {
 };
 
 UI.prototype._renderAttributeEditor = function(entity) {
-    var container = document.getElementById('ed-custom-attrs');
+    var self = this;
+    var container = document.getElementById('ed-ins-scripts');
     if (!container) return;
     container.innerHTML = '';
+
     if (!entity) return;
 
-    var self = this;
+    var scriptDefs = {
+        'infoHotspot': [
+            {n:'title', t:'string'}, {n:'description', t:'string'}, {n:'buttonText', t:'string'},
+            {n:'title_en', t:'string'}, {n:'description_en', t:'string'}, {n:'buttonText_en', t:'string'},
+            {n:'sublevelIds', t:'array_string'}, {n:'targetLevelId', t:'string'}, {n:'linkUrl', t:'string'},
+            {n:'baseDelay', t:'number'}, {n:'randomWindow', t:'number'}, {n:'radius', t:'number'},
+            {n:'primaryColor', t:'rgb'}, {n:'secondaryColor', t:'rgb'}, {n:'textColor', t:'rgb'},
+            {n:'showBorder', t:'boolean'}, {n:'whiteCore', t:'boolean'}, {n:'vrScale', t:'number'},
+            {n:'customPos', t:'vec3'}, {n:'customRot', t:'vec3'}
+        ],
+        'pathVisualizer': [
+            {n:'targetLevelId', t:'string'}, {n:'title', t:'string'}, {n:'description', t:'string'},
+            {n:'buttonText', t:'string'}, {n:'baseDelay', t:'number'}, {n:'randomWindow', t:'number'},
+            {n:'revealDuration', t:'number'}, {n:'primaryColor', t:'rgb'}, {n:'secondaryColor', t:'rgb'},
+            {n:'pathColor', t:'rgb'}, {n:'pathWidth', t:'number'}, {n:'targetOpacity', t:'number'},
+            {n:'showBackground', t:'boolean'}, {n:'yOffset', t:'number'}, {n:'customPos', t:'vec3'},
+            {n:'customRot', t:'vec3'}
+        ],
+        'constructionZone': [
+            {n:'title', t:'string'}, {n:'description', t:'string'}, {n:'addToTour', t:'boolean'},
+            {n:'baseColor', t:'rgb'}, {n:'glowColor', t:'rgb'}, {n:'targetOpacity', t:'number'},
+            {n:'scanlineIntensity', t:'number'}, {n:'showBorderLines', t:'boolean'}, {n:'borderColor', t:'rgb'},
+            {n:'height', t:'number'}, {n:'showButtonBackground', t:'boolean'}, {n:'fadeDistance', t:'number'},
+            {n:'customPos', t:'vec3'}, {n:'customRot', t:'vec3'}
+        ],
+        'videoTexture': [
+            {n:'videoUrl', t:'string'}, {n:'playAudio', t:'boolean'}, {n:'volume', t:'number'},
+            {n:'videoScale', t:'number'}
+        ],
+        'splatBlur': [
+            {n:'blurScale', t:'number'}, {n:'blurIntensity', t:'number'}
+        ]
+    };
 
-    // 1. Hotspot component editor
-    if (entity.script && entity.script.infoHotspot) {
-        var hs = entity.script.infoHotspot;
-        var section = document.createElement('div');
-        section.className = 'ed-section';
-        section.innerHTML = '<div class="ed-section-title col-accent">🎯 Hotspot Eigenschaften</div>' +
-            '<div class="ed-field-row"><label class="ed-label">Titel (DE):</label><input type="text" id="ed-hs-title" class="ed-input-text" value="' + (hs.title || '') + '"></div>' +
-            '<div class="ed-field-row"><label class="ed-label">Titel (EN):</label><input type="text" id="ed-hs-title-en" class="ed-input-text" value="' + (hs.titleEn || '') + '"></div>' +
-            '<div class="ed-field-row"><label class="ed-label">Text (DE):</label><input type="text" id="ed-hs-desc" class="ed-input-text" value="' + (hs.description || '') + '"></div>' +
-            '<div class="ed-field-row"><label class="ed-label">Text (EN):</label><input type="text" id="ed-hs-desc-en" class="ed-input-text" value="' + (hs.descriptionEn || '') + '"></div>' +
-            '<div class="ed-field-row"><label class="ed-label">Link URL:</label><input type="text" id="ed-hs-link" class="ed-input-text" value="' + (hs.linkUrl || '') + '"></div>';
+    var renderField = function(label, type, val, onChange) {
+        var wrap = document.createElement('div');
+        wrap.className = 'ed-ins-row';
+        var lbl = document.createElement('div');
+        lbl.className = 'ed-ins-lbl';
+        lbl.innerText = label;
+        wrap.appendChild(lbl);
+        var ctrl = document.createElement('div');
+        ctrl.className = 'ed-ins-ctrl';
 
-        var titleInp = section.querySelector('#ed-hs-title');
-        if (titleInp) titleInp.oninput = function(e) { hs.title = e.target.value; };
-        var titleEnInp = section.querySelector('#ed-hs-title-en');
-        if (titleEnInp) titleEnInp.oninput = function(e) { hs.titleEn = e.target.value; };
-        var descInp = section.querySelector('#ed-hs-desc');
-        if (descInp) descInp.oninput = function(e) { hs.description = e.target.value; };
-        var descEnInp = section.querySelector('#ed-hs-desc-en');
-        if (descEnInp) descEnInp.oninput = function(e) { hs.descriptionEn = e.target.value; };
-        var linkInp = section.querySelector('#ed-hs-link');
-        if (linkInp) linkInp.oninput = function(e) { hs.linkUrl = e.target.value; };
+        if (type === 'string') {
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.value = val || '';
+            inp.onchange = function(e) { onChange(e.target.value); };
+            ctrl.appendChild(inp);
+        } else if (type === 'number') {
+            var inp = document.createElement('input');
+            inp.type = 'number';
+            inp.step = '0.01';
+            inp.value = val !== undefined ? val : 0;
+            inp.onchange = function(e) { onChange(parseFloat(e.target.value)); };
+            ctrl.appendChild(inp);
+        } else if (type === 'boolean') {
+            var inp = document.createElement('input');
+            inp.type = 'checkbox';
+            inp.checked = !!val;
+            inp.onchange = function(e) { onChange(e.target.checked); };
+            ctrl.appendChild(inp);
+        } else if (type === 'rgb' || type === 'vec3') {
+            var makeInp = function(v, i) {
+                var inp = document.createElement('input');
+                inp.type = 'number';
+                inp.step = '0.01';
+                inp.style.width = '30%';
+                inp.value = v !== undefined ? v : 0;
+                inp.onchange = function(e) {
+                    var newVal = parseFloat(e.target.value);
+                    if (type === 'rgb') {
+                        if (i===0) val.r = newVal; else if (i===1) val.g = newVal; else val.b = newVal;
+                    } else {
+                        if (i===0) val.x = newVal; else if (i===1) val.y = newVal; else val.z = newVal;
+                    }
+                    onChange(val);
+                };
+                return inp;
+            };
+            var v = val || (type==='rgb'?{r:1,g:1,b:1}:{x:0,y:0,z:0});
+            if (type === 'rgb') {
+                ctrl.appendChild(makeInp(v.r, 0)); ctrl.appendChild(makeInp(v.g, 1)); ctrl.appendChild(makeInp(v.b, 2));
+            } else {
+                ctrl.appendChild(makeInp(v.x, 0)); ctrl.appendChild(makeInp(v.y, 1)); ctrl.appendChild(makeInp(v.z, 2));
+            }
+        } else if (type === 'array_string') {
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.value = Array.isArray(val) ? val.join(',') : '';
+            inp.onchange = function(e) { 
+                var arr = e.target.value.split(',').map(s=>s.trim()).filter(s=>s.length>0);
+                onChange(arr); 
+            };
+            ctrl.appendChild(inp);
+        }
+        wrap.appendChild(ctrl);
+        return wrap;
+    };
 
-        container.appendChild(section);
+    if (entity._isGlobalNode) {
+        var h3 = document.createElement('h3');
+        h3.innerText = 'Global Settings & Admin';
+        container.appendChild(h3);
+
+        var wrap1 = document.createElement('div');
+        wrap1.className = 'ed-ins-row';
+        var b1 = document.createElement('button');
+        b1.innerText = 'Export JSON';
+        b1.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
+        wrap1.appendChild(b1);
+        container.appendChild(wrap1);
+
+        var wrap2 = document.createElement('div');
+        wrap2.className = 'ed-ins-row';
+        var b2 = document.createElement('button');
+        b2.innerText = 'Local Save';
+        b2.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
+        wrap2.appendChild(b2);
+        container.appendChild(wrap2);
+        return;
     }
 
-    // 2. Video Texture / Media Screen component editor
-    if (entity.script && entity.script.videoTexture) {
-        var vt = entity.script.videoTexture;
-        var vSec = document.createElement('div');
-        vSec.className = 'ed-section';
-        vSec.innerHTML = '<div class="ed-section-title col-accent">🎬 Video Screen Eigenschaften</div>' +
-            '<div class="ed-field-row"><label class="ed-label">Video URL:</label><input type="text" id="ed-vt-url" class="ed-input-text" value="' + (vt.videoUrl || '') + '"></div>' +
-            '<div class="ed-field-row"><label class="ed-label">Audio:</label><input type="checkbox" id="ed-vt-audio"' + (vt.playAudio ? ' checked' : '') + '></div>';
+    if (entity._isLevelNode || entity._isSpawnNode) {
+        var h3 = document.createElement('h3');
+        h3.innerText = entity._isLevelNode ? 'Level Settings' : 'Spawnpoint Settings';
+        container.appendChild(h3);
 
-        var vUrl = vSec.querySelector('#ed-vt-url');
-        if (vUrl) vUrl.oninput = function(e) { vt.videoUrl = e.target.value; };
-        var vAud = vSec.querySelector('#ed-vt-audio');
-        if (vAud) vAud.onchange = function(e) { vt.playAudio = e.target.checked; };
-
-        container.appendChild(vSec);
+        if (entity._isLevelNode && entity.config) {
+            container.appendChild(renderField('Level ID', 'string', entity.config.id, function(v) { entity.config.id = v; }));
+            container.appendChild(renderField('URL', 'string', entity.config.url, function(v) { entity.config.url = v; }));
+            container.appendChild(renderField('Mode', 'string', entity.config.mode, function(v) { entity.config.mode = v; }));
+        } else if (entity._isSpawnNode && entity.sp) {
+            container.appendChild(renderField('Name', 'string', entity.sp.name, function(v) { entity.sp.name = v; }));
+            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function(v) { entity.sp.pos = v; }));
+            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function(v) { entity.sp.rot = v; }));
+        }
+        return;
     }
 
-    // 3. Construction Zone component editor
-    if (entity.script && entity.script.constructionZone) {
-        var cz = entity.script.constructionZone;
-        var czSec = document.createElement('div');
-        czSec.className = 'ed-section';
-        czSec.innerHTML = '<div class="ed-section-title col-accent">🚧 Baustellen Zone</div>' +
-            '<div class="ed-field-row"><label class="ed-label">Titel:</label><input type="text" id="ed-cz-title" class="ed-input-text" value="' + (cz.title || '') + '"></div>' +
-            '<div class="ed-field-row"><label class="ed-label">Status:</label><input type="text" id="ed-cz-status" class="ed-input-text" value="' + (cz.status || '') + '"></div>' +
-            '<div class="ed-field-row"><label class="ed-label">Fortschritt:</label><input type="range" id="ed-cz-progress" min="0" max="100" value="' + (cz.progress || 50) + '" style="flex:1;"><span id="ed-cz-prog-val">' + (cz.progress || 50) + '%</span></div>';
-
-        var czTitle = czSec.querySelector('#ed-cz-title');
-        if (czTitle) czTitle.oninput = function(e) { cz.title = e.target.value; };
-        var czStatus = czSec.querySelector('#ed-cz-status');
-        if (czStatus) czStatus.oninput = function(e) { cz.status = e.target.value; };
-        var czProg = czSec.querySelector('#ed-cz-progress');
-        var czVal = czSec.querySelector('#ed-cz-prog-val');
-        if (czProg && czVal) czProg.oninput = function(e) { cz.progress = parseInt(e.target.value); czVal.innerText = cz.progress + '%'; };
-
-        container.appendChild(czSec);
-    }
-
-    // 4. Light component editor
-    if (entity.light) {
-        var l = entity.light;
-        var lSec = document.createElement('div');
-        lSec.className = 'ed-section';
-        var hexColor = '#' + Math.round(l.color.r * 255).toString(16).padStart(2, '0') + Math.round(l.color.g * 255).toString(16).padStart(2, '0') + Math.round(l.color.b * 255).toString(16).padStart(2, '0');
-        lSec.innerHTML = '<div class="ed-section-title col-accent">💡 Licht-Quelle</div>' +
-            '<div class="ed-field-row"><label class="ed-label">Farbe:</label><input type="color" id="ed-light-col" value="' + hexColor + '" style="border:none; width:40px; height:24px; border-radius:4px; cursor:pointer;"><label class="ed-label" style="margin-left:8px;">Intensität:</label><input type="range" id="ed-light-int" min="0.1" max="5.0" step="0.1" value="' + (l.intensity || 1) + '" style="flex:1;"></div>' +
-            '<div class="ed-field-row"><label class="ed-label">Reichweite:</label><input type="range" id="ed-light-range" min="1" max="50" step="1" value="' + (l.range || 10) + '" style="flex:1;"><span id="ed-light-range-val">' + (l.range || 10) + 'm</span></div>';
-
-        var colInp = lSec.querySelector('#ed-light-col');
-        if (colInp) colInp.oninput = function(e) {
-            var hex = e.target.value;
-            l.color = new pc.Color(parseInt(hex.substr(1,2),16)/255, parseInt(hex.substr(3,2),16)/255, parseInt(hex.substr(5,2),16)/255);
-        };
-        var intInp = lSec.querySelector('#ed-light-int');
-        if (intInp) intInp.oninput = function(e) { l.intensity = parseFloat(e.target.value) || 1; };
-        var rangeInp = lSec.querySelector('#ed-light-range');
-        var rangeVal = lSec.querySelector('#ed-light-range-val');
-        if (rangeInp && rangeVal) rangeInp.oninput = function(e) { l.range = parseFloat(e.target.value) || 10; rangeVal.innerText = l.range + 'm'; };
-
-        container.appendChild(lSec);
+    if (entity.script) {
+        Object.keys(scriptDefs).forEach(function(scriptName) {
+            if (entity.script[scriptName]) {
+                var h3 = document.createElement('h3');
+                h3.innerText = 'Script: ' + scriptName;
+                container.appendChild(h3);
+                
+                var scriptInst = entity.script[scriptName];
+                scriptDefs[scriptName].forEach(function(prop) {
+                    var val = scriptInst[prop.n];
+                    container.appendChild(renderField(prop.n, prop.t, val, function(newVal) {
+                        scriptInst[prop.n] = newVal;
+                    }));
+                });
+            }
+        });
     }
 };
 
@@ -3111,76 +3206,171 @@ UI.prototype._refreshCustomObjectsList = function() {
 };
 
 UI.prototype._renderAttributeEditor = function(entity) {
-    var container = document.getElementById('ed-custom-attrs');
+    var self = this;
+    var container = document.getElementById('ed-ins-scripts');
     if (!container) return;
     container.innerHTML = '';
-    if (!entity || !entity.script) return;
-    
+
+    if (!entity) return;
+
     var scriptDefs = {
-        'infoHotspot': ['title', 'description', 'title_en', 'description_en', 'buttonText', 'buttonText_en', 'targetLevelId', 'linkUrl'],
-        'pathVisualizer': ['description'],
-        'constructionZone': ['title', 'description', 'status', 'progress'],
-        'videoTexture': ['videoUrl', 'playAudio', 'volume', 'cullBack', 'videoScale'],
-        'splatBlur': ['blurScale', 'blurIntensity']
+        'infoHotspot': [
+            {n:'title', t:'string'}, {n:'description', t:'string'}, {n:'buttonText', t:'string'},
+            {n:'title_en', t:'string'}, {n:'description_en', t:'string'}, {n:'buttonText_en', t:'string'},
+            {n:'sublevelIds', t:'array_string'}, {n:'targetLevelId', t:'string'}, {n:'linkUrl', t:'string'},
+            {n:'baseDelay', t:'number'}, {n:'randomWindow', t:'number'}, {n:'radius', t:'number'},
+            {n:'primaryColor', t:'rgb'}, {n:'secondaryColor', t:'rgb'}, {n:'textColor', t:'rgb'},
+            {n:'showBorder', t:'boolean'}, {n:'whiteCore', t:'boolean'}, {n:'vrScale', t:'number'},
+            {n:'customPos', t:'vec3'}, {n:'customRot', t:'vec3'}
+        ],
+        'pathVisualizer': [
+            {n:'targetLevelId', t:'string'}, {n:'title', t:'string'}, {n:'description', t:'string'},
+            {n:'buttonText', t:'string'}, {n:'baseDelay', t:'number'}, {n:'randomWindow', t:'number'},
+            {n:'revealDuration', t:'number'}, {n:'primaryColor', t:'rgb'}, {n:'secondaryColor', t:'rgb'},
+            {n:'pathColor', t:'rgb'}, {n:'pathWidth', t:'number'}, {n:'targetOpacity', t:'number'},
+            {n:'showBackground', t:'boolean'}, {n:'yOffset', t:'number'}, {n:'customPos', t:'vec3'},
+            {n:'customRot', t:'vec3'}
+        ],
+        'constructionZone': [
+            {n:'title', t:'string'}, {n:'description', t:'string'}, {n:'addToTour', t:'boolean'},
+            {n:'baseColor', t:'rgb'}, {n:'glowColor', t:'rgb'}, {n:'targetOpacity', t:'number'},
+            {n:'scanlineIntensity', t:'number'}, {n:'showBorderLines', t:'boolean'}, {n:'borderColor', t:'rgb'},
+            {n:'height', t:'number'}, {n:'showButtonBackground', t:'boolean'}, {n:'fadeDistance', t:'number'},
+            {n:'customPos', t:'vec3'}, {n:'customRot', t:'vec3'}
+        ],
+        'videoTexture': [
+            {n:'videoUrl', t:'string'}, {n:'playAudio', t:'boolean'}, {n:'volume', t:'number'},
+            {n:'videoScale', t:'number'}
+        ],
+        'splatBlur': [
+            {n:'blurScale', t:'number'}, {n:'blurIntensity', t:'number'}
+        ]
     };
-    
-    Object.keys(scriptDefs).forEach(function(scriptName) {
-        if (entity.script[scriptName]) {
-            var html = '<div style="margin-top:8px; border-top:1px solid rgba(255,255,255,0.1); padding-top:4px;">';
-            html += '<div style="color:#ffaa00; font-weight:bold; margin-bottom:4px;">' + scriptName + ' Attributes:</div>';
-            scriptDefs[scriptName].forEach(function(attr) {
-                var val = entity.script[scriptName][attr];
-                if (val === undefined) return;
-                html += '<div style="display:flex; margin-bottom:4px; align-items:center;">';
-                html += '<div style="width:75px; font-size:9px; color:#aaa; overflow:hidden; text-overflow:ellipsis;" title="' + attr + '">' + attr + '</div>';
-                if (typeof val === 'boolean') {
-                    html += '<input type="checkbox" id="attr-' + scriptName + '-' + attr + '" ' + (val ? 'checked' : '') + ' style="flex:1;">';
-                } else if (typeof val === 'number') {
-                    html += '<input type="number" id="attr-' + scriptName + '-' + attr + '" value="' + val + '" step="0.1" style="flex:1; background:rgba(255,255,255,0.1); border:1px solid #555; color:white; font-size:10px; padding:2px;">';
-                } else {
-                    html += '<input type="text" id="attr-' + scriptName + '-' + attr + '" value="' + val + '" style="flex:1; background:rgba(255,255,255,0.1); border:1px solid #555; color:white; font-size:10px; padding:2px;">';
-                }
-                html += '</div>';
-            });
-            html += '</div>';
-            container.innerHTML += html;
-            
-            // Bind events
-            setTimeout(function() {
-                scriptDefs[scriptName].forEach(function(attr) {
-                    var inp = document.getElementById('attr-' + scriptName + '-' + attr);
-                    if (inp) {
-                        var updateVal = function(e) {
-                            e.stopPropagation();
-                            var newVal = typeof entity.script[scriptName][attr] === 'boolean' ? inp.checked : (typeof entity.script[scriptName][attr] === 'number' ? parseFloat(inp.value) : inp.value);
-                            entity.script[scriptName][attr] = newVal;
-                            if (entity.script[scriptName].fire) {
-                                entity.script[scriptName].fire('attr:' + attr, newVal, undefined);
-                            }
-                            // Force refresh visual if it's infoHotspot
-                            if (scriptName === 'infoHotspot' && entity.script.infoHotspot.onReveal) {
-                                // A trick to re-render the DOM element
-                                entity.script.infoHotspot.onReveal();
-                            }
-                            if (scriptName === 'pathVisualizer' && entity.script.pathVisualizer.updateDomText) {
-                                entity.script.pathVisualizer.updateDomText();
-                            }
-                            if (scriptName === 'constructionZone' && entity.script.constructionZone.createScanlineTexture) {
-                                entity.script.constructionZone.createScanlineTexture();
-                            }
-                        };
-                        inp.addEventListener('input', updateVal);
-                        inp.addEventListener('change', updateVal);
-                        inp.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-                        inp.addEventListener('click', function(e) { e.stopPropagation(); });
-                        inp.addEventListener('focus', function() {
-                            if (document.pointerLockElement) document.exitPointerLock();
-                        });
+
+    var renderField = function(label, type, val, onChange) {
+        var wrap = document.createElement('div');
+        wrap.className = 'ed-ins-row';
+        var lbl = document.createElement('div');
+        lbl.className = 'ed-ins-lbl';
+        lbl.innerText = label;
+        wrap.appendChild(lbl);
+        var ctrl = document.createElement('div');
+        ctrl.className = 'ed-ins-ctrl';
+
+        if (type === 'string') {
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.value = val || '';
+            inp.onchange = function(e) { onChange(e.target.value); };
+            ctrl.appendChild(inp);
+        } else if (type === 'number') {
+            var inp = document.createElement('input');
+            inp.type = 'number';
+            inp.step = '0.01';
+            inp.value = val !== undefined ? val : 0;
+            inp.onchange = function(e) { onChange(parseFloat(e.target.value)); };
+            ctrl.appendChild(inp);
+        } else if (type === 'boolean') {
+            var inp = document.createElement('input');
+            inp.type = 'checkbox';
+            inp.checked = !!val;
+            inp.onchange = function(e) { onChange(e.target.checked); };
+            ctrl.appendChild(inp);
+        } else if (type === 'rgb' || type === 'vec3') {
+            var makeInp = function(v, i) {
+                var inp = document.createElement('input');
+                inp.type = 'number';
+                inp.step = '0.01';
+                inp.style.width = '30%';
+                inp.value = v !== undefined ? v : 0;
+                inp.onchange = function(e) {
+                    var newVal = parseFloat(e.target.value);
+                    if (type === 'rgb') {
+                        if (i===0) val.r = newVal; else if (i===1) val.g = newVal; else val.b = newVal;
+                    } else {
+                        if (i===0) val.x = newVal; else if (i===1) val.y = newVal; else val.z = newVal;
                     }
-                });
-            }, 10);
+                    onChange(val);
+                };
+                return inp;
+            };
+            var v = val || (type==='rgb'?{r:1,g:1,b:1}:{x:0,y:0,z:0});
+            if (type === 'rgb') {
+                ctrl.appendChild(makeInp(v.r, 0)); ctrl.appendChild(makeInp(v.g, 1)); ctrl.appendChild(makeInp(v.b, 2));
+            } else {
+                ctrl.appendChild(makeInp(v.x, 0)); ctrl.appendChild(makeInp(v.y, 1)); ctrl.appendChild(makeInp(v.z, 2));
+            }
+        } else if (type === 'array_string') {
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.value = Array.isArray(val) ? val.join(',') : '';
+            inp.onchange = function(e) { 
+                var arr = e.target.value.split(',').map(s=>s.trim()).filter(s=>s.length>0);
+                onChange(arr); 
+            };
+            ctrl.appendChild(inp);
         }
-    });
+        wrap.appendChild(ctrl);
+        return wrap;
+    };
+
+    if (entity._isGlobalNode) {
+        var h3 = document.createElement('h3');
+        h3.innerText = 'Global Settings & Admin';
+        container.appendChild(h3);
+
+        var wrap1 = document.createElement('div');
+        wrap1.className = 'ed-ins-row';
+        var b1 = document.createElement('button');
+        b1.innerText = 'Export JSON';
+        b1.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
+        wrap1.appendChild(b1);
+        container.appendChild(wrap1);
+
+        var wrap2 = document.createElement('div');
+        wrap2.className = 'ed-ins-row';
+        var b2 = document.createElement('button');
+        b2.innerText = 'Local Save';
+        b2.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
+        wrap2.appendChild(b2);
+        container.appendChild(wrap2);
+        return;
+    }
+
+    if (entity._isLevelNode || entity._isSpawnNode) {
+        var h3 = document.createElement('h3');
+        h3.innerText = entity._isLevelNode ? 'Level Settings' : 'Spawnpoint Settings';
+        container.appendChild(h3);
+
+        if (entity._isLevelNode && entity.config) {
+            container.appendChild(renderField('Level ID', 'string', entity.config.id, function(v) { entity.config.id = v; }));
+            container.appendChild(renderField('URL', 'string', entity.config.url, function(v) { entity.config.url = v; }));
+            container.appendChild(renderField('Mode', 'string', entity.config.mode, function(v) { entity.config.mode = v; }));
+        } else if (entity._isSpawnNode && entity.sp) {
+            container.appendChild(renderField('Name', 'string', entity.sp.name, function(v) { entity.sp.name = v; }));
+            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function(v) { entity.sp.pos = v; }));
+            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function(v) { entity.sp.rot = v; }));
+        }
+        return;
+    }
+
+    if (entity.script) {
+        Object.keys(scriptDefs).forEach(function(scriptName) {
+            if (entity.script[scriptName]) {
+                var h3 = document.createElement('h3');
+                h3.innerText = 'Script: ' + scriptName;
+                container.appendChild(h3);
+                
+                var scriptInst = entity.script[scriptName];
+                scriptDefs[scriptName].forEach(function(prop) {
+                    var val = scriptInst[prop.n];
+                    container.appendChild(renderField(prop.n, prop.t, val, function(newVal) {
+                        scriptInst[prop.n] = newVal;
+                    }));
+                });
+            }
+        });
+    }
 };
 
 UI.prototype.onDestroy = function() {

@@ -1,49 +1,94 @@
 var SplatPicker = pc.createScript('splatPicker');
 
 SplatPicker.prototype.initialize = function() {
-    // We listen for the Mousedown event
+    this.lastClickTime = 0;
+    this.doubleClickThreshold = 300; // ms
+
     if (this.app.mouse) {
         this.app.mouse.on(pc.EVENT_MOUSEDOWN, this.onMouseDown, this);
     }
+    if (this.app.touch) {
+        this.app.touch.on(pc.EVENT_TOUCHSTART, this.onTouchStart, this);
+    }
 
-    console.log("%c Splat Picker Active: Click anywhere to see coordinates in Console!", "color: orange; font-weight: bold;");
+    // Create a visual marker for the orbit point
+    this.marker = new pc.Entity('OrbitMarker');
+    this.marker.addComponent('model', { type: 'sphere' });
+    this.marker.setLocalScale(0.3, 0.3, 0.3);
+    
+    // Create a glowing cyan material for the marker
+    var material = new pc.StandardMaterial();
+    material.diffuse = new pc.Color(0, 0.9, 1);
+    material.emissive = new pc.Color(0, 0.9, 1);
+    material.update();
+    this.marker.model.material = material;
+    
+    this.app.root.addChild(this.marker);
+    this.marker.enabled = false;
+    this.markerTimer = 0;
 };
 
 SplatPicker.prototype.onMouseDown = function(event) {
-    // Only trigger on Left Click (Button 0)
-    if (event.button === 0) {
-        this.pickCoordinate(event.x, event.y);
+    if (event.button !== 0) return;
+    this.checkDoubleClick(event.x, event.y);
+};
+
+SplatPicker.prototype.onTouchStart = function(event) {
+    if (event.touches.length === 1) {
+        this.checkDoubleClick(event.touches[0].x, event.touches[0].y);
     }
 };
 
-SplatPicker.prototype.pickCoordinate = function(screenX, screenY) {
-    const camera = this.entity.camera;
+SplatPicker.prototype.checkDoubleClick = function(x, y) {
+    var now = Date.now();
+    if (now - this.lastClickTime < this.doubleClickThreshold) {
+        this.setOrbitPoint(x, y);
+        this.lastClickTime = 0; // reset
+    } else {
+        this.lastClickTime = now;
+    }
+};
+
+SplatPicker.prototype.setOrbitPoint = function(screenX, screenY) {
+    var camera = this.entity.camera;
     if (!camera) return;
 
-    // 1. Create a ray from the camera through the mouse position
-    const from = new pc.Vec3();
-    const to = new pc.Vec3();
-    camera.screenToWorld(screenX, screenY, 0, from);
-    camera.screenToWorld(screenX, screenY, 1, to);
-    const dir = to.sub(from);
+    var from = new pc.Vec3();
+    var to = new pc.Vec3();
+    camera.screenToWorld(screenX, screenY, camera.nearClip, from);
+    camera.screenToWorld(screenX, screenY, camera.farClip, to);
 
-    // 2. Intersect with the Ground Plane (Y = 0)
-    // Most splats are aligned so the floor is roughly at Y=0
-    const t = -from.y / dir.y;
+    // Raycast against the physics mesh
+    var hit = this.app.systems.rigidbody.raycastFirst(from, to);
     
-    if (t > 0) {
-        const hitPoint = new pc.Vec3().copy(dir).scale(t).add(from);
+    if (hit) {
+        var hitPoint = hit.point;
         
-        // 3. Format the result for your LevelManager
-        const result = `[${hitPoint.x.toFixed(2)}, 1.5, ${hitPoint.z.toFixed(2)}]`;
+        // Show marker
+        this.marker.setPosition(hitPoint);
+        this.marker.enabled = true;
+        this.markerTimer = 2.0; // Hide after 2 seconds
         
-        console.log("%c Clicked Position:", "color: #00ff00;", result);
-        
-        // Optional: Auto-copy to clipboard so you can just paste into VS Code
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(result);
+        // Set camera focus and mode
+        if (this.entity.script && this.entity.script.cameraControls) {
+            this.app.fire('controls:setMode', 'orbit');
+            this.entity.script.cameraControls.focusPoint = hitPoint;
+            
+            // Dispatch event to update UI if necessary
+            var mockFps = document.getElementById('mock-ctrl-fps');
+            var mockDrag = document.getElementById('mock-ctrl-drag');
+            if (mockFps && mockDrag) {
+                mockDrag.click();
+            }
         }
-    } else {
-        console.log("You clicked the sky! Look down at the splat.");
+    }
+};
+
+SplatPicker.prototype.update = function(dt) {
+    if (this.marker.enabled) {
+        this.markerTimer -= dt;
+        if (this.markerTimer <= 0) {
+            this.marker.enabled = false;
+        }
     }
 };

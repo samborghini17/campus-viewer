@@ -1,7 +1,7 @@
 var PoiManager = pc.createScript('poiManager');
 
 PoiManager.attributes.add('cameraEntity', { type: 'entity', title: 'Main Camera' });
-PoiManager.attributes.add('lookDistance', { type: 'number', default: 5.0, title: 'Standard Abstand' });
+PoiManager.attributes.add('lookDistance', { type: 'number', default: 2.5, title: 'Standard Abstand' });
 PoiManager.attributes.add('autoTourDelay', { type: 'number', default: 8.0, title: 'Auto-Tour Zeit (s)' });
 
 PoiManager.prototype.initialize = function() {
@@ -94,8 +94,8 @@ PoiManager.prototype.refreshList = function() {
                     return false;
                 }
                 // If the POI is GLOBAL (not under any specific level), hide it in sub-levels!
-                if (!belongsToLevel && currentLevel !== 'lemgo') {
-                    // Only show global POIs in lemgo, hide them in innospin/audimax etc.
+                if (!belongsToLevel && currentLevel !== 'lemgo' && !currentLevel.toLowerCase().includes('laufwege')) {
+                    // Only show global POIs in lemgo and laufwege, hide them in innospin/audimax etc.
                     return false;
                 }
             }
@@ -274,14 +274,14 @@ PoiManager.prototype.getOrbitalTransform = function(index, angleDeg) {
                 targetPos: targetPos,
                 radius: 5.0,
                 height: 1.6
-            };
-        }
+        };
+    }
     }
 
-    var r = this.lookDistance * 1.25;
-    var h = 1.6;
-    if (target.type === 'construction') { r *= 2.2; h = 2.4; }
-    else if (target.type === 'path') { r *= 1.5; h = 1.8; }
+    var r = this.lookDistance * 0.3;
+    var h = this.lookDistance * 2.5 + 5.0;
+    if (target.type === 'construction') { r *= 2.2; h = 12.0; }
+    else if (target.type === 'path') { r *= 1.5; h = 10.0; }
 
     var angleRad = (angleDeg || 0) * Math.PI / 180.0;
     var camPos = new pc.Vec3(
@@ -295,7 +295,7 @@ PoiManager.prototype.getOrbitalTransform = function(index, angleDeg) {
 };
 
 PoiManager.prototype.update = function(dt) {
-    var orbitSpeed = 10.0; // 10 deg/sec for smooth, elegant orbit
+    var orbitSpeed = 15.0; // 15 deg/sec for full 360 orbit (24 seconds)
 
     // 1. ACTIVE FLIGHT PHASE (Interpolating smoothly with ease-in-out S-curve and parabolic arc)
     if (this._flight && this._flight.active) {
@@ -367,7 +367,7 @@ PoiManager.prototype.update = function(dt) {
     if (!this.isAutoTouring || this.activePois.length <= 1) return;
 
     this.tourTimer += dt;
-    var dwellDuration = 12.0; // Orbit around each POI for 12 seconds
+    var dwellDuration = 24.0; // Orbit around each POI for 24 seconds
 
     if (this.tourTimer >= dwellDuration) {
         this.tourTimer = 0;
@@ -379,7 +379,7 @@ PoiManager.prototype.update = function(dt) {
         this.highlightListItem(this.currentIndex);
         this.updateNavTitle(this.pois[nextPoiIndex].title);
         
-        this._startSmoothFlight(nextPoiIndex, 1.8);
+        this._startSmoothFlight(nextPoiIndex, 3.5);
     }
 };
 
@@ -410,7 +410,7 @@ PoiManager.prototype.jumpTo = function(index, immediate) {
         }
     } else {
         var self = this;
-        this._startSmoothFlight(index, 1.5, function() {
+        this._startSmoothFlight(index, 3.5, function() {
             self.tourTimer = 0;
         });
     }
@@ -443,11 +443,11 @@ PoiManager.prototype._startSmoothFlight = function(targetIndex, duration, onComp
     var startRot = this.cameraEntity.getRotation().clone();
     var targetPos = target.entity.getPosition().clone();
 
-    // Determine target orbital parameters
+    // Determine target orbital parameters (higher and diagonally down to avoid buildings)
     var r = this.lookDistance * 1.25;
-    var h = 1.6;
-    if (target.type === 'construction') { r *= 2.2; h = 2.4; }
-    else if (target.type === 'path') { r *= 1.5; h = 1.8; }
+    var h = 6.0;
+    if (target.type === 'construction') { r *= 2.2; h = 10.0; }
+    else if (target.type === 'path') { r *= 1.5; h = 8.0; }
 
     // Check if custom viewpoint is set
     var endPos, endRot, arrivalAngleDeg;
@@ -488,8 +488,8 @@ PoiManager.prototype._startSmoothFlight = function(targetIndex, duration, onComp
     }
 
     var travelDist = startPos.distance(endPos);
-    var arcHeight = Math.min(3.0, Math.max(0.8, travelDist * 0.12));
-    var flightDuration = duration || Math.max(1.2, Math.min(3.0, travelDist / 12.0));
+    var arcHeight = Math.min(15.0, Math.max(3.0, travelDist * 0.25));
+    var flightDuration = duration || Math.max(3.0, Math.min(8.0, travelDist / 5.0));
 
     this._flight = {
         active: true,
@@ -519,7 +519,7 @@ PoiManager.prototype.next = function() {
     this.updateNavTitle(this.pois[nextPoiIndex].title);
 
     this.tourTimer = 0;
-    this._startSmoothFlight(nextPoiIndex, 1.4);
+    this._startSmoothFlight(nextPoiIndex, 3.5);
 };
 
 PoiManager.prototype.prev = function() {
@@ -533,7 +533,7 @@ PoiManager.prototype.prev = function() {
     this.updateNavTitle(this.pois[prevPoiIndex].title);
 
     this.tourTimer = 0;
-    this._startSmoothFlight(prevPoiIndex, 1.4);
+    this._startSmoothFlight(prevPoiIndex, 3.5);
 };
 
 PoiManager.prototype.toggleAutoTour = function() {
@@ -548,9 +548,9 @@ PoiManager.prototype.toggleAutoTour = function() {
             this.currentIndex = this.activePois[0];
             this.highlightListItem(this.currentIndex);
             this.updateNavTitle(this.pois[this.currentIndex].title);
-            this._startSmoothFlight(this.currentIndex, 1.5);
+            this._startSmoothFlight(this.currentIndex, 3.5);
         } else if (this.currentIndex !== -1) {
-            this._startSmoothFlight(this.currentIndex, 1.2);
+            this._startSmoothFlight(this.currentIndex, 3.5);
         }
         console.log('[AutoTour] Started cinematic tour with ' + this.activePois.length + ' POIs');
     } else {
