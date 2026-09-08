@@ -278,8 +278,8 @@ PoiManager.prototype.getOrbitalTransform = function(index, angleDeg) {
     }
     }
 
-    var r = this.lookDistance * 0.3;
-    var h = this.lookDistance * 2.5 + 5.0;
+    var r = this.lookDistance * 1.0;
+    var h = this.lookDistance * 0.4 + 0.5;
     if (target.type === 'construction') { r *= 2.2; h = 12.0; }
     else if (target.type === 'path') { r *= 1.5; h = 10.0; }
 
@@ -444,8 +444,8 @@ PoiManager.prototype._startSmoothFlight = function(targetIndex, duration, onComp
     var targetPos = target.entity.getPosition().clone();
 
     // Determine target orbital parameters (higher and diagonally down to avoid buildings)
-    var r = this.lookDistance * 1.25;
-    var h = 6.0;
+    var r = this.lookDistance * 1.0;
+    var h = this.lookDistance * 0.4 + 0.5;
     if (target.type === 'construction') { r *= 2.2; h = 10.0; }
     else if (target.type === 'path') { r *= 1.5; h = 8.0; }
 
@@ -488,6 +488,12 @@ PoiManager.prototype._startSmoothFlight = function(targetIndex, duration, onComp
     }
 
     var travelDist = startPos.distance(endPos);
+    
+    // Constant speed calculation (approx 15 units per second)
+    var speed = 35.0;
+    duration = travelDist / speed;
+    duration = Math.max(1.5, Math.min(duration, 12.0)); // safety clamp
+
     var arcHeight = Math.min(15.0, Math.max(3.0, travelDist * 0.25));
     var flightDuration = duration || Math.max(3.0, Math.min(8.0, travelDist / 5.0));
 

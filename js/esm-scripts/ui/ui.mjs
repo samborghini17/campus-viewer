@@ -570,11 +570,18 @@ UI.prototype._initBurgerMenu = function() {
     if (!container || !btn) return;
     
     // Burger menu button click handler
-    btn.onclick = function(e) {
+    // Bulletproof click handler for Burger Menu
+    var toggleMenu = function(e) {
+        e.preventDefault();
         e.stopPropagation();
         container.classList.toggle('open');
         self._translateDynamic();
     };
+    btn.onclick = toggleMenu;
+    btn.addEventListener('touchstart', function(e) { e.preventDefault(); e.stopPropagation(); toggleMenu(e); }, {passive: false});
+    ['mousedown', 'pointerdown', 'pointerup', 'dblclick'].forEach(function(ev) {
+        btn.addEventListener(ev, function(e) { e.stopPropagation(); });
+    });
     
     this.jumpBackBtn = document.getElementById('menu-back');
     if (this.jumpBackBtn) {

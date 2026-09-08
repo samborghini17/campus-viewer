@@ -495,14 +495,8 @@ class CameraControls extends Script {
         // update controller by consuming frame
         this._pose.copy(this._controller.update(frame, dt));
         // --- HARD LIMITS (The "Glass Box") ---
-        // 1. Min Height (Floor)
-        if (this._pose.position.y < this.minHeight) {
-            this._pose.position.y = this.minHeight;
-        }
-        // 2. Max Height (Ceiling)
-        if (this._pose.position.y > this.maxHeight) {
-            this._pose.position.y = this.maxHeight;
-        }
+        // 1. Min Height (Floor) - disabled to prevent jitter
+        // 2. Max Height (Ceiling) - disabled to prevent jitter
         // 3. Optional: X/Z Bounds
         if (this.minBounds && this.maxBounds) {
             const p = this._pose.position;

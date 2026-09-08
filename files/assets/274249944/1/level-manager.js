@@ -1362,14 +1362,49 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
 
     this.currentLevelId = id; 
 
+    
     // --- Laufwege Auto-Inheritance ---
     if (id.toLowerCase().includes('laufwege')) {
         var lemgoData = this.getConfigById('lemgo');
         if (lemgoData) {
-            data.url = lemgoData.url;
-            data.envUrl = lemgoData.envUrl;
-            data.collider = lemgoData.collider;
-            data.mode = 'orbit'; // Same as Lemgo
+            // Inherit mode if not set
+            if (!data.mode) data.mode = 'orbit';
+            
+            // Smart Sync hotspots from lemgo
+            var lemgoFolder = this.app.root.findByName('lemgo');
+            var laufFolder = this.app.root.findByName(id);
+            if (lemgoFolder && laufFolder) {
+                lemgoFolder.children.forEach(function(lChild) {
+                    if (lChild.script && lChild.script.infoHotspot) {
+                        // Find if it exists in Laufwege by name
+                        var lName = lChild.name;
+                        var existing = null;
+                        laufFolder.children.forEach(function(cChild) {
+                            if (cChild.name === lName) existing = cChild;
+                        });
+                        
+                        if (existing) {
+                            // Update properties but keep POSITION and ROTATION
+                            if (existing.script && existing.script.infoHotspot) {
+                                var s1 = existing.script.infoHotspot;
+                                var s2 = lChild.script.infoHotspot;
+                                s1.titleText = s2.titleText;
+                                s1.descriptionText = s2.descriptionText;
+                                s1.iconType = s2.iconType;
+                                s1.type = s2.type;
+                                s1.targetView = s2.targetView;
+                                s1.targetLevel = s2.targetLevel;
+                                s1.poiColor = s2.poiColor;
+                                s1.poiRadius = s2.poiRadius;
+                            }
+                        } else {
+                            // Clone it if it doesn't exist
+                            var clone = lChild.clone();
+                            laufFolder.addChild(clone);
+                        }
+                    }
+                });
+            }
         }
     }
 
