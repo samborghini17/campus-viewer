@@ -567,20 +567,36 @@ UI.prototype._initBurgerMenu = function() {
     var resetBtn = document.getElementById('menu-reset');
     var toggleUiBtn = document.getElementById('menu-toggle-ui');
     var burgerDropdown = document.getElementById('burger-dropdown');
+    var themeBtn = document.getElementById('menu-theme-toggle');
     if (!container || !btn) return;
     
-    // Burger menu button click handler
-    // Bulletproof click handler for Burger Menu
+    // Theme Toggle Logic
+    if (themeBtn) {
+        themeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var root = document.documentElement;
+            root.classList.toggle('theme-light');
+            
+            var isLight = root.classList.contains('theme-light');
+            document.getElementById('icon-theme').innerText = isLight ? '🌙' : '☀️';
+            document.getElementById('lbl-menu-theme').innerText = isLight ? (self.currentLang === 'de' ? 'Dark Mode' : 'Dark Mode') : (self.currentLang === 'de' ? 'Light Mode' : 'Light Mode');
+        });
+    }
+
+    // TRUE Bulletproof menu handler with Capture Phase
     var toggleMenu = function(e) {
-        e.preventDefault();
-        e.stopPropagation();
+        if(e) { e.preventDefault(); e.stopPropagation(); }
         container.classList.toggle('open');
         self._translateDynamic();
     };
     btn.onclick = toggleMenu;
-    btn.addEventListener('touchstart', function(e) { e.preventDefault(); e.stopPropagation(); toggleMenu(e); }, {passive: false});
-    ['mousedown', 'pointerdown', 'pointerup', 'dblclick'].forEach(function(ev) {
-        btn.addEventListener(ev, function(e) { e.stopPropagation(); });
+    
+    // Use capture phase to intercept before PlayCanvas gets it
+    ['touchstart', 'mousedown', 'pointerdown', 'pointerup', 'click', 'dblclick'].forEach(function(ev) {
+        btn.addEventListener(ev, function(e) { 
+            e.stopPropagation(); 
+            if(ev === 'pointerdown' || ev === 'touchstart') toggleMenu(e);
+        }, true);
     });
     
     this.jumpBackBtn = document.getElementById('menu-back');

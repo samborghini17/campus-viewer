@@ -1,5 +1,5 @@
 <div id="burger-menu-container">
-    <button id="burger-btn" aria-label="Menü">
+    <button id="burger-btn" aria-label="Menü" style="z-index: 999999 !important; position: relative;">
         <span class="icon">☰</span> <span id="lbl-menu-btn">Menü</span>
     </button>
     <div id="burger-dropdown" class="aeroglass-panel">
@@ -38,6 +38,10 @@
         </button>
         <button id="menu-reset" class="menu-item">
             <span class="icon">🔄</span> <span id="lbl-menu-reset">Kamera Reset</span>
+        </button>
+        <div class="menu-separator"></div>
+        <button id="menu-theme-toggle" class="menu-item">
+            <span class="icon" id="icon-theme">☀️</span> <span id="lbl-menu-theme">Light Mode</span>
         </button>
         <div class="menu-separator"></div>
         <div class="menu-item" style="pointer-events: none; color: var(--text-secondary); padding-bottom: 2px; font-size: 11px; text-transform: uppercase; font-weight: 600;" id="lbl-tools-header">Werkzeuge</div>
