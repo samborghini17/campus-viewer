@@ -41,12 +41,12 @@ const frame = new InputFrame({
  * @param {number} damping - The damping.
  * @param {number} dt - The delta time.
  * @returns {number} - The lerp rate.
- */ const damp = (damping, dt)=>1 - Math.pow(damping, dt * 1000);
+ */ const damp = (damping, dt) => 1 - Math.pow(damping, dt * 1000);
 /**
  * @param {number[]} stick - The stick
  * @param {number} low - The low dead zone
  * @param {number} high - The high dead zone
- */ const applyDeadZone = (stick, low, high)=>{
+ */ const applyDeadZone = (stick, low, high) => {
     const mag = Math.sqrt(stick[0] * stick[0] + stick[1] * stick[1]);
     if (mag < low) {
         stick.fill(0);
@@ -66,7 +66,7 @@ const frame = new InputFrame({
  * @param {Vec3} [out] - The output vector to store the pan result.
  * @returns {Vec3} - The pan vector in world space.
  * @private
- */ const screenToWorld = (camera, dx, dy, dz, out = new Vec3())=>{
+ */ const screenToWorld = (camera, dx, dy, dz, out = new Vec3()) => {
     const { system, fov, aspectRatio, horizontalFov, projection, orthoHeight } = camera;
     const { width, height } = system.app.graphicsDevice.clientRect;
     // normalize deltas to device coord space
@@ -280,7 +280,7 @@ class CameraControls extends Script {
      * @private
      */ _setMode(mode) {
         // override mode depending on enabled features
-        switch(true){
+        switch (true) {
             case this.enableFly && !this.enableOrbit:
                 {
                     mode = 'fly';
@@ -307,7 +307,7 @@ class CameraControls extends Script {
             this._controller.detach();
         }
         // attach new controller
-        switch(this._mode){
+        switch (this._mode) {
             case 'orbit':
                 {
                     this._controller = this._orbitController;
@@ -373,7 +373,7 @@ class CameraControls extends Script {
         applyDeadZone(rightStick, this.gamepadDeadZone.x, this.gamepadDeadZone.y);
         // update state
         this._state.axis.add(tmpV1.set(key[keyCode.D] - key[keyCode.A] + (key[keyCode.RIGHT] - key[keyCode.LEFT]), key[keyCode.E] - key[keyCode.Q], key[keyCode.W] - key[keyCode.S] + (key[keyCode.UP] - key[keyCode.DOWN])));
-        for(let i = 0; i < this._state.mouse.length; i++){
+        for (let i = 0; i < this._state.mouse.length; i++) {
             this._state.mouse[i] += button[i];
         }
         this._state.shift += key[keyCode.SHIFT];
@@ -391,9 +391,9 @@ class CameraControls extends Script {
         const double = +(this._state.touches > 1);
         const desktopPan = +(this._state.shift || this._state.mouse[1]);
         const mobileJoystick = +this._flyMobileInput.layout.endsWith('joystick');
-        
+
         const moveMult = (this._state.shift ? this.moveFastSpeed : this._state.ctrl ? this.moveSlowSpeed : this.moveSpeed) * dt;
-        
+
         // Granular, smooth proportional zoom with no stutter steps
         const rawWheel = wheel[0];
         const normalizedWheel = rawWheel !== 0 ? Math.sign(rawWheel) * Math.min(1.0, Math.abs(rawWheel) / 100.0) : 0;
@@ -408,7 +408,7 @@ class CameraControls extends Script {
         v.add(keyMove.mulScalar(fly * moveMult));
         const panMove = screenToWorld(this._camera, mouse[0], mouse[1], this._pose.distance);
         v.add(panMove.mulScalar(orbit * desktopPan * +this.enablePan));
-        
+
         // Wheel navigation for both Orbit (zoom) and Fly (forward/backward dolly)
         if (orbit) {
             const wheelMove = tmpV2.set(0, 0, normalizedWheel * zoomMult);
@@ -417,7 +417,7 @@ class CameraControls extends Script {
             const flyWheelStep = -(normalizedWheel) * moveMult * 0.8;
             v.z += flyWheelStep;
         }
-        
+
         deltas.move.append([
             v.x,
             v.y,
@@ -434,23 +434,26 @@ class CameraControls extends Script {
         ]);
         // mobile move
         v.set(0, 0, 0);
-        const joyMult = orbit ? (moveMult * 0.15) : moveMult; // Slow down further in orbit mode
-        
+        const joyMult = orbit ? (moveMult * 0.15) : (moveMult * 1.5); // Indoor (fly) movement slightly faster
+
         if (orbit) {
-            // Use screenToWorld to create a proper world-space panning vector
-            const joyPanX = -(this._uiJoyX || 0) * 5; // Reduced speed drastically
-            const joyPanY = -(this._uiJoyY || 0) * 5; // Reduced speed drastically
-            if (joyPanX !== 0 || joyPanY !== 0) {
-                const joyPanMove = screenToWorld(this._camera, joyPanX, joyPanY, this._pose.distance);
+            // X pans left/right
+            const joyPanX = -(this._uiJoyX || 0) * 5;
+            if (joyPanX !== 0) {
+                const joyPanMove = screenToWorld(this._camera, joyPanX, 0, this._pose.distance);
                 v.add(joyPanMove.mulScalar(+this.enablePan));
             }
+            // Y moves forward/backward
+            const activeJoyY = -(this._uiJoyY || 0);
+            const flyMove = tmpV2.set(0, 0, activeJoyY);
+            v.add(flyMove.mulScalar(joyMult));
         } else {
             const activeJoyX = leftInput[0] + (this._uiJoyX || 0);
             const activeJoyY = -leftInput[1] - (this._uiJoyY || 0);
             const flyMove = tmpV2.set(activeJoyX, 0, activeJoyY);
             v.add(flyMove.mulScalar(joyMult));
         }
-        
+
         const orbitMove = screenToWorld(this._camera, touch[0], touch[1], this._pose.distance);
         v.add(orbitMove.mulScalar(orbit * double * +this.enablePan));
         const pinchMove = tmpV2.set(0, 0, pinch[0]);
@@ -521,7 +524,7 @@ class CameraControls extends Script {
         this._camera.entity.setPosition(this._pose.position);
         this._camera.entity.setEulerAngles(this._pose.angles);
     }
-    constructor({ app, entity, ...args }){
+    constructor({ app, entity, ...args }) {
         super({
             app,
             entity,
@@ -544,11 +547,11 @@ class CameraControls extends Script {
      * @title Indoor Fast Speed (Shift)
      * @type {number}
      */ _define_property(this, "indoorFastSpeed", 8), // -------------------------------------------
-        /**
-     * @type {CameraComponent}
-     * @private
-     */ // @ts-ignore
-        _define_property(this, "_camera", void 0), /**
+            /**
+         * @type {CameraComponent}
+         * @private
+         */ // @ts-ignore
+            _define_property(this, "_camera", void 0), /**
      * @type {boolean}
      * @private
      */ _define_property(this, "_enableOrbit", true), /**
@@ -591,27 +594,27 @@ class CameraControls extends Script {
      * @type {InputController}
      * @private
      */ // @ts-ignore
-        _define_property(this, "_controller", void 0), /**
+            _define_property(this, "_controller", void 0), /**
      * @type {Pose}
      * @private
      */ _define_property(this, "_pose", new Pose()), /**
      * @type {'orbit' | 'fly' | 'focus'}
      * @private
      */ // @ts-ignore
-        _define_property(this, "_mode", void 0), /**
+            _define_property(this, "_mode", void 0), /**
      * @type {CameraControlsState}
      * @private
      */ _define_property(this, "_state", {
-            axis: new Vec3(),
-            shift: 0,
-            ctrl: 0,
-            mouse: [
-                0,
-                0,
-                0
-            ],
-            touches: 0
-        }), /**
+                axis: new Vec3(),
+                shift: 0,
+                ctrl: 0,
+                mouse: [
+                    0,
+                    0,
+                    0
+                ],
+                touches: 0
+            }), /**
      * @attribute
      * @type {number}
      * @default 2000
@@ -701,13 +704,13 @@ class CameraControls extends Script {
             this._uiJoyX = x;
             this._uiJoyY = y;
         });
-        this._flyMobileInput.on('joystick:position:left', ([bx, by, sx, sy])=>{
+        this._flyMobileInput.on('joystick:position:left', ([bx, by, sx, sy]) => {
             if (this._mode !== 'fly') {
                 return;
             }
             this.app.fire(`${this.joystickEventName}:left`, bx, by, sx, sy);
         });
-        this._flyMobileInput.on('joystick:position:right', ([bx, by, sx, sy])=>{
+        this._flyMobileInput.on('joystick:position:right', ([bx, by, sx, sy]) => {
             if (this._mode !== 'fly') {
                 return;
             }
@@ -718,7 +721,7 @@ class CameraControls extends Script {
         // mode
         this._setMode('orbit');
         // state
-        this.on('state', ()=>{
+        this.on('state', () => {
             // discard inputs
             this._desktopInput.read();
             this._orbitMobileInput.read();

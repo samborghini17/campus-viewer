@@ -16,7 +16,7 @@ UI.attributes.add('totalSplats', {
     default: 34904729,
     title: 'Total Splats'
 });
-UI.prototype.initialize = function() {
+UI.prototype.initialize = function () {
     this._buttons = new Map();
     this._currentPreset = platform.mobile ? 'low' : 'medium';
     this.uiContainer = document.createElement('div');
@@ -429,7 +429,7 @@ UI.prototype.initialize = function() {
             navSpawnpoints: 'Places'
         }
     };
-    this._loadTranslations = function(lang, callback) {
+    this._loadTranslations = function (lang, callback) {
         var self = this;
         fetch('/translations/' + lang + '.json')
             .then(res => res.json())
@@ -446,8 +446,8 @@ UI.prototype.initialize = function() {
                 if (callback) callback();
             });
     };
-    
-    this._applyRTL = function() {
+
+    this._applyRTL = function () {
         var isRTL = (this.currentLang === 'ar');
         document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
         if (isRTL) {
@@ -499,7 +499,7 @@ UI.prototype.initialize = function() {
         this._updateButtonStates();
         this._loadTranslations(this.currentLang);
     }
-    setInterval(()=>{
+    setInterval(() => {
         var vrBtn = document.querySelector('.webxr-button, .pc-webxr-button, #webxr-button, button[title*="VR"]');
         if (vrBtn) vrBtn.innerText = this.currentLang === 'de' ? 'VR STARTEN' : 'ENTER VR';
     }, 1000);
@@ -509,7 +509,7 @@ UI.prototype.initialize = function() {
     this.on('destroy', this.onDestroy, this);
     this._updateContent('lemgo');
 };
-UI.prototype._initElements = function() {
+UI.prototype._initElements = function () {
     var self = this;
     [
         'ultra',
@@ -518,21 +518,21 @@ UI.prototype._initElements = function() {
         'low',
         'mob-med',
         'mob-ultra'
-    ].forEach(function(quality) {
+    ].forEach(function (quality) {
         var btn = document.getElementById('btn-' + quality);
         if (btn) {
             self._buttons.set(quality, btn);
             var newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
             self._buttons.set(quality, newBtn);
-            newBtn.addEventListener('click', function(e) {
+            newBtn.addEventListener('click', function (e) {
                 self.app.fire('preset:' + quality);
                 self._onPresetChanged(quality);
             });
             // FIX: Das 'touchstart' Event, das auf Handys Klicks blockiert hat, wurde entfernt!
             [
                 'mousedown'
-            ].forEach((ev)=>newBtn.addEventListener(ev, (e)=>e.stopPropagation()));
+            ].forEach((ev) => newBtn.addEventListener(ev, (e) => e.stopPropagation()));
         }
     });
     this._splatCountEl = document.getElementById('splat-count');
@@ -540,8 +540,8 @@ UI.prototype._initElements = function() {
     var btnIntroStart = document.getElementById('btn-intro-start');
     if (introModal && btnIntroStart) {
         introModal.style.display = 'flex';
-        var startIntro = function(e) {
-            if(e) { e.preventDefault(); e.stopPropagation(); }
+        var startIntro = function (e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
             introModal.style.display = 'none';
             // Maybe notify app that intro is done
             self.app.fire('ui:intro:finished');
@@ -552,7 +552,7 @@ UI.prototype._initElements = function() {
     }
     var switchBtn = document.getElementById('btn-switch-campus');
     if (switchBtn) {
-        switchBtn.onclick = function(e) {
+        switchBtn.onclick = function (e) {
             e.preventDefault();
             var targetLevel = self._currentLevelId === 'lemgo' ? 'detmold' : 'lemgo';
             self.app.fire('level:switch', targetLevel);
@@ -561,7 +561,7 @@ UI.prototype._initElements = function() {
     var card = document.getElementById('controls-card');
     var header = document.getElementById('controls-header');
     if (card && header) {
-        header.addEventListener('click', function() {
+        header.addEventListener('click', function () {
             card.classList.toggle('collapsed');
         });
         if (platform.mobile) {
@@ -569,14 +569,13 @@ UI.prototype._initElements = function() {
             card.classList.add('collapsed');
         } else {
             card.style.display = 'block';
-            // PC: steuerung eingeblendet, aber nicht ausgeklappt (keep collapsed class)
-            card.classList.add('collapsed');
+            card.classList.remove('collapsed');
         }
         this._listDesktop = document.getElementById('ctrl-list-desktop');
         this._listTouch = document.getElementById('ctrl-list-touch');
     }
 };
-UI.prototype._initBurgerMenu = function() {
+UI.prototype._initBurgerMenu = function () {
     var self = this;
     var container = document.getElementById('burger-menu-container');
     var btn = document.getElementById('burger-btn');
@@ -588,14 +587,14 @@ UI.prototype._initBurgerMenu = function() {
     var burgerDropdown = document.getElementById('burger-dropdown');
     var themeBtn = document.getElementById('menu-theme-toggle');
     if (!container || !btn) return;
-    
+
     // Theme Toggle Logic
     if (themeBtn) {
-        themeBtn.addEventListener('click', function(e) {
+        themeBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             var root = document.documentElement;
             root.classList.toggle('theme-light');
-            
+
             var isLight = root.classList.contains('theme-light');
             document.getElementById('icon-theme').innerText = isLight ? '🌙' : '☀️';
             document.getElementById('lbl-menu-theme').innerText = isLight ? (self.currentLang === 'de' ? 'Dark Mode' : 'Dark Mode') : (self.currentLang === 'de' ? 'Light Mode' : 'Light Mode');
@@ -606,7 +605,7 @@ UI.prototype._initBurgerMenu = function() {
     window.appSettings = window.appSettings || { indoorMouseOnly: false };
     var mouseBtn = document.getElementById('menu-mouse-toggle');
     if (mouseBtn) {
-        mouseBtn.addEventListener('pointerdown', function(e) {
+        mouseBtn.addEventListener('pointerdown', function (e) {
             e.stopPropagation();
             window.appSettings.indoorMouseOnly = !window.appSettings.indoorMouseOnly;
             var isOn = window.appSettings.indoorMouseOnly;
@@ -614,7 +613,7 @@ UI.prototype._initBurgerMenu = function() {
             if (lbl) lbl.innerText = isOn ? 'Indoor: Maus-Steuerung AN' : 'Indoor: Maus-Steuerung AUS';
             mouseBtn.style.color = isOn ? 'var(--col-cyan)' : '';
             mouseBtn.style.opacity = isOn ? '1' : '0.7';
-            
+
             // Re-apply camera mode immediately
             var lm = self.app.root.findByName('LevelManager');
             if (lm && lm.script && lm.script.levelManager) {
@@ -636,33 +635,33 @@ UI.prototype._initBurgerMenu = function() {
             var newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
             self._buttons.set(preset, newBtn);
-            newBtn.addEventListener('click', function(e) {
+            newBtn.addEventListener('click', function (e) {
                 self.app.fire('preset:' + preset);
                 self._onPresetChanged(preset);
             });
         }
     });
-    
+
     var currentPreset = platform.mobile ? 'btn-mob-med' : 'btn-medium';
     var activeBtn = document.getElementById(currentPreset);
     if (activeBtn) activeBtn.classList.add('active');
 
     // TRUE Bulletproof menu handler with Capture Phase
-    var toggleMenu = function(e) {
-        if(e) { e.preventDefault(); e.stopPropagation(); }
+    var toggleMenu = function (e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
         container.classList.toggle('open');
         self._translateDynamic();
     };
     btn.onclick = toggleMenu;
-    
+
     // Use capture phase to intercept before PlayCanvas gets it
-    ['touchstart', 'mousedown', 'pointerdown', 'pointerup', 'click', 'dblclick'].forEach(function(ev) {
-        btn.addEventListener(ev, function(e) { 
-            e.stopPropagation(); 
-            if(ev === 'pointerdown' || ev === 'touchstart') toggleMenu(e);
+    ['touchstart', 'mousedown', 'pointerdown', 'pointerup', 'click', 'dblclick'].forEach(function (ev) {
+        btn.addEventListener(ev, function (e) {
+            e.stopPropagation();
+            if (ev === 'pointerdown' || ev === 'touchstart') toggleMenu(e);
         }, true);
     });
-    
+
     this.jumpBackBtn = document.getElementById('menu-back');
     if (this.jumpBackBtn) {
         Object.assign(this.jumpBackBtn.style, {
@@ -688,7 +687,7 @@ UI.prototype._initBurgerMenu = function() {
         tourBtn.innerHTML = `<span class="icon">🗺️</span> <span>${initText}</span>`;
         if (resetBtn) resetBtn.parentNode.insertBefore(tourBtn, resetBtn);
         else if (burgerDropdown) burgerDropdown.appendChild(tourBtn);
-        tourBtn.onclick = function() {
+        tourBtn.onclick = function () {
             self._tourVisible = !self._tourVisible;
             var btnText = self._tourVisible ? self.currentLang === 'de' ? 'Tour ausblenden' : 'Hide Tour' : self.currentLang === 'de' ? 'Tour einblenden' : 'Show Tour';
             this.innerHTML = `<span class="icon">🗺️</span> <span>${btnText}</span>`;
@@ -699,12 +698,12 @@ UI.prototype._initBurgerMenu = function() {
     var navOverlay = document.getElementById('nav-overlay');
     var btnMobMap = document.getElementById('btn-mobile-map');
     var navCloseBtn = document.getElementById('nav-close-btn');
-    if (btnMobMap) btnMobMap.onclick = function() { if(navOverlay) navOverlay.style.display = 'flex'; };
-    if (navCloseBtn) navCloseBtn.onclick = function() { if(navOverlay) navOverlay.style.display = 'none'; };
-    
+    if (btnMobMap) btnMobMap.onclick = function () { if (navOverlay) navOverlay.style.display = 'flex'; };
+    if (navCloseBtn) navCloseBtn.onclick = function () { if (navOverlay) navOverlay.style.display = 'none'; };
+
     var navLevelBtns = document.querySelectorAll('.nav-level-btn');
-    navLevelBtns.forEach(function(btn) {
-        btn.onclick = function() {
+    navLevelBtns.forEach(function (btn) {
+        btn.onclick = function () {
             var lvl = btn.getAttribute('data-level');
             if (lvl && self.app) {
                 self.app.fire('level:switch', lvl);
@@ -718,22 +717,22 @@ UI.prototype._initBurgerMenu = function() {
     // Removed ctrlModeBtn completely per user request
 
     if (langBtns) {
-        langBtns.forEach(function(lBtn) {
-            lBtn.onclick = function(e) {
+        langBtns.forEach(function (lBtn) {
+            lBtn.onclick = function (e) {
                 self.currentLang = lBtn.dataset.lang;
                 if (self.dict[self.currentLang]) {
                     self._applyTranslations();
                     self._applyRTL();
                     self.app.fire('lang:switch', self.currentLang);
                 } else {
-                    self._loadTranslations(self.currentLang, function() {
+                    self._loadTranslations(self.currentLang, function () {
                         self.app.fire('lang:switch', self.currentLang);
                     });
                 }
             };
         });
     }
-    btn.addEventListener('click', function(e) {
+    btn.addEventListener('click', function (e) {
         // Exit pointer lock so user can interact with menu
         if (document.pointerLockElement) document.exitPointerLock();
         container.classList.toggle('open');
@@ -749,7 +748,7 @@ UI.prototype._initBurgerMenu = function() {
             btn.classList.remove('active');
         }
     });
-    this.app.on('ui:closeMenu', function() {
+    this.app.on('ui:closeMenu', function () {
         if (container.classList.contains('open')) {
             container.classList.remove('open');
             var menuText = (self.dict && self.dict[self.currentLang] && self.dict[self.currentLang].menuBtn) ? self.dict[self.currentLang].menuBtn : 'Menü';
@@ -758,7 +757,7 @@ UI.prototype._initBurgerMenu = function() {
             btn.classList.remove('active');
         }
     });
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         if (!container.contains(e.target)) {
             container.classList.remove('open');
             var menuText = (self.dict && self.dict[self.currentLang] && self.dict[self.currentLang].menuBtn) ? self.dict[self.currentLang].menuBtn : 'Menü';
@@ -767,14 +766,14 @@ UI.prototype._initBurgerMenu = function() {
             btn.classList.remove('active');
         }
     });
-    if (homeBtn) homeBtn.onclick = ()=>{
+    if (homeBtn) homeBtn.onclick = () => {
         this.app.fire('level:switch', 'lemgo');
     };
-    if (resetBtn) resetBtn.onclick = ()=>{
+    if (resetBtn) resetBtn.onclick = () => {
         this.app.fire('camera:reset');
     };
     if (helpBtn) {
-        helpBtn.onclick = function() {
+        helpBtn.onclick = function () {
             var controlsCard = document.getElementById('controls-card');
             if (!controlsCard) return;
             var currentVis = controlsCard.style.display !== 'none';
@@ -783,7 +782,7 @@ UI.prototype._initBurgerMenu = function() {
         };
     }
     if (toggleUiBtn) {
-        toggleUiBtn.onclick = function() {
+        toggleUiBtn.onclick = function () {
             self._uiVisible = !self._uiVisible;
             var header = document.getElementById('gsplat-controls');
             var footer = document.getElementById('gsplat-footer');
@@ -801,7 +800,7 @@ UI.prototype._initBurgerMenu = function() {
     var mockFps = document.getElementById('mock-ctrl-fps');
     var mockDrag = document.getElementById('mock-ctrl-drag');
     if (mockFps && mockDrag) {
-        mockFps.onclick = function() {
+        mockFps.onclick = function () {
             mockFps.classList.add('active');
             mockFps.style.opacity = '1';
             mockFps.style.color = 'var(--col-cyan)';
@@ -810,7 +809,7 @@ UI.prototype._initBurgerMenu = function() {
             mockDrag.style.color = '';
             self.app.fire('controls:setMode', 'fps');
         };
-        mockDrag.onclick = function() {
+        mockDrag.onclick = function () {
             mockDrag.classList.add('active');
             mockDrag.style.opacity = '1';
             mockDrag.style.color = 'var(--col-cyan)';
@@ -825,11 +824,11 @@ UI.prototype._initBurgerMenu = function() {
     this._cullingEnabled = false;
     var cullingBtn = document.getElementById('menu-culling-toggle');
     if (cullingBtn) {
-        cullingBtn.onclick = function() {
+        cullingBtn.onclick = function () {
             self._cullingEnabled = !self._cullingEnabled;
             var lbl = document.getElementById('lbl-culling');
             if (lbl) {
-                lbl.innerText = self._cullingEnabled 
+                lbl.innerText = self._cullingEnabled
                     ? (self.currentLang === 'de' ? 'Culling: AN' : 'Culling: ON')
                     : (self.currentLang === 'de' ? 'Culling: AUS' : 'Culling: OFF');
             }
@@ -843,7 +842,7 @@ UI.prototype._initBurgerMenu = function() {
     var cullSlider = document.getElementById('culling-distance-slider');
     var cullLabel = document.getElementById('lbl-cull-dist');
     if (cullSlider) {
-        cullSlider.addEventListener('input', function(e) {
+        cullSlider.addEventListener('input', function (e) {
             var val = parseInt(e.target.value) || 70;
             if (cullLabel) {
                 cullLabel.innerText = (self.currentLang === 'de' ? 'Culling-Distanz: ' : 'Culling Distance: ') + val + 'm';
@@ -851,8 +850,8 @@ UI.prototype._initBurgerMenu = function() {
             self.app.fire('culling:setDistance', val);
         });
         // Stop propagation to prevent canvas interactions
-        ['mousedown', 'touchstart'].forEach(function(ev) {
-            cullSlider.addEventListener(ev, function(e) { e.stopPropagation(); });
+        ['mousedown', 'touchstart'].forEach(function (ev) {
+            cullSlider.addEventListener(ev, function (e) { e.stopPropagation(); });
         });
     }
 
@@ -864,7 +863,7 @@ UI.prototype._initBurgerMenu = function() {
     var colScaleLbl = document.getElementById('lbl-col-scale');
 
     if (debugBtn) {
-        debugBtn.onclick = function() {
+        debugBtn.onclick = function () {
             self._debugEnabled = !self._debugEnabled;
             debugBtn.style.opacity = self._debugEnabled ? '1' : '0.5';
             debugBtn.style.color = self._debugEnabled ? 'var(--col-cyan)' : '';
@@ -878,22 +877,22 @@ UI.prototype._initBurgerMenu = function() {
     }
 
     if (colScaleSlider) {
-        colScaleSlider.addEventListener('input', function(e) {
+        colScaleSlider.addEventListener('input', function (e) {
             var val = parseFloat(e.target.value) || 1.0;
             if (colScaleLbl) {
                 colScaleLbl.innerText = (self.currentLang === 'de' ? 'Collider-Skalierung: ' : 'Collider Scale: ') + val.toFixed(1);
             }
             self.app.fire('collider:setScale', val, val, val);
         });
-        ['mousedown', 'touchstart'].forEach(function(ev) {
-            colScaleSlider.addEventListener(ev, function(e) { e.stopPropagation(); });
+        ['mousedown', 'touchstart'].forEach(function (ev) {
+            colScaleSlider.addEventListener(ev, function (e) { e.stopPropagation(); });
         });
     }
 
     // --- Screenshot Button ---
     var screenshotBtn = document.getElementById('menu-screenshot');
     if (screenshotBtn) {
-        screenshotBtn.onclick = function() {
+        screenshotBtn.onclick = function () {
             self.app.fire('screenshot:take');
         };
     }
@@ -902,13 +901,13 @@ UI.prototype._initBurgerMenu = function() {
     this._adaptiveEnabled = false;
     var adaptiveBtn = document.getElementById('menu-adaptive-quality');
     if (adaptiveBtn) {
-        adaptiveBtn.onclick = function() {
+        adaptiveBtn.onclick = function () {
             self._adaptiveEnabled = !self._adaptiveEnabled;
             adaptiveBtn.style.opacity = self._adaptiveEnabled ? '1' : '0.5';
             adaptiveBtn.style.color = self._adaptiveEnabled ? 'var(--col-cyan)' : '';
             var lbl = document.getElementById('lbl-adaptive');
             if (lbl) {
-                lbl.innerText = self._adaptiveEnabled 
+                lbl.innerText = self._adaptiveEnabled
                     ? (self.currentLang === 'de' ? 'Auto-Qualit\u00e4t: AN' : 'Auto Quality: ON')
                     : (self.currentLang === 'de' ? 'Auto-Qualit\u00e4t: AUS' : 'Auto Quality: OFF');
             }
@@ -919,7 +918,7 @@ UI.prototype._initBurgerMenu = function() {
     // --- Fullscreen Toggle ---
     var fullscreenBtn = document.getElementById('menu-fullscreen');
     if (fullscreenBtn) {
-        fullscreenBtn.onclick = function() {
+        fullscreenBtn.onclick = function () {
             if (!document.fullscreenElement && !document.webkitFullscreenElement) {
                 var el = document.documentElement;
                 if (el.requestFullscreen) el.requestFullscreen();
@@ -930,7 +929,7 @@ UI.prototype._initBurgerMenu = function() {
             }
         };
         // Update label on fullscreen change
-        var updateFsLabel = function() {
+        var updateFsLabel = function () {
             var lbl = document.getElementById('lbl-fullscreen');
             var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
             if (lbl) {
@@ -946,7 +945,7 @@ UI.prototype._initBurgerMenu = function() {
     // --- Keyboard Shortcuts Modal ---
     var shortcutsBtn = document.getElementById('menu-shortcuts');
     if (shortcutsBtn) {
-        shortcutsBtn.onclick = function() {
+        shortcutsBtn.onclick = function () {
             self._showShortcutsModal();
         };
     }
@@ -960,13 +959,13 @@ UI.prototype._initBurgerMenu = function() {
     var lblFps = document.getElementById('lbl-fps');
 
     if (fpsToggleBtn) {
-        fpsToggleBtn.onclick = function() {
+        fpsToggleBtn.onclick = function () {
             self._fpsMeterEnabled = !self._fpsMeterEnabled;
             if (fpsBadge) fpsBadge.style.display = self._fpsMeterEnabled ? 'flex' : 'none';
             fpsToggleBtn.style.opacity = self._fpsMeterEnabled ? '1' : '0.5';
             fpsToggleBtn.style.color = self._fpsMeterEnabled ? 'var(--col-cyan)' : '';
             if (lblFps) {
-                lblFps.innerText = self._fpsMeterEnabled 
+                lblFps.innerText = self._fpsMeterEnabled
                     ? (self.currentLang === 'de' ? 'FPS-Anzeige: AN' : 'FPS Meter: ON')
                     : (self.currentLang === 'de' ? 'FPS-Anzeige: AUS' : 'FPS Meter: OFF');
             }
@@ -976,7 +975,7 @@ UI.prototype._initBurgerMenu = function() {
     // Real-time FPS Calculation in app update loop
     var fpsFrameCount = 0;
     var fpsLastTime = performance.now();
-    this.app.on('update', function(dt) {
+    this.app.on('update', function (dt) {
         if (!self._fpsMeterEnabled) return;
         fpsFrameCount++;
         var now = performance.now();
@@ -1001,7 +1000,7 @@ UI.prototype._initBurgerMenu = function() {
     var adminCancelBtn = document.getElementById('admin-cancel-btn');
     var editorPanel = document.getElementById('editor-workstation-panel');
 
-    var openEditor = function() {
+    var openEditor = function () {
         if (adminModal) adminModal.classList.add('hidden');
         if (editorPanel) {
             editorPanel.style.display = 'flex';
@@ -1016,28 +1015,28 @@ UI.prototype._initBurgerMenu = function() {
         if (bContainer) bContainer.classList.remove('open');
     };
 
-    var promptAdminAuth = function() {
+    var promptAdminAuth = function () {
         if (adminModal) {
             adminModal.classList.remove('hidden');
             if (adminPwInput) {
                 adminPwInput.value = '';
-                setTimeout(function() { adminPwInput.focus(); }, 50);
+                setTimeout(function () { adminPwInput.focus(); }, 50);
             }
             if (adminError) adminError.style.display = 'none';
         }
     };
 
     if (adminMenuBtn) {
-        adminMenuBtn.onclick = function() {
+        adminMenuBtn.onclick = function () {
             promptAdminAuth();
         };
     }
 
-    if (adminCloseBtn) adminCloseBtn.onclick = function() { if (adminModal) adminModal.classList.add('hidden'); };
-    if (adminCancelBtn) adminCancelBtn.onclick = function() { if (adminModal) adminModal.classList.add('hidden'); };
+    if (adminCloseBtn) adminCloseBtn.onclick = function () { if (adminModal) adminModal.classList.add('hidden'); };
+    if (adminCancelBtn) adminCancelBtn.onclick = function () { if (adminModal) adminModal.classList.add('hidden'); };
 
     if (adminForm) {
-        adminForm.onsubmit = function(e) {
+        adminForm.onsubmit = function (e) {
             e.preventDefault();
             var pw = adminPwInput ? adminPwInput.value.trim() : '';
             if (pw.toLowerCase() === 'kio') {
@@ -1050,14 +1049,14 @@ UI.prototype._initBurgerMenu = function() {
                     adminPwInput.style.borderColor = 'var(--col-accent)';
                     adminPwInput.focus();
                     adminPwInput.select();
-                    setTimeout(function() { if (adminPwInput) adminPwInput.style.borderColor = ''; }, 1200);
+                    setTimeout(function () { if (adminPwInput) adminPwInput.style.borderColor = ''; }, 1200);
                 }
             }
             return false;
         };
     }
 };
-UI.prototype._initJoystick = function() {
+UI.prototype._initJoystick = function () {
     var self = this;
     var joystickZone = document.getElementById('mobile-joystick-zone');
     var joystickBase = document.getElementById('joystick-base');
@@ -1070,28 +1069,28 @@ UI.prototype._initJoystick = function() {
     var baseCenterY = 0;
     var maxRadius = 35; // max stick travel from center (half of base minus stick)
 
-    var updateStick = function(touchX, touchY) {
+    var updateStick = function (touchX, touchY) {
         if (!baseRect) return;
         var dx = touchX - baseCenterX;
         var dy = touchY - baseCenterY;
         var dist = Math.sqrt(dx * dx + dy * dy);
-        
+
         // Clamp to circular radius
         if (dist > maxRadius) {
             dx = (dx / dist) * maxRadius;
             dy = (dy / dist) * maxRadius;
         }
-        
+
         // Stick is already centered via top/left 50% and negative margin
         joystickStick.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
-        
+
         // Normalize to [-1, 1]
         var normX = dx / maxRadius;
         var normY = -dy / maxRadius; // Invert Y: up = positive (forward)
         self.app.fire('joystick:move', normX, normY);
     };
 
-    var resetStick = function() {
+    var resetStick = function () {
         joystickStick.classList.add('joystick-returning');
         joystickStick.style.transform = 'translate(0, 0)';
         self.app.fire('joystick:move', 0, 0);
@@ -1099,7 +1098,7 @@ UI.prototype._initJoystick = function() {
         setTimeout(() => { joystickStick.classList.remove('joystick-returning'); }, 200);
     };
 
-    joystickBase.addEventListener('touchstart', function(e) {
+    joystickBase.addEventListener('touchstart', function (e) {
         e.stopPropagation();
         if (activeTouch !== null) return; // Already tracking a touch
         joystickStick.classList.remove('joystick-returning');
@@ -1111,7 +1110,7 @@ UI.prototype._initJoystick = function() {
         updateStick(touch.clientX, touch.clientY);
     }, { passive: false });
 
-    joystickBase.addEventListener('touchmove', function(e) {
+    joystickBase.addEventListener('touchmove', function (e) {
         e.stopPropagation();
         for (var i = 0; i < e.changedTouches.length; i++) {
             if (e.changedTouches[i].identifier === activeTouch) {
@@ -1121,7 +1120,7 @@ UI.prototype._initJoystick = function() {
         }
     }, { passive: false });
 
-    var onTouchEnd = function(e) {
+    var onTouchEnd = function (e) {
         if (activeTouch === null) return;
         for (var i = 0; i < e.changedTouches.length; i++) {
             if (e.changedTouches[i].identifier === activeTouch) {
@@ -1136,17 +1135,17 @@ UI.prototype._initJoystick = function() {
 
     console.log('[UI] Mobile joystick initialized');
 };
-UI.prototype._initSearch = function() {
+UI.prototype._initSearch = function () {
     var self = this;
     var searchInput = document.getElementById('level-search');
     var searchResults = document.getElementById('search-results');
     if (!searchInput || !searchResults) return;
 
     // Prevent clicks in search from closing burger menu
-    searchInput.addEventListener('click', function(e) { e.stopPropagation(); });
-    searchInput.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    searchInput.addEventListener('click', function (e) { e.stopPropagation(); });
+    searchInput.addEventListener('mousedown', function (e) { e.stopPropagation(); });
 
-    searchInput.addEventListener('input', function() {
+    searchInput.addEventListener('input', function () {
         var query = searchInput.value.trim().toLowerCase();
         searchResults.innerHTML = '';
         if (query.length < 2) { searchResults.style.display = 'none'; return; }
@@ -1162,20 +1161,20 @@ UI.prototype._initSearch = function() {
         }
 
         if (matches.length === 0) {
-            searchResults.innerHTML = '<div style="padding:8px 12px; color:rgba(255,255,255,0.5); font-size:12px;">' + 
+            searchResults.innerHTML = '<div style="padding:8px 12px; color:rgba(255,255,255,0.5); font-size:12px;">' +
                 (self.currentLang === 'de' ? 'Keine Ergebnisse' : 'No results') + '</div>';
             searchResults.style.display = 'block';
             return;
         }
 
-        matches.forEach(function(m) {
+        matches.forEach(function (m) {
             var btn = document.createElement('button');
             btn.className = 'menu-item';
             btn.style.fontSize = '12px';
             btn.style.padding = '6px 12px';
             var modeIcon = m.mode === 'orbit' ? '🌐' : '🏠';
             btn.innerHTML = '<span class="icon">' + modeIcon + '</span> <span>' + m.name + '</span>';
-            btn.onclick = function(e) {
+            btn.onclick = function (e) {
                 e.stopPropagation();
                 self.app.fire('level:switch', m.id);
                 searchInput.value = '';
@@ -1191,13 +1190,13 @@ UI.prototype._initSearch = function() {
     });
 
     // Exit pointer lock when focusing search
-    searchInput.addEventListener('focus', function() {
+    searchInput.addEventListener('focus', function () {
         if (document.pointerLockElement) document.exitPointerLock();
     });
 
     console.log('[UI] Search initialized');
 };
-UI.prototype._initRealtimeEditor = function() {
+UI.prototype._initRealtimeEditor = function () {
     var self = this;
     var panel = document.getElementById('editor-workstation-panel');
     if (!panel) return;
@@ -1212,7 +1211,7 @@ UI.prototype._initRealtimeEditor = function() {
         var startX = 0, startY = 0;
         var initialLeft = 0, initialTop = 0;
 
-        var onDragStart = function(e) {
+        var onDragStart = function (e) {
             if (e.target.closest('.ed-header-controls') || e.target.closest('button')) return;
             isDragging = true;
             var clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -1226,7 +1225,7 @@ UI.prototype._initRealtimeEditor = function() {
             e.preventDefault();
         };
 
-        var onDragMove = function(e) {
+        var onDragMove = function (e) {
             if (!isDragging) return;
             var clientX = e.touches ? e.touches[0].clientX : e.clientX;
             var clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -1240,7 +1239,7 @@ UI.prototype._initRealtimeEditor = function() {
             panel.style.bottom = 'auto';
         };
 
-        var onDragEnd = function() {
+        var onDragEnd = function () {
             isDragging = false;
         };
 
@@ -1256,7 +1255,7 @@ UI.prototype._initRealtimeEditor = function() {
     // --- 2. Window Controls (Minimize & Close) ---
     var closeBtn = document.getElementById('ed-close-btn');
     if (closeBtn) {
-        closeBtn.onclick = function(e) {
+        closeBtn.onclick = function (e) {
             e.stopPropagation();
             panel.style.display = 'none';
             self._editorPanelOpen = false;
@@ -1266,7 +1265,7 @@ UI.prototype._initRealtimeEditor = function() {
 
     var lockBtn = document.getElementById('ed-lock-btn');
     if (lockBtn) {
-        lockBtn.onclick = function(e) {
+        lockBtn.onclick = function (e) {
             e.stopPropagation();
             panel.style.display = 'none';
             self._editorPanelOpen = false;
@@ -1277,7 +1276,7 @@ UI.prototype._initRealtimeEditor = function() {
     var minBtn = document.getElementById('ed-min-btn');
     if (minBtn) {
         var isMinimized = false;
-        minBtn.onclick = function(e) {
+        minBtn.onclick = function (e) {
             e.stopPropagation();
             isMinimized = !isMinimized;
             var tabs = panel.querySelector('.ed-tabs');
@@ -1292,24 +1291,24 @@ UI.prototype._initRealtimeEditor = function() {
     var tabsContainer = panel.querySelector('.ed-tabs');
     var scrollLeftBtn = document.getElementById('ed-tabs-scroll-left');
     var scrollRightBtn = document.getElementById('ed-tabs-scroll-right');
-    
+
     if (tabsContainer) {
-        tabsContainer.addEventListener('wheel', function(e) {
+        tabsContainer.addEventListener('wheel', function (e) {
             if (e.deltaY !== 0) {
                 tabsContainer.scrollLeft += e.deltaY;
                 e.preventDefault();
             }
         }, { passive: false });
     }
-    
+
     if (scrollLeftBtn && tabsContainer) {
-        scrollLeftBtn.onclick = function(e) {
+        scrollLeftBtn.onclick = function (e) {
             e.stopPropagation();
             tabsContainer.scrollBy({ left: -140, behavior: 'smooth' });
         };
     }
     if (scrollRightBtn && tabsContainer) {
-        scrollRightBtn.onclick = function(e) {
+        scrollRightBtn.onclick = function (e) {
             e.stopPropagation();
             tabsContainer.scrollBy({ left: 140, behavior: 'smooth' });
         };
@@ -1317,12 +1316,12 @@ UI.prototype._initRealtimeEditor = function() {
 
     var tabBtns = panel.querySelectorAll('.ed-tab-btn');
     var tabPanes = panel.querySelectorAll('.ed-tab-pane');
-    tabBtns.forEach(function(btn) {
-        btn.onclick = function(e) {
+    tabBtns.forEach(function (btn) {
+        btn.onclick = function (e) {
             e.stopPropagation();
             var targetTab = btn.dataset.tab;
-            tabBtns.forEach(function(b) { b.classList.remove('active'); });
-            tabPanes.forEach(function(p) { p.classList.remove('active'); });
+            tabBtns.forEach(function (b) { b.classList.remove('active'); });
+            tabPanes.forEach(function (p) { p.classList.remove('active'); });
             btn.classList.add('active');
             btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             var targetPane = document.getElementById(targetTab) || document.getElementById('pane-' + targetTab);
@@ -1368,7 +1367,7 @@ UI.prototype._initRealtimeEditor = function() {
     var levelSelect = document.getElementById('ed-level-select');
     var pathTargetSelect = document.getElementById('ed-path-target-level');
 
-    var populateSelect = function(sel, includeEmpty) {
+    var populateSelect = function (sel, includeEmpty) {
         if (!sel) return;
         sel.innerHTML = '';
         if (includeEmpty) {
@@ -1377,7 +1376,7 @@ UI.prototype._initRealtimeEditor = function() {
             optNone.innerText = '-- Kein Level-Wechsel --';
             sel.appendChild(optNone);
         }
-        levels.forEach(function(lvl) {
+        levels.forEach(function (lvl) {
             var opt = document.createElement('option');
             opt.value = lvl.id;
             opt.innerText = lvl.name + ' (' + lvl.id + ')';
@@ -1389,7 +1388,7 @@ UI.prototype._initRealtimeEditor = function() {
     populateSelect(pathTargetSelect, true);
 
     if (levelSelect) {
-        levelSelect.addEventListener('change', function(e) {
+        levelSelect.addEventListener('change', function (e) {
             var lvlId = e.target.value;
             self.app.fire('level:switch', lvlId);
             self._populateEditorLevel(lvlId);
@@ -1398,24 +1397,24 @@ UI.prototype._initRealtimeEditor = function() {
 
     // --- 5. Step Size Chips ---
     var stepChips = panel.querySelectorAll('.ed-step-chip');
-    stepChips.forEach(function(chip) {
-        chip.onclick = function(e) {
+    stepChips.forEach(function (chip) {
+        chip.onclick = function (e) {
             e.stopPropagation();
-            stepChips.forEach(function(c) { c.classList.remove('active'); });
+            stepChips.forEach(function (c) { c.classList.remove('active'); });
             chip.classList.add('active');
             self._editorStep = parseFloat(chip.dataset.step) || 0.1;
         };
     });
 
     // --- 6. Step +/- Buttons ---
-    panel.querySelectorAll('.ed-step-btn').forEach(function(btn) {
-        btn.onclick = function(e) {
+    panel.querySelectorAll('.ed-step-btn').forEach(function (btn) {
+        btn.onclick = function (e) {
             e.stopPropagation();
             var target = btn.dataset.target; // 'splat' or 'ins'
             var type = btn.dataset.type; // 'pos', 'rot', 'scale'
             var axis = btn.dataset.axis; // 'x', 'y', 'z'
             var dir = parseFloat(btn.dataset.dir) || 1;
-            
+
             var inputId = target === 'splat' ? 'ed-splat-' + type + '-' + axis : 'ed-ins-' + (type === 'scale' ? 'scale-' : type + '-') + axis;
             var input = document.getElementById(inputId);
             if (!input) return;
@@ -1429,15 +1428,15 @@ UI.prototype._initRealtimeEditor = function() {
     });
 
     // --- 7. Transform Inputs Event Handlers ---
-    var setupInputGroup = function(prefix, eventName) {
-        ['pos', 'rot', 'scale'].forEach(function(type) {
-            ['x', 'y', 'z'].forEach(function(axis) {
+    var setupInputGroup = function (prefix, eventName) {
+        ['pos', 'rot', 'scale'].forEach(function (type) {
+            ['x', 'y', 'z'].forEach(function (axis) {
                 var input = document.getElementById('ed-' + prefix + '-' + type + '-' + axis);
                 if (input) {
-                    input.addEventListener('input', function() {
+                    input.addEventListener('input', function () {
                         self._applyEditorTransform(prefix, eventName);
                     });
-                    input.addEventListener('focus', function() {
+                    input.addEventListener('focus', function () {
                         if (document.pointerLockElement) document.exitPointerLock();
                     });
                 }
@@ -1453,7 +1452,7 @@ UI.prototype._initRealtimeEditor = function() {
     // --- 8. Inspector Two-Way Entity Binding ---
     var insName = document.getElementById('ed-inspect-name');
     if (insName) {
-        insName.addEventListener('input', function(e) {
+        insName.addEventListener('input', function (e) {
             if (self._editorActiveObj) {
                 self._editorActiveObj.name = e.target.value;
                 self._refreshOutlinerTree();
@@ -1461,9 +1460,9 @@ UI.prototype._initRealtimeEditor = function() {
         });
     }
 
-    var setupInspectorTransforms = function() {
-        var getNum = function(id) { var el = document.getElementById(id); return el ? parseFloat(el.value) || 0 : 0; };
-        var applyTransform = function() {
+    var setupInspectorTransforms = function () {
+        var getNum = function (id) { var el = document.getElementById(id); return el ? parseFloat(el.value) || 0 : 0; };
+        var applyTransform = function () {
             if (!self._editorActiveObj) return;
             var px = getNum('ed-ins-pos-x');
             var py = getNum('ed-ins-pos-y');
@@ -1485,28 +1484,28 @@ UI.prototype._initRealtimeEditor = function() {
         };
 
         ['ed-ins-pos-x', 'ed-ins-pos-y', 'ed-ins-pos-z',
-         'ed-ins-rot-x', 'ed-ins-rot-y', 'ed-ins-rot-z',
-         'ed-ins-scale-x', 'ed-ins-scale-y', 'ed-ins-scale-z'].forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('input', applyTransform);
-                el.addEventListener('focus', function() {
-                    if (document.pointerLockElement) document.exitPointerLock();
-                });
-            }
-        });
+            'ed-ins-rot-x', 'ed-ins-rot-y', 'ed-ins-rot-z',
+            'ed-ins-scale-x', 'ed-ins-scale-y', 'ed-ins-scale-z'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', applyTransform);
+                    el.addEventListener('focus', function () {
+                        if (document.pointerLockElement) document.exitPointerLock();
+                    });
+                }
+            });
 
         var matColor = document.getElementById('ed-ins-mat-color');
         var matOpacity = document.getElementById('ed-ins-mat-opacity');
         if (matColor) {
-            matColor.addEventListener('input', function(e) {
+            matColor.addEventListener('input', function (e) {
                 if (!self._editorActiveObj || !self._editorActiveObj.render) return;
                 var hex = e.target.value;
                 var r = parseInt(hex.substr(1, 2), 16) / 255;
                 var g = parseInt(hex.substr(3, 2), 16) / 255;
                 var b = parseInt(hex.substr(5, 2), 16) / 255;
                 var mats = self._editorActiveObj.render.meshInstances || [];
-                mats.forEach(function(mi) {
+                mats.forEach(function (mi) {
                     if (mi.material) {
                         mi.material.diffuse = new pc.Color(r, g, b);
                         mi.material.update();
@@ -1515,11 +1514,11 @@ UI.prototype._initRealtimeEditor = function() {
             });
         }
         if (matOpacity) {
-            matOpacity.addEventListener('input', function(e) {
+            matOpacity.addEventListener('input', function (e) {
                 if (!self._editorActiveObj || !self._editorActiveObj.render) return;
                 var op = parseFloat(e.target.value) || 1.0;
                 var mats = self._editorActiveObj.render.meshInstances || [];
-                mats.forEach(function(mi) {
+                mats.forEach(function (mi) {
                     if (mi.material) {
                         mi.material.opacity = op;
                         mi.material.blendType = op < 1.0 ? pc.BLEND_NORMAL : pc.BLEND_NONE;
@@ -1531,7 +1530,7 @@ UI.prototype._initRealtimeEditor = function() {
 
         var focusBtn = document.getElementById('ed-inspect-focus-btn');
         if (focusBtn) {
-            focusBtn.onclick = function(e) {
+            focusBtn.onclick = function (e) {
                 e.stopPropagation();
                 if (!self._editorActiveObj) return;
                 var pos = self._editorActiveObj.getPosition();
@@ -1546,7 +1545,7 @@ UI.prototype._initRealtimeEditor = function() {
 
         var delBtn = document.getElementById('ed-inspect-del-btn');
         if (delBtn) {
-            delBtn.onclick = function(e) {
+            delBtn.onclick = function (e) {
                 e.stopPropagation();
                 if (!self._editorActiveObj) return;
                 if (confirm('Entity "' + self._editorActiveObj.name + '" wirklich löschen?')) {
@@ -1559,10 +1558,10 @@ UI.prototype._initRealtimeEditor = function() {
         }
 
         // --- Gizmo Mode Buttons ---
-        ['translate', 'rotate', 'scale'].forEach(function(m) {
+        ['translate', 'rotate', 'scale'].forEach(function (m) {
             var btn = document.getElementById('ed-gizmo-mode-' + m);
             if (btn) {
-                btn.onclick = function(e) {
+                btn.onclick = function (e) {
                     e.stopPropagation();
                     self._setGizmoMode(m);
                 };
@@ -1570,7 +1569,7 @@ UI.prototype._initRealtimeEditor = function() {
         });
         var gizmoToggleBtn = document.getElementById('ed-gizmo-mode-toggle');
         if (gizmoToggleBtn) {
-            gizmoToggleBtn.onclick = function(e) {
+            gizmoToggleBtn.onclick = function (e) {
                 e.stopPropagation();
                 self._gizmoEnabled = !self._gizmoEnabled;
                 gizmoToggleBtn.classList.toggle('active', self._gizmoEnabled);
@@ -1583,7 +1582,7 @@ UI.prototype._initRealtimeEditor = function() {
     // --- 9. Outliner Tree & Entity Creation ---
     var outlinerSearch = document.getElementById('ed-outliner-search');
     if (outlinerSearch) {
-        outlinerSearch.addEventListener('input', function() {
+        outlinerSearch.addEventListener('input', function () {
             self._refreshOutlinerTree();
         });
     }
@@ -1591,7 +1590,7 @@ UI.prototype._initRealtimeEditor = function() {
     var addEntityBtn = document.getElementById('ed-outliner-add-btn');
     var addEntityType = document.getElementById('ed-add-entity-type');
     if (addEntityBtn && addEntityType) {
-        addEntityBtn.onclick = function(e) {
+        addEntityBtn.onclick = function (e) {
             e.stopPropagation();
             var type = addEntityType.value;
             var cam = self.app.root.findByName('Camera');
@@ -1651,7 +1650,7 @@ UI.prototype._initRealtimeEditor = function() {
     var splatLodVal = document.getElementById('ed-splat-lod-val');
 
     if (ambientCol) {
-        ambientCol.addEventListener('input', function(e) {
+        ambientCol.addEventListener('input', function (e) {
             var hex = e.target.value;
             var r = parseInt(hex.substr(1, 2), 16) / 255;
             var g = parseInt(hex.substr(3, 2), 16) / 255;
@@ -1661,16 +1660,16 @@ UI.prototype._initRealtimeEditor = function() {
         });
     }
     if (ambientInt) {
-        ambientInt.addEventListener('input', function(e) {
+        ambientInt.addEventListener('input', function (e) {
             if (ambientCol) ambientCol.dispatchEvent(new Event('input'));
         });
     }
     if (splatLodRange && splatLodVal) {
-        splatLodRange.addEventListener('input', function(e) {
+        splatLodRange.addEventListener('input', function (e) {
             splatLodVal.innerText = e.target.value + 'm';
             var dist = parseFloat(e.target.value) || 15;
             var splats = self.app.root.findByTag('gsplat') || [];
-            splats.forEach(function(s) {
+            splats.forEach(function (s) {
                 if (s.script && s.script.gsplat) s.script.gsplat.lodBaseDistance = dist;
             });
         });
@@ -1679,7 +1678,7 @@ UI.prototype._initRealtimeEditor = function() {
     // --- 11. Multi-Spawnpoint Management ---
     var addSpawnBtn = document.getElementById('ed-add-spawnpoint-btn') || document.getElementById('ed-add-spawn-btn');
     if (addSpawnBtn) {
-        addSpawnBtn.onclick = function(e) {
+        addSpawnBtn.onclick = function (e) {
             e.stopPropagation();
             var cam = self.app.root.findByName('Camera');
             var pos = cam ? cam.getPosition() : new pc.Vec3();
@@ -1703,7 +1702,7 @@ UI.prototype._initRealtimeEditor = function() {
 
     var camCaptureBtn = document.getElementById('ed-cam-capture-btn');
     if (camCaptureBtn) {
-        camCaptureBtn.onclick = function(e) {
+        camCaptureBtn.onclick = function (e) {
             e.stopPropagation();
             var playerRig = self.app.root.findByName('Character_Controller');
             var cam = self.app.root.findByName('Camera');
@@ -1712,7 +1711,7 @@ UI.prototype._initRealtimeEditor = function() {
             var rx = charCtrl ? charCtrl.pitch : 0;
             var ry = charCtrl ? charCtrl.yaw : 0;
 
-            var setVal = function(id, val) {
+            var setVal = function (id, val) {
                 var el = document.getElementById(id);
                 if (el) el.value = val;
             };
@@ -1725,14 +1724,14 @@ UI.prototype._initRealtimeEditor = function() {
             setVal('ed-cam-rot-z', '0.0');
 
             camCaptureBtn.innerText = '✅ Position erfasst!';
-            setTimeout(function() { camCaptureBtn.innerText = '📸 Aktuelle Kameraposition übernehmen'; }, 1200);
+            setTimeout(function () { camCaptureBtn.innerText = '📸 Aktuelle Kameraposition übernehmen'; }, 1200);
         };
     }
 
     // --- 12. Laufwege (Walkway / Path Visualizer) Management ---
     var addPathBtn = document.getElementById('ed-add-path-btn');
     if (addPathBtn) {
-        addPathBtn.onclick = function(e) {
+        addPathBtn.onclick = function (e) {
             e.stopPropagation();
             var pathName = prompt('Name für den neuen Laufweg:', 'Laufweg Campus');
             if (!pathName) return;
@@ -1756,7 +1755,7 @@ UI.prototype._initRealtimeEditor = function() {
 
     var addPathPointBtn = document.getElementById('ed-path-add-point-btn') || document.getElementById('ed-add-path-point-btn');
     if (addPathPointBtn) {
-        addPathPointBtn.onclick = function(e) {
+        addPathPointBtn.onclick = function (e) {
             e.stopPropagation();
             var pathSelect = document.getElementById('ed-path-select');
             if (!pathSelect || !pathSelect.value) {
@@ -1777,13 +1776,13 @@ UI.prototype._initRealtimeEditor = function() {
 
             self._refreshPathPointsUI(pv.points);
             addPathPointBtn.innerText = '✅ Punkt hinzugefügt (' + pv.points.length + ')';
-            setTimeout(function() { addPathPointBtn.innerText = '+ Punkt an Kamera'; }, 1000);
+            setTimeout(function () { addPathPointBtn.innerText = '+ Punkt an Kamera'; }, 1000);
         };
     }
 
     var pathSelectEl = document.getElementById('ed-path-select');
     if (pathSelectEl) {
-        pathSelectEl.addEventListener('change', function(e) {
+        pathSelectEl.addEventListener('change', function (e) {
             var guid = e.target.value;
             var details = document.getElementById('ed-path-details');
             if (!guid) {
@@ -1808,7 +1807,7 @@ UI.prototype._initRealtimeEditor = function() {
     // --- 13. Hotspots & POIs Management ---
     var addPoiBtn = document.getElementById('ed-add-poi-btn');
     if (addPoiBtn) {
-        addPoiBtn.onclick = function(e) {
+        addPoiBtn.onclick = function (e) {
             e.stopPropagation();
             var cam = self.app.root.findByName('Camera');
             var pos = cam ? cam.getPosition() : new pc.Vec3();
@@ -1835,7 +1834,7 @@ UI.prototype._initRealtimeEditor = function() {
 
     var addConstBtn = document.getElementById('ed-add-const-btn');
     if (addConstBtn) {
-        addConstBtn.onclick = function(e) {
+        addConstBtn.onclick = function (e) {
             e.stopPropagation();
             var cam = self.app.root.findByName('Camera');
             var pos = cam ? cam.getPosition() : new pc.Vec3();
@@ -1861,7 +1860,7 @@ UI.prototype._initRealtimeEditor = function() {
 
     var poiSelectEl = document.getElementById('ed-poi-select');
     if (poiSelectEl) {
-        poiSelectEl.addEventListener('change', function(e) {
+        poiSelectEl.addEventListener('change', function (e) {
             var guid = e.target.value;
             var details = document.getElementById('ed-poi-details');
             if (!guid) {
@@ -1892,7 +1891,7 @@ UI.prototype._initRealtimeEditor = function() {
 
     var poiDelBtn = document.getElementById('ed-poi-del-btn');
     if (poiDelBtn) {
-        poiDelBtn.onclick = function(e) {
+        poiDelBtn.onclick = function (e) {
             e.stopPropagation();
             var select = document.getElementById('ed-poi-select');
             if (!select || !select.value) return;
@@ -1913,8 +1912,8 @@ UI.prototype._initRealtimeEditor = function() {
     var spawnMediaBtn = document.getElementById('ed-spawn-media-btn') || document.getElementById('ed-create-screen-btn');
 
     if (mediaDropzone && mediaFileInput) {
-        mediaDropzone.onclick = function() { mediaFileInput.click(); };
-        mediaFileInput.onchange = function(e) {
+        mediaDropzone.onclick = function () { mediaFileInput.click(); };
+        mediaFileInput.onchange = function (e) {
             var file = e.target.files[0];
             if (!file) return;
             var objectUrl = URL.createObjectURL(file);
@@ -1923,16 +1922,16 @@ UI.prototype._initRealtimeEditor = function() {
             if (dropText) dropText.innerText = '✅ ' + file.name;
         };
 
-        mediaDropzone.addEventListener('dragover', function(e) {
+        mediaDropzone.addEventListener('dragover', function (e) {
             e.preventDefault();
             mediaDropzone.style.borderColor = 'var(--col-accent)';
             mediaDropzone.style.background = 'rgba(255, 59, 71, 0.1)';
         });
-        mediaDropzone.addEventListener('dragleave', function() {
+        mediaDropzone.addEventListener('dragleave', function () {
             mediaDropzone.style.borderColor = '';
             mediaDropzone.style.background = '';
         });
-        mediaDropzone.addEventListener('drop', function(e) {
+        mediaDropzone.addEventListener('drop', function (e) {
             e.preventDefault();
             mediaDropzone.style.borderColor = '';
             mediaDropzone.style.background = '';
@@ -1947,7 +1946,7 @@ UI.prototype._initRealtimeEditor = function() {
     }
 
     if (spawnMediaBtn) {
-        spawnMediaBtn.onclick = function(e) {
+        spawnMediaBtn.onclick = function (e) {
             e.stopPropagation();
             var url = mediaUrlInput ? mediaUrlInput.value.trim() : '';
             if (!url) {
@@ -1985,14 +1984,14 @@ UI.prototype._initRealtimeEditor = function() {
             var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
             levelContainer.addChild(screenEntity);
             spawnMediaBtn.innerText = '✅ 3D Screen platziert!';
-            setTimeout(function() { spawnMediaBtn.innerText = '✨ Media Screen an Kamera platzieren'; }, 1500);
+            setTimeout(function () { spawnMediaBtn.innerText = '✨ Media Screen an Kamera platzieren'; }, 1500);
         };
     }
 
     // --- 15. Colliders & Netlify Switcher ---
     var colVisToggle = document.getElementById('ed-toggle-col-vis-btn') || document.getElementById('ed-col-vis-toggle');
     if (colVisToggle) {
-        colVisToggle.onclick = function(e) {
+        colVisToggle.onclick = function (e) {
             e.stopPropagation();
             self.app.fire('collider:toggleVisibility');
         };
@@ -2000,7 +1999,7 @@ UI.prototype._initRealtimeEditor = function() {
 
     var colSourceSelect = document.getElementById('ed-col-source-select');
     if (colSourceSelect) {
-        colSourceSelect.onchange = function(e) {
+        colSourceSelect.onchange = function (e) {
             self.app.fire('collider:setSource', e.target.value);
         };
     }
@@ -2008,7 +2007,7 @@ UI.prototype._initRealtimeEditor = function() {
     var colScaleSlider = document.getElementById('ed-col-scale-slider');
     var colScaleVal = document.getElementById('ed-col-scale-val');
     if (colScaleSlider) {
-        colScaleSlider.addEventListener('input', function(e) {
+        colScaleSlider.addEventListener('input', function (e) {
             var s = parseFloat(e.target.value) || 1.0;
             if (colScaleVal) colScaleVal.innerText = s.toFixed(2);
             self.app.fire('collider:setScale', s, s, s);
@@ -2017,18 +2016,18 @@ UI.prototype._initRealtimeEditor = function() {
 
     var colSelect3dBtn = document.getElementById('ed-col-select-3d-btn');
     if (colSelect3dBtn) {
-        colSelect3dBtn.onclick = function(e) {
+        colSelect3dBtn.onclick = function (e) {
             e.stopPropagation();
             var levelManager = self.app.root.findByName('LevelManager');
             var dynCol = (levelManager && levelManager.script && levelManager.script.levelManager && levelManager.script.levelManager._dynamicColliderEntity) ||
-                         self.app.root.findByName('DynamicCollider_' + self._currentLevelId);
+                self.app.root.findByName('DynamicCollider_' + self._currentLevelId);
             if (dynCol) {
                 if (dynCol.render) dynCol.render.enabled = true;
                 self._selectEntity(dynCol);
                 var tabBtn = document.querySelector('.ed-tab-btn[data-tab="tab-inspector"]');
                 if (tabBtn) tabBtn.click();
                 colSelect3dBtn.innerText = '✅ Collider im 3D-Viewer aktiv!';
-                setTimeout(function() { colSelect3dBtn.innerText = '🎯 Collider im 3D-Viewer auswählen & bewegen'; }, 1500);
+                setTimeout(function () { colSelect3dBtn.innerText = '🎯 Collider im 3D-Viewer auswählen & bewegen'; }, 1500);
             } else {
                 alert('Kein aktiver Collider für dieses Level geladen.');
             }
@@ -2038,7 +2037,7 @@ UI.prototype._initRealtimeEditor = function() {
     // --- 16. Tour Cam Controls ---
     var cinPlayBtn = document.getElementById('ed-cin-play-btn');
     if (cinPlayBtn) {
-        cinPlayBtn.onclick = function(e) {
+        cinPlayBtn.onclick = function (e) {
             e.stopPropagation();
             self.app.fire('tour:toggle');
         };
@@ -2046,34 +2045,34 @@ UI.prototype._initRealtimeEditor = function() {
     var cinSpeed = document.getElementById('ed-cin-speed');
     var cinSpeedVal = document.getElementById('ed-cin-speed-val');
     if (cinSpeed && cinSpeedVal) {
-        cinSpeed.addEventListener('input', function(e) {
+        cinSpeed.addEventListener('input', function (e) {
             cinSpeedVal.innerText = e.target.value + 'x';
         });
     }
 
     // --- 17. Save, Copy, Download & Reset ---
-    var bindSaveBtns = function(id, text) {
+    var bindSaveBtns = function (id, text) {
         var btn = document.getElementById(id);
         if (btn) {
-            btn.onclick = function(e) {
+            btn.onclick = function (e) {
                 e.stopPropagation();
                 self.app.fire('level:saveConfig');
                 btn.innerText = '✅ Gespeichert!';
-                setTimeout(function() { btn.innerText = text; }, 1500);
+                setTimeout(function () { btn.innerText = text; }, 1500);
             };
         }
     };
     bindSaveBtns('ed-save-local-btn', '💾 Im Browser speichern (LocalStorage)');
     bindSaveBtns('ed-footer-save-btn', '💾 Speichern');
 
-    var bindCopyBtns = function(id, text) {
+    var bindCopyBtns = function (id, text) {
         var btn = document.getElementById(id);
         if (btn) {
-            btn.onclick = function(e) {
+            btn.onclick = function (e) {
                 e.stopPropagation();
                 self.app.fire('level:dumpConfig');
                 btn.innerText = '📋 JSON Kopiert!';
-                setTimeout(function() { btn.innerText = text; }, 1500);
+                setTimeout(function () { btn.innerText = text; }, 1500);
             };
         }
     };
@@ -2083,17 +2082,17 @@ UI.prototype._initRealtimeEditor = function() {
 
     var downloadJsonBtn = document.getElementById('ed-download-json-btn');
     if (downloadJsonBtn) {
-        downloadJsonBtn.onclick = function(e) {
+        downloadJsonBtn.onclick = function (e) {
             e.stopPropagation();
             self.app.fire('level:downloadConfig');
             downloadJsonBtn.innerText = '📥 Heruntergeladen!';
-            setTimeout(function() { downloadJsonBtn.innerText = '📥 level-config.json herunterladen'; }, 1500);
+            setTimeout(function () { downloadJsonBtn.innerText = '📥 level-config.json herunterladen'; }, 1500);
         };
     }
 
     var resetDefaultsBtn = document.getElementById('ed-reset-defaults-btn');
     if (resetDefaultsBtn) {
-        resetDefaultsBtn.onclick = function(e) {
+        resetDefaultsBtn.onclick = function (e) {
             e.stopPropagation();
             if (confirm('Möchten Sie alle benutzerdefinierten Änderungen auf Werkseinstellungen zurücksetzen?')) {
                 localStorage.removeItem('thowl_custom_levels');
@@ -2103,8 +2102,8 @@ UI.prototype._initRealtimeEditor = function() {
     }
 
     // --- 18. Listen to Collider App Events ---
-    this.app.on('collider:loaded', function(pos, rot, scale) {
-        var setVal = function(id, val) {
+    this.app.on('collider:loaded', function (pos, rot, scale) {
+        var setVal = function (id, val) {
             var el = document.getElementById(id);
             if (el && val !== undefined) el.value = typeof val === 'number' ? val.toFixed(3) : val;
         };
@@ -2128,27 +2127,27 @@ UI.prototype._initRealtimeEditor = function() {
     console.log('[UI] 3D Studio Workstation initialized');
 };
 
-UI.prototype._refreshOutlinerTree = function() {
+UI.prototype._refreshOutlinerTree = function () {
     var tree = document.getElementById('ed-outliner-tree');
     if (!tree) return;
-    
+
     try {
         tree.innerHTML = '';
         var self = this;
         var search = (this._editorSearchQuery || '').toLowerCase();
 
-        var renderRow = function(name, icon, depth, isSelected, onClick, onEyeClick, isEnabled) {
+        var renderRow = function (name, icon, depth, isSelected, onClick, onEyeClick, isEnabled) {
             if (search && name.toLowerCase().indexOf(search) === -1) return;
             var row = document.createElement('div');
             row.className = 'ed-tree-node' + (isSelected ? ' selected' : '');
             row.style.paddingLeft = (depth * 14 + 6) + 'px';
-            
+
             var arrowHtml = depth === 0 ? '<span class="ed-tree-arrow" style="transform:rotate(90deg)">▶</span>' : '<span style="width:14px; display:inline-block;"></span>';
             var eyeClass = (isEnabled !== false) ? 'ed-tree-eye' : 'ed-tree-eye disabled';
             var eyeHtml = onEyeClick ? '<span class="' + eyeClass + '" title="Ein-/Ausblenden">👁️</span>' : '';
-            
+
             row.innerHTML = arrowHtml + '<span class="ed-tree-icon">' + icon + '</span>' + '<span class="ed-tree-name">' + name + '</span>' + eyeHtml;
-                
+
             if (onEyeClick) {
                 var eye = row.querySelector('.ed-tree-eye');
                 if (eye) eye.onclick = onEyeClick;
@@ -2158,7 +2157,7 @@ UI.prototype._refreshOutlinerTree = function() {
         };
 
         var isGlobalSelected = self._editorActiveObj && self._editorActiveObj._isGlobalNode;
-        renderRow('App Settings & Export', '⚙️', 0, isGlobalSelected, function(e) {
+        renderRow('App Settings & Export', '⚙️', 0, isGlobalSelected, function (e) {
             e.stopPropagation();
             self._selectEntity({ _isGlobalNode: true, name: 'Global Settings' });
         });
@@ -2170,7 +2169,7 @@ UI.prototype._refreshOutlinerTree = function() {
         }
 
         var allSceneEntities = [];
-        var traverse = function(node) {
+        var traverse = function (node) {
             if (node.script && (node.script.infoHotspot || node.script.constructionZone || node.script.pathVisualizer || node.script.videoTexture || node.script.streamedGsplat || node.script.gsplat)) {
                 allSceneEntities.push(node);
             }
@@ -2180,9 +2179,9 @@ UI.prototype._refreshOutlinerTree = function() {
 
         var entitiesByLevel = {};
         var sublevelIdsSet = new Set();
-        
-        allSceneEntities.forEach(function(ent) {
-            var belongsTo = 'lemgo'; 
+
+        allSceneEntities.forEach(function (ent) {
+            var belongsTo = 'lemgo';
             if (ent.script && ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds && Array.isArray(ent.script.infoHotspot.sublevelIds)) {
                 ent.script.infoHotspot.sublevelIds.forEach(id => sublevelIdsSet.add(id));
             }
@@ -2199,20 +2198,20 @@ UI.prototype._refreshOutlinerTree = function() {
         });
 
         var rootLevelIds = [];
-        levels.forEach(function(l) {
+        levels.forEach(function (l) {
             if (!sublevelIdsSet.has(l.id)) rootLevelIds.push(l.id);
         });
-        
+
         if (rootLevelIds.length === 0) {
-            Object.keys(entitiesByLevel).forEach(function(k) {
+            Object.keys(entitiesByLevel).forEach(function (k) {
                 if (!sublevelIdsSet.has(k)) rootLevelIds.push(k);
             });
         }
 
-        var renderLevelFolder = function(levelId, depth) {
+        var renderLevelFolder = function (levelId, depth) {
             var lvlConfig = levels.find(l => l.id === levelId) || { id: levelId, name: levelId };
             var isLevelSelected = self._editorActiveObj && self._editorActiveObj._isLevelNode && self._editorActiveObj.id === levelId;
-            renderRow('[Level Config] ' + (lvlConfig.name || lvlConfig.id), '⚙️', depth, isLevelSelected, function(e) {
+            renderRow('[Level Config] ' + (lvlConfig.name || lvlConfig.id), '⚙️', depth, isLevelSelected, function (e) {
                 e.stopPropagation();
                 self._selectEntity({ _isLevelNode: true, id: lvlConfig.id, name: lvlConfig.name || lvlConfig.id, config: lvlConfig });
             });
@@ -2222,9 +2221,9 @@ UI.prototype._refreshOutlinerTree = function() {
             if (lvlConfig.spawnpoints && Array.isArray(lvlConfig.spawnpoints)) {
                 if (lvlConfig.spawnpoints.length > 0) {
                     renderRow('Spawnpoints', '📍', depth + 1, false, null);
-                    lvlConfig.spawnpoints.forEach(function(sp, idx) {
+                    lvlConfig.spawnpoints.forEach(function (sp, idx) {
                         var isSpSelected = self._editorActiveObj && self._editorActiveObj._isSpawnNode && self._editorActiveObj.idx === idx && self._editorActiveObj.lvlId === lvlConfig.id;
-                        renderRow(sp.name || 'Spawnpoint ' + (idx + 1), '📍', depth + 2, isSpSelected, function(e) {
+                        renderRow(sp.name || 'Spawnpoint ' + (idx + 1), '📍', depth + 2, isSpSelected, function (e) {
                             e.stopPropagation();
                             self._selectEntity({ _isSpawnNode: true, sp: sp, idx: idx, lvlId: lvlConfig.id, name: sp.name || 'Spawnpoint' });
                         });
@@ -2235,27 +2234,27 @@ UI.prototype._refreshOutlinerTree = function() {
             var splats = lvlEnts.filter(e => e.script && (e.script.streamedGsplat || e.script.gsplat));
             if (splats.length > 0) {
                 renderRow('Splat Models (3D)', '☁️', depth + 1, false, null);
-                splats.forEach(function(ent) {
+                splats.forEach(function (ent) {
                     var isSelected = self._editorActiveObj === ent;
-                    renderRow(ent.name, '☁️', depth + 2, isSelected, function(e) {
+                    renderRow(ent.name, '☁️', depth + 2, isSelected, function (e) {
                         e.stopPropagation(); self._selectEntity(ent);
-                    }, function(e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+                    }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
                 });
             }
 
             var hotspots = lvlEnts.filter(e => e.script && (e.script.infoHotspot || e.script.constructionZone));
             if (hotspots.length > 0) {
                 renderRow('Hotspots & Zones', '🎯', depth + 1, false, null);
-                hotspots.forEach(function(ent) {
+                hotspots.forEach(function (ent) {
                     var isSelected = self._editorActiveObj === ent;
                     var n = ent.name;
                     if (ent.script.infoHotspot && ent.script.infoHotspot.title) n += ' (' + ent.script.infoHotspot.title + ')';
-                    renderRow(n, ent.script.constructionZone ? '🚧' : '🎯', depth + 2, isSelected, function(e) {
+                    renderRow(n, ent.script.constructionZone ? '🚧' : '🎯', depth + 2, isSelected, function (e) {
                         e.stopPropagation(); self._selectEntity(ent);
-                    }, function(e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+                    }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
 
                     if (ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds && Array.isArray(ent.script.infoHotspot.sublevelIds)) {
-                        ent.script.infoHotspot.sublevelIds.forEach(function(subId) {
+                        ent.script.infoHotspot.sublevelIds.forEach(function (subId) {
                             renderLevelFolder(subId, depth + 3);
                         });
                     }
@@ -2265,35 +2264,35 @@ UI.prototype._refreshOutlinerTree = function() {
             var paths = lvlEnts.filter(e => e.script && e.script.pathVisualizer);
             if (paths.length > 0) {
                 renderRow('Laufwege', '🛣️', depth + 1, false, null);
-                paths.forEach(function(ent) {
+                paths.forEach(function (ent) {
                     var isSelected = self._editorActiveObj === ent;
-                    renderRow(ent.name, '🛣️', depth + 2, isSelected, function(e) {
+                    renderRow(ent.name, '🛣️', depth + 2, isSelected, function (e) {
                         e.stopPropagation(); self._selectEntity(ent);
-                    }, function(e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+                    }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
                 });
             }
 
             var media = lvlEnts.filter(e => e.script && e.script.videoTexture);
             if (media.length > 0) {
                 renderRow('Media Screens', '🎬', depth + 1, false, null);
-                media.forEach(function(ent) {
+                media.forEach(function (ent) {
                     var isSelected = self._editorActiveObj === ent;
-                    renderRow(ent.name, '🎬', depth + 2, isSelected, function(e) {
+                    renderRow(ent.name, '🎬', depth + 2, isSelected, function (e) {
                         e.stopPropagation(); self._selectEntity(ent);
-                    }, function(e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+                    }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
                 });
             }
 
             var colName = 'DynamicCollider_' + levelId;
             var colEnt = self.app.root.findByName(colName);
             if (colEnt) {
-                renderRow(colEnt.name, '📦', depth + 1, self._editorActiveObj === colEnt, function(e) {
+                renderRow(colEnt.name, '📦', depth + 1, self._editorActiveObj === colEnt, function (e) {
                     e.stopPropagation(); self._selectEntity(colEnt);
-                }, function(e) { e.stopPropagation(); colEnt.enabled = !colEnt.enabled; self._refreshOutlinerTree(); }, colEnt.enabled);
+                }, function (e) { e.stopPropagation(); colEnt.enabled = !colEnt.enabled; self._refreshOutlinerTree(); }, colEnt.enabled);
             }
         };
 
-        rootLevelIds.forEach(function(id) {
+        rootLevelIds.forEach(function (id) {
             renderLevelFolder(id, 0);
         });
 
@@ -2301,7 +2300,7 @@ UI.prototype._refreshOutlinerTree = function() {
         document.getElementById('ed-outliner-tree').innerHTML = '<div style="color:#ff5555; font-size:11px; padding:10px;"><b>UI Error:</b><br>' + err.message + '</div>';
     }
 };
-UI.prototype._selectEntity = function(entity) {
+UI.prototype._selectEntity = function (entity) {
     this._editorActiveObj = entity;
     this._refreshOutlinerTree();
 
@@ -2315,7 +2314,7 @@ UI.prototype._selectEntity = function(entity) {
         var rot = entity.getLocalEulerAngles();
         var scale = entity.getLocalScale();
 
-        var setVal = function(id, val) {
+        var setVal = function (id, val) {
             var el = document.getElementById(id);
             if (el) el.value = typeof val === 'number' ? (Number.isInteger(val) ? val : val.toFixed(3)) : val;
         };
@@ -2344,7 +2343,7 @@ UI.prototype._selectEntity = function(entity) {
     }
 };
 
-UI.prototype._initGizmoSystem = function() {
+UI.prototype._initGizmoSystem = function () {
     var self = this;
     if (this._gizmoInitialized) return;
     this._gizmoInitialized = true;
@@ -2365,13 +2364,13 @@ UI.prototype._initGizmoSystem = function() {
             this._rotateGizmo = new pc.RotateGizmo(camEntity.camera, gizmoLayer);
             this._scaleGizmo = new pc.ScaleGizmo(camEntity.camera, gizmoLayer);
 
-            var onGizmoTransform = function() {
+            var onGizmoTransform = function () {
                 if (self._editorActiveObj) {
                     var p = self._editorActiveObj.getLocalPosition();
                     var r = self._editorActiveObj.getLocalEulerAngles();
                     var s = self._editorActiveObj.getLocalScale();
 
-                    var setVal = function(id, val) {
+                    var setVal = function (id, val) {
                         var el = document.getElementById(id);
                         if (el) el.value = typeof val === 'number' ? (Number.isInteger(val) ? val : val.toFixed(3)) : val;
                     };
@@ -2400,7 +2399,7 @@ UI.prototype._initGizmoSystem = function() {
                 }
             };
 
-            [this._translateGizmo, this._rotateGizmo, this._scaleGizmo].forEach(function(g) {
+            [this._translateGizmo, this._rotateGizmo, this._scaleGizmo].forEach(function (g) {
                 if (g) {
                     g.on('transform:move', onGizmoTransform);
                     g.on('transform:end', onGizmoTransform);
@@ -2408,14 +2407,14 @@ UI.prototype._initGizmoSystem = function() {
             });
             console.log('[UI] 3D Transform Gizmos ready');
         }
-    } catch(e) {
+    } catch (e) {
         console.warn('[UI] Gizmo initialization error:', e);
     }
 };
 
-UI.prototype._setGizmoMode = function(mode) {
+UI.prototype._setGizmoMode = function (mode) {
     this._gizmoMode = mode;
-    ['translate', 'rotate', 'scale'].forEach(function(m) {
+    ['translate', 'rotate', 'scale'].forEach(function (m) {
         var btn = document.getElementById('ed-gizmo-mode-' + m);
         if (btn) {
             if (m === mode) btn.classList.add('active');
@@ -2433,7 +2432,7 @@ UI.prototype._setGizmoMode = function(mode) {
     }
 };
 
-UI.prototype._initViewportPicker = function() {
+UI.prototype._initViewportPicker = function () {
     var self = this;
     if (this._pickerInitialized) return;
     this._pickerInitialized = true;
@@ -2442,13 +2441,13 @@ UI.prototype._initViewportPicker = function() {
     var pointerDownPos = { x: 0, y: 0 };
     var pointerDownTime = 0;
 
-    canvas.addEventListener('pointerdown', function(e) {
+    canvas.addEventListener('pointerdown', function (e) {
         pointerDownPos.x = e.clientX;
         pointerDownPos.y = e.clientY;
         pointerDownTime = Date.now();
     });
 
-    canvas.addEventListener('pointerup', function(e) {
+    canvas.addEventListener('pointerup', function (e) {
         if (!self._editorPanelOpen) return;
         var dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
         if (dist > 6 || Date.now() - pointerDownTime > 300) return;
@@ -2468,7 +2467,7 @@ UI.prototype._initViewportPicker = function() {
         var candidates = [];
         var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
 
-        var checkEntity = function(ent) {
+        var checkEntity = function (ent) {
             if (!ent || !ent.enabled || ent._destroyed) return;
             var isSelectable = (ent.tags && (
                 ent.tags.has('custom-editor-object') ||
@@ -2482,7 +2481,7 @@ UI.prototype._initViewportPicker = function() {
 
             if (isSelectable) {
                 var entPos = ent.getPosition();
-                var scale = ent.getLocalScale ? ent.getLocalScale() : new pc.Vec3(1,1,1);
+                var scale = ent.getLocalScale ? ent.getLocalScale() : new pc.Vec3(1, 1, 1);
                 var radius = Math.max(Math.abs(scale.x), Math.abs(scale.y), Math.abs(scale.z)) * 0.8 + 0.3;
                 var toCenter = new pc.Vec3().sub2(entPos, ray.origin);
                 var proj = toCenter.dot(ray.direction);
@@ -2502,7 +2501,7 @@ UI.prototype._initViewportPicker = function() {
         if (dynamicCol) checkEntity(dynamicCol);
 
         if (candidates.length > 0) {
-            candidates.sort(function(a, b) { return a.dist - b.dist; });
+            candidates.sort(function (a, b) { return a.dist - b.dist; });
             var picked = candidates[0].entity;
             console.log('[Editor Viewport] Picked entity in 3D:', picked.name);
             self._selectEntity(picked);
@@ -2513,7 +2512,7 @@ UI.prototype._initViewportPicker = function() {
     });
 
     // Keyboard Shortcuts for Gizmo (W = Translate, E = Rotate, R = Scale)
-    window.addEventListener('keydown', function(e) {
+    window.addEventListener('keydown', function (e) {
         if (!self._editorPanelOpen) return;
         if (['INPUT', 'TEXTAREA', 'SELECT'].indexOf(e.target.tagName) !== -1) return;
 
@@ -2533,7 +2532,7 @@ UI.prototype._initViewportPicker = function() {
     });
 };
 
-UI.prototype._renderAttributeEditor = function(entity) {
+UI.prototype._renderAttributeEditor = function (entity) {
     var self = this;
     var container = document.getElementById('ed-ins-scripts');
     if (!container) return;
@@ -2543,39 +2542,39 @@ UI.prototype._renderAttributeEditor = function(entity) {
 
     var scriptDefs = {
         'infoHotspot': [
-            {n:'title', t:'string'}, {n:'description', t:'string'}, {n:'buttonText', t:'string'},
-            {n:'title_en', t:'string'}, {n:'description_en', t:'string'}, {n:'buttonText_en', t:'string'},
-            {n:'sublevelIds', t:'array_string'}, {n:'targetLevelId', t:'string'}, {n:'linkUrl', t:'string'},
-            {n:'baseDelay', t:'number'}, {n:'randomWindow', t:'number'}, {n:'radius', t:'number'},
-            {n:'primaryColor', t:'rgb'}, {n:'secondaryColor', t:'rgb'}, {n:'textColor', t:'rgb'},
-            {n:'showBorder', t:'boolean'}, {n:'whiteCore', t:'boolean'}, {n:'vrScale', t:'number'},
-            {n:'customPos', t:'vec3'}, {n:'customRot', t:'vec3'}
+            { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'buttonText', t: 'string' },
+            { n: 'title_en', t: 'string' }, { n: 'description_en', t: 'string' }, { n: 'buttonText_en', t: 'string' },
+            { n: 'sublevelIds', t: 'array_string' }, { n: 'targetLevelId', t: 'string' }, { n: 'linkUrl', t: 'string' },
+            { n: 'baseDelay', t: 'number' }, { n: 'randomWindow', t: 'number' }, { n: 'radius', t: 'number' },
+            { n: 'primaryColor', t: 'rgb' }, { n: 'secondaryColor', t: 'rgb' }, { n: 'textColor', t: 'rgb' },
+            { n: 'showBorder', t: 'boolean' }, { n: 'whiteCore', t: 'boolean' }, { n: 'vrScale', t: 'number' },
+            { n: 'customPos', t: 'vec3' }, { n: 'customRot', t: 'vec3' }
         ],
         'pathVisualizer': [
-            {n:'targetLevelId', t:'string'}, {n:'title', t:'string'}, {n:'description', t:'string'},
-            {n:'buttonText', t:'string'}, {n:'baseDelay', t:'number'}, {n:'randomWindow', t:'number'},
-            {n:'revealDuration', t:'number'}, {n:'primaryColor', t:'rgb'}, {n:'secondaryColor', t:'rgb'},
-            {n:'pathColor', t:'rgb'}, {n:'pathWidth', t:'number'}, {n:'targetOpacity', t:'number'},
-            {n:'showBackground', t:'boolean'}, {n:'yOffset', t:'number'}, {n:'customPos', t:'vec3'},
-            {n:'customRot', t:'vec3'}
+            { n: 'targetLevelId', t: 'string' }, { n: 'title', t: 'string' }, { n: 'description', t: 'string' },
+            { n: 'buttonText', t: 'string' }, { n: 'baseDelay', t: 'number' }, { n: 'randomWindow', t: 'number' },
+            { n: 'revealDuration', t: 'number' }, { n: 'primaryColor', t: 'rgb' }, { n: 'secondaryColor', t: 'rgb' },
+            { n: 'pathColor', t: 'rgb' }, { n: 'pathWidth', t: 'number' }, { n: 'targetOpacity', t: 'number' },
+            { n: 'showBackground', t: 'boolean' }, { n: 'yOffset', t: 'number' }, { n: 'customPos', t: 'vec3' },
+            { n: 'customRot', t: 'vec3' }
         ],
         'constructionZone': [
-            {n:'title', t:'string'}, {n:'description', t:'string'}, {n:'addToTour', t:'boolean'},
-            {n:'baseColor', t:'rgb'}, {n:'glowColor', t:'rgb'}, {n:'targetOpacity', t:'number'},
-            {n:'scanlineIntensity', t:'number'}, {n:'showBorderLines', t:'boolean'}, {n:'borderColor', t:'rgb'},
-            {n:'height', t:'number'}, {n:'showButtonBackground', t:'boolean'}, {n:'fadeDistance', t:'number'},
-            {n:'customPos', t:'vec3'}, {n:'customRot', t:'vec3'}
+            { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'addToTour', t: 'boolean' },
+            { n: 'baseColor', t: 'rgb' }, { n: 'glowColor', t: 'rgb' }, { n: 'targetOpacity', t: 'number' },
+            { n: 'scanlineIntensity', t: 'number' }, { n: 'showBorderLines', t: 'boolean' }, { n: 'borderColor', t: 'rgb' },
+            { n: 'height', t: 'number' }, { n: 'showButtonBackground', t: 'boolean' }, { n: 'fadeDistance', t: 'number' },
+            { n: 'customPos', t: 'vec3' }, { n: 'customRot', t: 'vec3' }
         ],
         'videoTexture': [
-            {n:'videoUrl', t:'string'}, {n:'playAudio', t:'boolean'}, {n:'volume', t:'number'},
-            {n:'videoScale', t:'number'}
+            { n: 'videoUrl', t: 'string' }, { n: 'playAudio', t: 'boolean' }, { n: 'volume', t: 'number' },
+            { n: 'videoScale', t: 'number' }
         ],
         'splatBlur': [
-            {n:'blurScale', t:'number'}, {n:'blurIntensity', t:'number'}
+            { n: 'blurScale', t: 'number' }, { n: 'blurIntensity', t: 'number' }
         ]
     };
 
-    var renderField = function(label, type, val, onChange) {
+    var renderField = function (label, type, val, onChange) {
         var wrap = document.createElement('div');
         wrap.className = 'ed-ins-row';
         var lbl = document.createElement('div');
@@ -2589,40 +2588,40 @@ UI.prototype._renderAttributeEditor = function(entity) {
             var inp = document.createElement('input');
             inp.type = 'text';
             inp.value = val || '';
-            inp.onchange = function(e) { onChange(e.target.value); };
+            inp.onchange = function (e) { onChange(e.target.value); };
             ctrl.appendChild(inp);
         } else if (type === 'number') {
             var inp = document.createElement('input');
             inp.type = 'number';
             inp.step = '0.01';
             inp.value = val !== undefined ? val : 0;
-            inp.onchange = function(e) { onChange(parseFloat(e.target.value)); };
+            inp.onchange = function (e) { onChange(parseFloat(e.target.value)); };
             ctrl.appendChild(inp);
         } else if (type === 'boolean') {
             var inp = document.createElement('input');
             inp.type = 'checkbox';
             inp.checked = !!val;
-            inp.onchange = function(e) { onChange(e.target.checked); };
+            inp.onchange = function (e) { onChange(e.target.checked); };
             ctrl.appendChild(inp);
         } else if (type === 'rgb' || type === 'vec3') {
-            var makeInp = function(v, i) {
+            var makeInp = function (v, i) {
                 var inp = document.createElement('input');
                 inp.type = 'number';
                 inp.step = '0.01';
                 inp.style.width = '30%';
                 inp.value = v !== undefined ? v : 0;
-                inp.onchange = function(e) {
+                inp.onchange = function (e) {
                     var newVal = parseFloat(e.target.value);
                     if (type === 'rgb') {
-                        if (i===0) val.r = newVal; else if (i===1) val.g = newVal; else val.b = newVal;
+                        if (i === 0) val.r = newVal; else if (i === 1) val.g = newVal; else val.b = newVal;
                     } else {
-                        if (i===0) val.x = newVal; else if (i===1) val.y = newVal; else val.z = newVal;
+                        if (i === 0) val.x = newVal; else if (i === 1) val.y = newVal; else val.z = newVal;
                     }
                     onChange(val);
                 };
                 return inp;
             };
-            var v = val || (type==='rgb'?{r:1,g:1,b:1}:{x:0,y:0,z:0});
+            var v = val || (type === 'rgb' ? { r: 1, g: 1, b: 1 } : { x: 0, y: 0, z: 0 });
             if (type === 'rgb') {
                 ctrl.appendChild(makeInp(v.r, 0)); ctrl.appendChild(makeInp(v.g, 1)); ctrl.appendChild(makeInp(v.b, 2));
             } else {
@@ -2632,9 +2631,9 @@ UI.prototype._renderAttributeEditor = function(entity) {
             var inp = document.createElement('input');
             inp.type = 'text';
             inp.value = Array.isArray(val) ? val.join(',') : '';
-            inp.onchange = function(e) { 
-                var arr = e.target.value.split(',').map(s=>s.trim()).filter(s=>s.length>0);
-                onChange(arr); 
+            inp.onchange = function (e) {
+                var arr = e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                onChange(arr);
             };
             ctrl.appendChild(inp);
         }
@@ -2651,7 +2650,7 @@ UI.prototype._renderAttributeEditor = function(entity) {
         wrap1.className = 'ed-ins-row';
         var b1 = document.createElement('button');
         b1.innerText = 'Export JSON';
-        b1.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
+        b1.onclick = function () { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
         wrap1.appendChild(b1);
         container.appendChild(wrap1);
 
@@ -2659,7 +2658,7 @@ UI.prototype._renderAttributeEditor = function(entity) {
         wrap2.className = 'ed-ins-row';
         var b2 = document.createElement('button');
         b2.innerText = 'Local Save';
-        b2.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
+        b2.onclick = function () { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
         wrap2.appendChild(b2);
         container.appendChild(wrap2);
         return;
@@ -2671,41 +2670,41 @@ UI.prototype._renderAttributeEditor = function(entity) {
         container.appendChild(h3);
 
         if (entity._isLevelNode && entity.config) {
-            container.appendChild(renderField('Level ID', 'string', entity.config.id, function(v) { entity.config.id = v; }));
-            container.appendChild(renderField('URL', 'string', entity.config.url, function(v) { entity.config.url = v; }));
-            container.appendChild(renderField('Mode', 'string', entity.config.mode, function(v) { entity.config.mode = v; }));
-            
+            container.appendChild(renderField('Level ID', 'string', entity.config.id, function (v) { entity.config.id = v; }));
+            container.appendChild(renderField('URL', 'string', entity.config.url, function (v) { entity.config.url = v; }));
+            container.appendChild(renderField('Mode', 'string', entity.config.mode, function (v) { entity.config.mode = v; }));
+
             // Culling Bounding Box
             var h4 = document.createElement('h4');
             h4.innerText = 'Culling Box (Crop Campus)';
             h4.style.color = '#ff5555'; h4.style.marginTop = '8px';
             container.appendChild(h4);
-            
+
             if (!entity.config.clipBoxMin) entity.config.clipBoxMin = [-9999, -9999, -9999];
             if (!entity.config.clipBoxMax) entity.config.clipBoxMax = [9999, 9999, 9999];
-            
-            container.appendChild(renderField('Min X,Y,Z', 'vec3', {x: entity.config.clipBoxMin[0], y: entity.config.clipBoxMin[1], z: entity.config.clipBoxMin[2]}, function(v) { entity.config.clipBoxMin = [v.x, v.y, v.z]; }));
-            container.appendChild(renderField('Max X,Y,Z', 'vec3', {x: entity.config.clipBoxMax[0], y: entity.config.clipBoxMax[1], z: entity.config.clipBoxMax[2]}, function(v) { entity.config.clipBoxMax = [v.x, v.y, v.z]; }));
+
+            container.appendChild(renderField('Min X,Y,Z', 'vec3', { x: entity.config.clipBoxMin[0], y: entity.config.clipBoxMin[1], z: entity.config.clipBoxMin[2] }, function (v) { entity.config.clipBoxMin = [v.x, v.y, v.z]; }));
+            container.appendChild(renderField('Max X,Y,Z', 'vec3', { x: entity.config.clipBoxMax[0], y: entity.config.clipBoxMax[1], z: entity.config.clipBoxMax[2] }, function (v) { entity.config.clipBoxMax = [v.x, v.y, v.z]; }));
 
         } else if (entity._isSpawnNode && entity.sp) {
-            container.appendChild(renderField('Name', 'string', entity.sp.name, function(v) { entity.sp.name = v; }));
-            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function(v) { entity.sp.pos = v; }));
-            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function(v) { entity.sp.rot = v; }));
+            container.appendChild(renderField('Name', 'string', entity.sp.name, function (v) { entity.sp.name = v; }));
+            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function (v) { entity.sp.pos = v; }));
+            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function (v) { entity.sp.rot = v; }));
         }
         return;
     }
 
     if (entity.script) {
-        Object.keys(scriptDefs).forEach(function(scriptName) {
+        Object.keys(scriptDefs).forEach(function (scriptName) {
             if (entity.script[scriptName]) {
                 var h3 = document.createElement('h3');
                 h3.innerText = 'Script: ' + scriptName;
                 container.appendChild(h3);
-                
+
                 var scriptInst = entity.script[scriptName];
-                scriptDefs[scriptName].forEach(function(prop) {
+                scriptDefs[scriptName].forEach(function (prop) {
                     var val = scriptInst[prop.n];
-                    container.appendChild(renderField(prop.n, prop.t, val, function(newVal) {
+                    container.appendChild(renderField(prop.n, prop.t, val, function (newVal) {
                         scriptInst[prop.n] = newVal;
                     }));
                 });
@@ -2714,8 +2713,8 @@ UI.prototype._renderAttributeEditor = function(entity) {
     }
 };
 
-UI.prototype._applyEditorTransform = function(prefix, eventName) {
-    var getNum = function(id) {
+UI.prototype._applyEditorTransform = function (prefix, eventName) {
+    var getNum = function (id) {
         var el = document.getElementById(id);
         return el ? parseFloat(el.value) || 0 : 0;
     };
@@ -2734,14 +2733,14 @@ UI.prototype._applyEditorTransform = function(prefix, eventName) {
     }
 };
 
-UI.prototype._populateEditorLevel = function(levelId) {
+UI.prototype._populateEditorLevel = function (levelId) {
     var sel = document.getElementById('ed-level-select');
     if (sel && levelId) sel.value = levelId;
 
     var levelContainer = this.app.root.findByName('LevelContainer');
     if (!levelContainer) return;
 
-    var setVal = function(id, val) {
+    var setVal = function (id, val) {
         var el = document.getElementById(id);
         if (el) el.value = (typeof val === 'number') ? (Number.isInteger(val) ? val : val.toFixed(3)) : val;
     };
@@ -2773,7 +2772,7 @@ UI.prototype._populateEditorLevel = function(levelId) {
     if (poiSelect) {
         poiSelect.innerHTML = '<option value="">-- Hotspot auswählen --</option>';
         var allHotspots = [];
-        var findHotspots = function(ent) {
+        var findHotspots = function (ent) {
             if (!ent || ent._destroyed) return;
             if (ent.script && ent.script.infoHotspot) allHotspots.push(ent);
             if (ent.script && ent.script.constructionZone) allHotspots.push(ent);
@@ -2784,17 +2783,17 @@ UI.prototype._populateEditorLevel = function(levelId) {
         };
         findHotspots(levelContainer);
         findHotspots(this.app.root);
-        
+
         // Deduplicate
         var seen = {};
-        allHotspots = allHotspots.filter(function(e) {
+        allHotspots = allHotspots.filter(function (e) {
             var g = e.getGuid();
             if (seen[g]) return false;
             seen[g] = true;
             return true;
         });
 
-        allHotspots.forEach(function(ent) {
+        allHotspots.forEach(function (ent) {
             var opt = document.createElement('option');
             opt.value = ent.getGuid();
             var icon = ent.script && ent.script.constructionZone ? '🚧' : '🎯';
@@ -2808,7 +2807,7 @@ UI.prototype._populateEditorLevel = function(levelId) {
     if (pathSelect) {
         pathSelect.innerHTML = '<option value="">-- Laufweg auswählen --</option>';
         var allPaths = [];
-        var findPaths = function(ent) {
+        var findPaths = function (ent) {
             if (!ent || ent._destroyed) return;
             if (ent.script && ent.script.pathVisualizer) allPaths.push(ent);
             if (ent.tags && ent.tags.has('custom-editor-path')) {
@@ -2817,8 +2816,8 @@ UI.prototype._populateEditorLevel = function(levelId) {
             if (ent.children) ent.children.forEach(findPaths);
         };
         findPaths(levelContainer);
-        
-        allPaths.forEach(function(ent) {
+
+        allPaths.forEach(function (ent) {
             var opt = document.createElement('option');
             opt.value = ent.getGuid();
             opt.innerText = '🚶 ' + ent.name;
@@ -2842,7 +2841,7 @@ UI.prototype._populateEditorLevel = function(levelId) {
                 });
             }
             if (lvlData.spawnpoints) {
-                lvlData.spawnpoints.forEach(function(sp) {
+                lvlData.spawnpoints.forEach(function (sp) {
                     self._addSpawnpointUI(sp);
                 });
             }
@@ -2869,12 +2868,12 @@ UI.prototype._populateEditorLevel = function(levelId) {
     // Refresh outliner tree
     this._refreshOutlinerTree();
 
-    console.log('[Editor] Level populated:', levelId, 
-        '| Splat:', !!splatEntity, 
+    console.log('[Editor] Level populated:', levelId,
+        '| Splat:', !!splatEntity,
         '| Collider:', !!dynCol);
 };
 
-UI.prototype._addSpawnpointUI = function(spawn) {
+UI.prototype._addSpawnpointUI = function (spawn) {
     var list = document.getElementById('ed-spawnpoints-list');
     if (!list) return;
 
@@ -2906,13 +2905,13 @@ UI.prototype._addSpawnpointUI = function(spawn) {
     list.appendChild(row);
 };
 
-UI.prototype._refreshPathsList = function(selectedGuid) {
+UI.prototype._refreshPathsList = function (selectedGuid) {
     var select = document.getElementById('ed-path-select');
     if (!select) return;
     select.innerHTML = '<option value="">-- Laufweg auswählen --</option>';
 
     var paths = this.app.root.findByTag('custom-editor-path');
-    paths.forEach(function(p) {
+    paths.forEach(function (p) {
         var opt = document.createElement('option');
         opt.value = p.getGuid();
         opt.innerText = p.name;
@@ -2921,11 +2920,11 @@ UI.prototype._refreshPathsList = function(selectedGuid) {
     });
 };
 
-UI.prototype._refreshPathPointsUI = function(points) {
+UI.prototype._refreshPathPointsUI = function (points) {
     var list = document.getElementById('ed-path-points-list');
     if (!list) return;
     list.innerHTML = '';
-    points.forEach(function(pt, idx) {
+    points.forEach(function (pt, idx) {
         var row = document.createElement('div');
         row.className = 'ed-item-row';
         row.style.fontSize = '10px';
@@ -2934,13 +2933,13 @@ UI.prototype._refreshPathPointsUI = function(points) {
     });
 };
 
-UI.prototype._refreshPoiList = function(selectedGuid) {
+UI.prototype._refreshPoiList = function (selectedGuid) {
     var select = document.getElementById('ed-poi-select');
     if (!select) return;
     select.innerHTML = '<option value="">-- Hotspot auswählen --</option>';
 
     var pois = this.app.root.findByTag('custom-editor-poi');
-    pois.forEach(function(p) {
+    pois.forEach(function (p) {
         var opt = document.createElement('option');
         opt.value = p.getGuid();
         opt.innerText = p.name;
@@ -2948,7 +2947,7 @@ UI.prototype._refreshPoiList = function(selectedGuid) {
         select.appendChild(opt);
     });
 };
-UI.prototype._showShortcutsModal = function() {
+UI.prototype._showShortcutsModal = function () {
     var isDE = this.currentLang === 'de';
     var overlay = document.getElementById('info-modal-overlay');
     var title = document.getElementById('info-title');
@@ -2960,50 +2959,62 @@ UI.prototype._showShortcutsModal = function() {
     if (link) link.style.display = 'none';
 
     var shortcuts = isDE ? [
-        { cat: '🚶 Bewegung', items: [
-            ['WASD / Pfeiltasten', 'Laufen / Bewegen'],
-            ['Shift', 'Schneller laufen'],
-            ['Q / E', 'Runter / Hoch (Flugmodus)'],
-            ['G (halten)', 'Schwerkraft aus (Fliegen)'],
-            ['Mausrad', 'Geschwindigkeit anpassen']
-        ]},
-        { cat: '🎥 Kamera', items: [
-            ['Rechte Maustaste + Ziehen', 'Umsehen'],
-            ['1 Finger (Touch)', 'Umsehen (Mobil)'],
-            ['Joystick (Touch)', 'Bewegen (Mobil)']
-        ]},
-        { cat: '🛠 Debug / Tools', items: [
-            ['P', 'Debug-Modus ein/aus + Position kopieren'],
-            ['C', 'Kollisions-Mesh ein/aus'],
-            ['K', 'Culling ein/aus'],
-            ['F2', 'Screenshot speichern']
-        ]}
+        {
+            cat: '🚶 Bewegung', items: [
+                ['WASD / Pfeiltasten', 'Laufen / Bewegen'],
+                ['Shift', 'Schneller laufen'],
+                ['Q / E', 'Runter / Hoch (Flugmodus)'],
+                ['G (halten)', 'Schwerkraft aus (Fliegen)'],
+                ['Mausrad', 'Geschwindigkeit anpassen']
+            ]
+        },
+        {
+            cat: '🎥 Kamera', items: [
+                ['Rechte Maustaste + Ziehen', 'Umsehen'],
+                ['1 Finger (Touch)', 'Umsehen (Mobil)'],
+                ['Joystick (Touch)', 'Bewegen (Mobil)']
+            ]
+        },
+        {
+            cat: '🛠 Debug / Tools', items: [
+                ['P', 'Debug-Modus ein/aus + Position kopieren'],
+                ['C', 'Kollisions-Mesh ein/aus'],
+                ['K', 'Culling ein/aus'],
+                ['F2', 'Screenshot speichern']
+            ]
+        }
     ] : [
-        { cat: '🚶 Movement', items: [
-            ['WASD / Arrow Keys', 'Walk / Move'],
-            ['Shift', 'Run faster'],
-            ['Q / E', 'Down / Up (Fly mode)'],
-            ['G (hold)', 'Disable gravity (Fly)'],
-            ['Mouse Wheel', 'Adjust speed']
-        ]},
-        { cat: '🎥 Camera', items: [
-            ['Right-Click + Drag', 'Look around'],
-            ['1 Finger (Touch)', 'Look around (Mobile)'],
-            ['Joystick (Touch)', 'Move (Mobile)']
-        ]},
-        { cat: '🛠 Debug / Tools', items: [
-            ['P', 'Toggle debug mode + Copy position'],
-            ['C', 'Toggle collision mesh'],
-            ['K', 'Toggle culling'],
-            ['F2', 'Save screenshot']
-        ]}
+        {
+            cat: '🚶 Movement', items: [
+                ['WASD / Arrow Keys', 'Walk / Move'],
+                ['Shift', 'Run faster'],
+                ['Q / E', 'Down / Up (Fly mode)'],
+                ['G (hold)', 'Disable gravity (Fly)'],
+                ['Mouse Wheel', 'Adjust speed']
+            ]
+        },
+        {
+            cat: '🎥 Camera', items: [
+                ['Right-Click + Drag', 'Look around'],
+                ['1 Finger (Touch)', 'Look around (Mobile)'],
+                ['Joystick (Touch)', 'Move (Mobile)']
+            ]
+        },
+        {
+            cat: '🛠 Debug / Tools', items: [
+                ['P', 'Toggle debug mode + Copy position'],
+                ['C', 'Toggle collision mesh'],
+                ['K', 'Toggle culling'],
+                ['F2', 'Save screenshot']
+            ]
+        }
     ];
 
     var html = '';
-    shortcuts.forEach(function(section) {
+    shortcuts.forEach(function (section) {
         html += '<div style="margin-bottom:16px;"><div style="font-weight:600; color:var(--col-cyan); margin-bottom:8px; font-size:14px;">' + section.cat + '</div>';
         html += '<table style="width:100%; border-collapse:collapse;">';
-        section.items.forEach(function(item) {
+        section.items.forEach(function (item) {
             html += '<tr><td style="padding:4px 8px; border-bottom:1px solid rgba(255,255,255,0.05);"><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px; font-size:12px; font-family:monospace; border:1px solid rgba(255,255,255,0.15);">' + item[0] + '</kbd></td><td style="padding:4px 8px; color:rgba(255,255,255,0.7); font-size:13px; border-bottom:1px solid rgba(255,255,255,0.05);">' + item[1] + '</td></tr>';
         });
         html += '</table></div>';
@@ -3012,13 +3023,13 @@ UI.prototype._showShortcutsModal = function() {
     body.innerHTML = html;
     overlay.classList.remove('hidden');
 };
-UI.prototype._applyTranslations = function() {
+UI.prototype._applyTranslations = function () {
     var d = this.dict[this.currentLang];
-    var setTxt = (id, txt)=>{
+    var setTxt = (id, txt) => {
         var el = document.getElementById(id);
         if (el) el.innerText = txt;
     };
-    var setTt = (id, txt)=>{
+    var setTt = (id, txt) => {
         var el = document.getElementById(id);
         if (el) el.setAttribute('data-tooltip', txt);
     };
@@ -3032,7 +3043,7 @@ UI.prototype._applyTranslations = function() {
     setTxt('lbl-touch', d.touch);
     var backLbl = document.getElementById('lbl-menu-back');
     if (backLbl) backLbl.innerText = d.menuBack;
-    
+
     setTxt('lbl-mobile-map', d.navMobileMap);
     setTxt('lbl-nav-title', d.navTitle);
     setTxt('lbl-nav-campus', d.navCampus);
@@ -3045,7 +3056,7 @@ UI.prototype._applyTranslations = function() {
     this._translateDynamic();
     this._updateContent(this._currentLevelId);
 };
-UI.prototype._translateDynamic = function() {
+UI.prototype._translateDynamic = function () {
     var d = this.dict[this.currentLang];
     var btn = document.getElementById('burger-btn');
     var container = document.getElementById('burger-menu-container');
@@ -3096,7 +3107,7 @@ UI.prototype._translateDynamic = function() {
     var adaptiveLbl = document.getElementById('lbl-adaptive');
     if (adaptiveLbl) adaptiveLbl.innerText = this._adaptiveEnabled ? (d.adaptiveOn || 'Auto Quality: ON') : (d.adaptiveOff || 'Auto Quality: OFF');
 };
-UI.prototype._onLevelSwitchEvent = function(levelId) {
+UI.prototype._onLevelSwitchEvent = function (levelId) {
     if (!this.isJumpingBack && this._currentLevelId && this._currentLevelId !== levelId) {
         var state = {
             levelId: this._currentLevelId
@@ -3120,17 +3131,17 @@ UI.prototype._onLevelSwitchEvent = function(levelId) {
     }
     this._currentLevelId = levelId;
     var self = this;
-    setTimeout(function() {
+    setTimeout(function () {
         self._updateContent(levelId);
     }, 800);
 };
-UI.prototype.goBack = function() {
+UI.prototype.goBack = function () {
     if (this.history.length === 0) return;
     var lastState = this.history.pop();
     this.isJumpingBack = true;
     this.app.fire('level:switch', lastState.levelId);
     var self = this;
-    setTimeout(()=>{
+    setTimeout(() => {
         var player = self.app.root.findByName('Character_Controller');
         if (player && lastState.playerPosition) {
             if (player.rigidbody) {
@@ -3164,11 +3175,11 @@ UI.prototype.goBack = function() {
         }
     }, 850);
     this.updateJumpBackButton();
-    setTimeout(function() {
+    setTimeout(function () {
         self.isJumpingBack = false;
     }, 1000);
 };
-UI.prototype.updateJumpBackButton = function() {
+UI.prototype.updateJumpBackButton = function () {
     if (this.jumpBackBtn) {
         this.jumpBackBtn.style.display = 'flex';
         this.jumpBackBtn.style.opacity = this.history.length > 0 ? '1' : '0.5';
@@ -3176,12 +3187,12 @@ UI.prototype.updateJumpBackButton = function() {
         this.jumpBackBtn.style.color = this.history.length > 0 ? '#f1c40f' : 'var(--text-secondary)';
     }
 };
-UI.prototype._updateContent = function(levelId) {
+UI.prototype._updateContent = function (levelId) {
     var data = this._levelData[levelId];
     if (!data) return;
     var introLoc = document.getElementById('intro-location');
     if (introLoc) introLoc.innerText = this.currentLang === 'de' ? data.name_de : data.name_en;
-    
+
     var currentLocLink = document.getElementById('current-location-link');
     var locPrefix = document.getElementById('location-prefix');
     if (currentLocLink) {
@@ -3191,7 +3202,7 @@ UI.prototype._updateContent = function(levelId) {
     if (locPrefix) {
         locPrefix.innerText = this.currentLang === 'de' ? data.prefix_de : data.prefix_en;
     }
-    
+
     var logoEl = document.getElementById('header-logo');
     if (!logoEl) {
         logoEl = document.querySelector('.logo');
@@ -3199,10 +3210,10 @@ UI.prototype._updateContent = function(levelId) {
     if (logoEl) {
         if (levelId === 'detmold') {
             logoEl.src = './kcd.png';
-            logoEl.onerror = function() { this.onerror = null; this.src = './public/kcd.png'; };
+            logoEl.onerror = function () { this.onerror = null; this.src = './public/kcd.png'; };
         } else {
             logoEl.src = './icl.jpg';
-            logoEl.onerror = function() { this.onerror = null; this.src = './public/icl.jpg'; };
+            logoEl.onerror = function () { this.onerror = null; this.src = './public/icl.jpg'; };
         }
     }
     var switchText = document.getElementById('switch-campus-text');
@@ -3229,14 +3240,14 @@ UI.prototype._updateContent = function(levelId) {
             var cfg = lmEntity.script.levelManager.getConfigById(levelId);
             if (cfg && cfg.spawnpoints && cfg.spawnpoints.length > 0) {
                 navSpContainer.innerHTML = '';
-                cfg.spawnpoints.forEach(function(sp) {
+                cfg.spawnpoints.forEach(function (sp) {
                     var btn = document.createElement('button');
                     btn.className = 'unified-btn';
                     btn.style.width = '100%';
                     btn.style.justifyContent = 'flex-start';
                     btn.innerHTML = '<span class="icon">📍</span> <span>' + sp.name + '</span>';
-                    btn.onclick = function() {
-                        var r = sp.rot || [0,0,0];
+                    btn.onclick = function () {
+                        var r = sp.rot || [0, 0, 0];
                         lmEntity.script.levelManager.jumpToSpawnpoint(sp.pos, r);
                         var no = document.getElementById('nav-overlay');
                         if (no) no.style.display = 'none';
@@ -3259,7 +3270,7 @@ UI.prototype._updateContent = function(levelId) {
     }
     this._updateControlsText(data.mode);
 };
-UI.prototype._updateControlsText = function(mode) {
+UI.prototype._updateControlsText = function (mode) {
     if (this._listDesktop && this._listTouch) {
         var d = this.dict[this.currentLang];
         if (mode === 'fly') {
@@ -3275,19 +3286,19 @@ UI.prototype._updateControlsText = function(mode) {
         joyZone.style.display = 'block';
     }
 };
-UI.prototype._onPresetChanged = function(presetName) {
+UI.prototype._onPresetChanged = function (presetName) {
     this._currentPreset = presetName;
     this._updateButtonStates();
 };
-UI.prototype._updateButtonStates = function() {
+UI.prototype._updateButtonStates = function () {
     var self = this;
-    this._buttons.forEach(function(btn, quality) {
+    this._buttons.forEach(function (btn, quality) {
         if (!btn || !btn.classList) return;
         if (quality === self._currentPreset) btn.classList.add('active');
         else btn.classList.remove('active');
     });
 };
-UI.prototype._onUpdateStats = function(rendered) {
+UI.prototype._onUpdateStats = function (rendered) {
     if (this._splatCountEl) {
         var r = rendered >= 1000000 ? (rendered / 1000000).toFixed(2) + 'M' : (rendered / 1000).toFixed(2) + 'K';
         var t = this.totalSplats >= 1000000 ? (this.totalSplats / 1000000).toFixed(2) + 'M' : (this.totalSplats / 1000).toFixed(2) + 'K';
@@ -3295,18 +3306,18 @@ UI.prototype._onUpdateStats = function(rendered) {
         this._splatCountEl.textContent = 'Splats: ' + r + separator + t;
     }
 };
-UI.prototype._refreshCustomObjectsList = function() {
+UI.prototype._refreshCustomObjectsList = function () {
     var select = document.getElementById('ed-custom-obj-select');
     if (!select) return;
     var oldVal = select.value;
     select.innerHTML = '<option value="">-- No Object Selected --</option>';
-    
-    var traverse = function(node) {
+
+    var traverse = function (node) {
         if (node.script) {
             var isCustom = false;
             var prefix = '';
-            
-            var hasScript = function(name) {
+
+            var hasScript = function (name) {
                 if (node.script.has) return node.script.has(name);
                 return node.script[name] !== undefined;
             };
@@ -3317,7 +3328,7 @@ UI.prototype._refreshCustomObjectsList = function() {
             else if (hasScript('constructionZone')) { isCustom = true; prefix = 'Const'; }
             else if (hasScript('videoTexture')) { isCustom = true; prefix = 'Video'; }
             else if (hasScript('splatBlur')) { isCustom = true; prefix = 'Blur'; }
-            
+
             // Fallback: check script instances directly to bypass naming case issues
             if (!isCustom && node.script.scripts) {
                 for (var i = 0; i < node.script.scripts.length; i++) {
@@ -3330,13 +3341,13 @@ UI.prototype._refreshCustomObjectsList = function() {
                 }
             }
 
-            if (!isCustom && node.tags && node.tags.has('custom-editor-object')) { 
-                isCustom = true; prefix = 'Obj'; 
+            if (!isCustom && node.tags && node.tags.has('custom-editor-object')) {
+                isCustom = true; prefix = 'Obj';
             }
-            if (!isCustom && node.tags && node.tags.has('poi')) { 
-                isCustom = true; prefix = 'POI'; 
+            if (!isCustom && node.tags && node.tags.has('poi')) {
+                isCustom = true; prefix = 'POI';
             }
-            
+
             if (isCustom) {
                 var opt = document.createElement('option');
                 opt.value = node.getGuid();
@@ -3346,12 +3357,12 @@ UI.prototype._refreshCustomObjectsList = function() {
         }
         node.children.forEach(traverse);
     };
-    
+
     traverse(this.app.root);
     select.value = oldVal;
 };
 
-UI.prototype._renderAttributeEditor = function(entity) {
+UI.prototype._renderAttributeEditor = function (entity) {
     var self = this;
     var container = document.getElementById('ed-ins-scripts');
     if (!container) return;
@@ -3361,39 +3372,39 @@ UI.prototype._renderAttributeEditor = function(entity) {
 
     var scriptDefs = {
         'infoHotspot': [
-            {n:'title', t:'string'}, {n:'description', t:'string'}, {n:'buttonText', t:'string'},
-            {n:'title_en', t:'string'}, {n:'description_en', t:'string'}, {n:'buttonText_en', t:'string'},
-            {n:'sublevelIds', t:'array_string'}, {n:'targetLevelId', t:'string'}, {n:'linkUrl', t:'string'},
-            {n:'baseDelay', t:'number'}, {n:'randomWindow', t:'number'}, {n:'radius', t:'number'},
-            {n:'primaryColor', t:'rgb'}, {n:'secondaryColor', t:'rgb'}, {n:'textColor', t:'rgb'},
-            {n:'showBorder', t:'boolean'}, {n:'whiteCore', t:'boolean'}, {n:'vrScale', t:'number'},
-            {n:'customPos', t:'vec3'}, {n:'customRot', t:'vec3'}
+            { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'buttonText', t: 'string' },
+            { n: 'title_en', t: 'string' }, { n: 'description_en', t: 'string' }, { n: 'buttonText_en', t: 'string' },
+            { n: 'sublevelIds', t: 'array_string' }, { n: 'targetLevelId', t: 'string' }, { n: 'linkUrl', t: 'string' },
+            { n: 'baseDelay', t: 'number' }, { n: 'randomWindow', t: 'number' }, { n: 'radius', t: 'number' },
+            { n: 'primaryColor', t: 'rgb' }, { n: 'secondaryColor', t: 'rgb' }, { n: 'textColor', t: 'rgb' },
+            { n: 'showBorder', t: 'boolean' }, { n: 'whiteCore', t: 'boolean' }, { n: 'vrScale', t: 'number' },
+            { n: 'customPos', t: 'vec3' }, { n: 'customRot', t: 'vec3' }
         ],
         'pathVisualizer': [
-            {n:'targetLevelId', t:'string'}, {n:'title', t:'string'}, {n:'description', t:'string'},
-            {n:'buttonText', t:'string'}, {n:'baseDelay', t:'number'}, {n:'randomWindow', t:'number'},
-            {n:'revealDuration', t:'number'}, {n:'primaryColor', t:'rgb'}, {n:'secondaryColor', t:'rgb'},
-            {n:'pathColor', t:'rgb'}, {n:'pathWidth', t:'number'}, {n:'targetOpacity', t:'number'},
-            {n:'showBackground', t:'boolean'}, {n:'yOffset', t:'number'}, {n:'customPos', t:'vec3'},
-            {n:'customRot', t:'vec3'}
+            { n: 'targetLevelId', t: 'string' }, { n: 'title', t: 'string' }, { n: 'description', t: 'string' },
+            { n: 'buttonText', t: 'string' }, { n: 'baseDelay', t: 'number' }, { n: 'randomWindow', t: 'number' },
+            { n: 'revealDuration', t: 'number' }, { n: 'primaryColor', t: 'rgb' }, { n: 'secondaryColor', t: 'rgb' },
+            { n: 'pathColor', t: 'rgb' }, { n: 'pathWidth', t: 'number' }, { n: 'targetOpacity', t: 'number' },
+            { n: 'showBackground', t: 'boolean' }, { n: 'yOffset', t: 'number' }, { n: 'customPos', t: 'vec3' },
+            { n: 'customRot', t: 'vec3' }
         ],
         'constructionZone': [
-            {n:'title', t:'string'}, {n:'description', t:'string'}, {n:'addToTour', t:'boolean'},
-            {n:'baseColor', t:'rgb'}, {n:'glowColor', t:'rgb'}, {n:'targetOpacity', t:'number'},
-            {n:'scanlineIntensity', t:'number'}, {n:'showBorderLines', t:'boolean'}, {n:'borderColor', t:'rgb'},
-            {n:'height', t:'number'}, {n:'showButtonBackground', t:'boolean'}, {n:'fadeDistance', t:'number'},
-            {n:'customPos', t:'vec3'}, {n:'customRot', t:'vec3'}
+            { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'addToTour', t: 'boolean' },
+            { n: 'baseColor', t: 'rgb' }, { n: 'glowColor', t: 'rgb' }, { n: 'targetOpacity', t: 'number' },
+            { n: 'scanlineIntensity', t: 'number' }, { n: 'showBorderLines', t: 'boolean' }, { n: 'borderColor', t: 'rgb' },
+            { n: 'height', t: 'number' }, { n: 'showButtonBackground', t: 'boolean' }, { n: 'fadeDistance', t: 'number' },
+            { n: 'customPos', t: 'vec3' }, { n: 'customRot', t: 'vec3' }
         ],
         'videoTexture': [
-            {n:'videoUrl', t:'string'}, {n:'playAudio', t:'boolean'}, {n:'volume', t:'number'},
-            {n:'videoScale', t:'number'}
+            { n: 'videoUrl', t: 'string' }, { n: 'playAudio', t: 'boolean' }, { n: 'volume', t: 'number' },
+            { n: 'videoScale', t: 'number' }
         ],
         'splatBlur': [
-            {n:'blurScale', t:'number'}, {n:'blurIntensity', t:'number'}
+            { n: 'blurScale', t: 'number' }, { n: 'blurIntensity', t: 'number' }
         ]
     };
 
-    var renderField = function(label, type, val, onChange) {
+    var renderField = function (label, type, val, onChange) {
         var wrap = document.createElement('div');
         wrap.className = 'ed-ins-row';
         var lbl = document.createElement('div');
@@ -3407,40 +3418,40 @@ UI.prototype._renderAttributeEditor = function(entity) {
             var inp = document.createElement('input');
             inp.type = 'text';
             inp.value = val || '';
-            inp.onchange = function(e) { onChange(e.target.value); };
+            inp.onchange = function (e) { onChange(e.target.value); };
             ctrl.appendChild(inp);
         } else if (type === 'number') {
             var inp = document.createElement('input');
             inp.type = 'number';
             inp.step = '0.01';
             inp.value = val !== undefined ? val : 0;
-            inp.onchange = function(e) { onChange(parseFloat(e.target.value)); };
+            inp.onchange = function (e) { onChange(parseFloat(e.target.value)); };
             ctrl.appendChild(inp);
         } else if (type === 'boolean') {
             var inp = document.createElement('input');
             inp.type = 'checkbox';
             inp.checked = !!val;
-            inp.onchange = function(e) { onChange(e.target.checked); };
+            inp.onchange = function (e) { onChange(e.target.checked); };
             ctrl.appendChild(inp);
         } else if (type === 'rgb' || type === 'vec3') {
-            var makeInp = function(v, i) {
+            var makeInp = function (v, i) {
                 var inp = document.createElement('input');
                 inp.type = 'number';
                 inp.step = '0.01';
                 inp.style.width = '30%';
                 inp.value = v !== undefined ? v : 0;
-                inp.onchange = function(e) {
+                inp.onchange = function (e) {
                     var newVal = parseFloat(e.target.value);
                     if (type === 'rgb') {
-                        if (i===0) val.r = newVal; else if (i===1) val.g = newVal; else val.b = newVal;
+                        if (i === 0) val.r = newVal; else if (i === 1) val.g = newVal; else val.b = newVal;
                     } else {
-                        if (i===0) val.x = newVal; else if (i===1) val.y = newVal; else val.z = newVal;
+                        if (i === 0) val.x = newVal; else if (i === 1) val.y = newVal; else val.z = newVal;
                     }
                     onChange(val);
                 };
                 return inp;
             };
-            var v = val || (type==='rgb'?{r:1,g:1,b:1}:{x:0,y:0,z:0});
+            var v = val || (type === 'rgb' ? { r: 1, g: 1, b: 1 } : { x: 0, y: 0, z: 0 });
             if (type === 'rgb') {
                 ctrl.appendChild(makeInp(v.r, 0)); ctrl.appendChild(makeInp(v.g, 1)); ctrl.appendChild(makeInp(v.b, 2));
             } else {
@@ -3450,9 +3461,9 @@ UI.prototype._renderAttributeEditor = function(entity) {
             var inp = document.createElement('input');
             inp.type = 'text';
             inp.value = Array.isArray(val) ? val.join(',') : '';
-            inp.onchange = function(e) { 
-                var arr = e.target.value.split(',').map(s=>s.trim()).filter(s=>s.length>0);
-                onChange(arr); 
+            inp.onchange = function (e) {
+                var arr = e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                onChange(arr);
             };
             ctrl.appendChild(inp);
         }
@@ -3469,7 +3480,7 @@ UI.prototype._renderAttributeEditor = function(entity) {
         wrap1.className = 'ed-ins-row';
         var b1 = document.createElement('button');
         b1.innerText = 'Export JSON';
-        b1.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
+        b1.onclick = function () { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
         wrap1.appendChild(b1);
         container.appendChild(wrap1);
 
@@ -3477,7 +3488,7 @@ UI.prototype._renderAttributeEditor = function(entity) {
         wrap2.className = 'ed-ins-row';
         var b2 = document.createElement('button');
         b2.innerText = 'Local Save';
-        b2.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
+        b2.onclick = function () { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
         wrap2.appendChild(b2);
         container.appendChild(wrap2);
         return;
@@ -3489,41 +3500,41 @@ UI.prototype._renderAttributeEditor = function(entity) {
         container.appendChild(h3);
 
         if (entity._isLevelNode && entity.config) {
-            container.appendChild(renderField('Level ID', 'string', entity.config.id, function(v) { entity.config.id = v; }));
-            container.appendChild(renderField('URL', 'string', entity.config.url, function(v) { entity.config.url = v; }));
-            container.appendChild(renderField('Mode', 'string', entity.config.mode, function(v) { entity.config.mode = v; }));
-            
+            container.appendChild(renderField('Level ID', 'string', entity.config.id, function (v) { entity.config.id = v; }));
+            container.appendChild(renderField('URL', 'string', entity.config.url, function (v) { entity.config.url = v; }));
+            container.appendChild(renderField('Mode', 'string', entity.config.mode, function (v) { entity.config.mode = v; }));
+
             // Culling Bounding Box
             var h4 = document.createElement('h4');
             h4.innerText = 'Culling Box (Crop Campus)';
             h4.style.color = '#ff5555'; h4.style.marginTop = '8px';
             container.appendChild(h4);
-            
+
             if (!entity.config.clipBoxMin) entity.config.clipBoxMin = [-9999, -9999, -9999];
             if (!entity.config.clipBoxMax) entity.config.clipBoxMax = [9999, 9999, 9999];
-            
-            container.appendChild(renderField('Min X,Y,Z', 'vec3', {x: entity.config.clipBoxMin[0], y: entity.config.clipBoxMin[1], z: entity.config.clipBoxMin[2]}, function(v) { entity.config.clipBoxMin = [v.x, v.y, v.z]; }));
-            container.appendChild(renderField('Max X,Y,Z', 'vec3', {x: entity.config.clipBoxMax[0], y: entity.config.clipBoxMax[1], z: entity.config.clipBoxMax[2]}, function(v) { entity.config.clipBoxMax = [v.x, v.y, v.z]; }));
+
+            container.appendChild(renderField('Min X,Y,Z', 'vec3', { x: entity.config.clipBoxMin[0], y: entity.config.clipBoxMin[1], z: entity.config.clipBoxMin[2] }, function (v) { entity.config.clipBoxMin = [v.x, v.y, v.z]; }));
+            container.appendChild(renderField('Max X,Y,Z', 'vec3', { x: entity.config.clipBoxMax[0], y: entity.config.clipBoxMax[1], z: entity.config.clipBoxMax[2] }, function (v) { entity.config.clipBoxMax = [v.x, v.y, v.z]; }));
 
         } else if (entity._isSpawnNode && entity.sp) {
-            container.appendChild(renderField('Name', 'string', entity.sp.name, function(v) { entity.sp.name = v; }));
-            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function(v) { entity.sp.pos = v; }));
-            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function(v) { entity.sp.rot = v; }));
+            container.appendChild(renderField('Name', 'string', entity.sp.name, function (v) { entity.sp.name = v; }));
+            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function (v) { entity.sp.pos = v; }));
+            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function (v) { entity.sp.rot = v; }));
         }
         return;
     }
 
     if (entity.script) {
-        Object.keys(scriptDefs).forEach(function(scriptName) {
+        Object.keys(scriptDefs).forEach(function (scriptName) {
             if (entity.script[scriptName]) {
                 var h3 = document.createElement('h3');
                 h3.innerText = 'Script: ' + scriptName;
                 container.appendChild(h3);
-                
+
                 var scriptInst = entity.script[scriptName];
-                scriptDefs[scriptName].forEach(function(prop) {
+                scriptDefs[scriptName].forEach(function (prop) {
                     var val = scriptInst[prop.n];
-                    container.appendChild(renderField(prop.n, prop.t, val, function(newVal) {
+                    container.appendChild(renderField(prop.n, prop.t, val, function (newVal) {
                         scriptInst[prop.n] = newVal;
                     }));
                 });
@@ -3532,7 +3543,7 @@ UI.prototype._renderAttributeEditor = function(entity) {
     }
 };
 
-UI.prototype.onDestroy = function() {
+UI.prototype.onDestroy = function () {
     this.app.off('ui:setPreset', this._onPresetChanged, this);
     this.app.off('ui:updateStats', this._onUpdateStats, this);
     this.app.off('level:switch', this._onLevelSwitchEvent, this);
