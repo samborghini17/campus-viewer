@@ -1588,19 +1588,28 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
 
     var canvas = this.app.graphicsDevice.canvas;
 
-    if (mode === 'orbit') {
-        // OUTDOOR: Orbit + fly camera, no physics
-        console.log('[LevelMgr] Mode: ORBIT (outdoor)');
+    window.appSettings = window.appSettings || { indoorMouseOnly: false };
+    var useIndoorMouse = (mode === 'walk' && window.appSettings.indoorMouseOnly);
+
+    if (mode === 'orbit' || useIndoorMouse) {
+        // ORBIT / MOUSE ONLY MODE
+        console.log('[LevelMgr] Mode: ' + (useIndoorMouse ? 'ORBIT (indoor mouse-only)' : 'ORBIT (outdoor)'));
         canvas.style.cursor = 'grab';
-        this.app.systems.rigidbody.gravity.set(0, 0, 0);
+        
+        if (!useIndoorMouse) {
+            this.app.systems.rigidbody.gravity.set(0, 0, 0);
+        } else {
+            this.app.systems.rigidbody.gravity.set(0, -9.81, 0);
+        }
+
         if (controls) { 
             controls.enabled = true; 
             controls.enableOrbit = true; 
             controls.enableFly = true; 
-            controls.moveSpeed = this.outdoorSpeed;
-            controls.moveFastSpeed = this.outdoorFastSpeed;
-            controls.maxOrbitDistance = 2000;
-            controls.zoomSpeed = 0.05;
+            controls.moveSpeed = useIndoorMouse ? 2 : this.outdoorSpeed;
+            controls.moveFastSpeed = useIndoorMouse ? 4 : this.outdoorFastSpeed;
+            controls.maxOrbitDistance = useIndoorMouse ? 100 : 2000;
+            controls.zoomSpeed = useIndoorMouse ? 0.02 : 0.05;
         }
         if (flyCam) flyCam.enabled = false;
         this._setCharControllerActive(playerRig, false);
@@ -1759,18 +1768,31 @@ LevelManager.prototype.update = function(dt) {
     var camPos = cam.getPosition();
     var cullDistSq = this._cullDistance * this._cullDistance;
     
-    // Cull gsplat children based on squared distance (performance)
+    // Cull gsplat children based on squared distance (performance) and Bounding Box
     if (this.mainSplatEntity) {
         var children = this.mainSplatEntity.children;
+        var clipMin = data.clipBoxMin || [-9999, -9999, -9999];
+        var clipMax = data.clipBoxMax || [9999, 9999, 9999];
+
         for (var i = 0; i < children.length; i++) {
             var child = children[i];
             if (!child || !child.gsplat) continue;
             var childPos = child.getPosition();
+            
+            // 1. AABB Crop Check
+            var isOutsideAABB = false;
+            if (childPos.x < clipMin[0] || childPos.y < clipMin[1] || childPos.z < clipMin[2] ||
+                childPos.x > clipMax[0] || childPos.y > clipMax[1] || childPos.z > clipMax[2]) {
+                isOutsideAABB = true;
+            }
+
+            // 2. Distance check
             var dx = camPos.x - childPos.x;
             var dy = camPos.y - childPos.y;
             var dz = camPos.z - childPos.z;
             var distSq = dx * dx + dy * dy + dz * dz;
-            if (distSq > cullDistSq) {
+
+            if (distSq > cullDistSq || isOutsideAABB) {
                 if (child.enabled) {
                     child.enabled = false;
                     if (this._culledEntities.indexOf(child) === -1) {

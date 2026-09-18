@@ -239,8 +239,21 @@ PoiManager.prototype._restoreCameraControls = function() {
         var controls = cam.script.cameraControls;
         controls.enabled = true;
         if (controls._pose && controls._controller) {
+            // FIX: Prevent camera from snapping to old target or previous frame inputs.
             var target = this._currentOrbitCenter || new pc.Vec3().copy(worldPos).add(new pc.Vec3().copy(fwd).mulScalar(5.0));
-            controls._controller.attach(controls._pose.look(worldPos, target), false);
+            
+            // Force the camera controller's target and pose immediately without smoothing
+            var newPose = controls._pose.look(worldPos, target);
+            controls._controller.attach(newPose, false);
+            if (controls._controller.camera) {
+                controls._controller.camera.setPosition(worldPos);
+                controls._controller.camera.lookAt(target);
+            }
+            // Clear any pending mouse inputs
+            if(controls._controller._mouse) {
+                controls._controller._mouse.x = 0;
+                controls._controller._mouse.y = 0;
+            }
         }
     }
     

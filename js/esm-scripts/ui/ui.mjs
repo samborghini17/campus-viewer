@@ -2582,6 +2582,19 @@ UI.prototype._renderAttributeEditor = function(entity) {
             container.appendChild(renderField('Level ID', 'string', entity.config.id, function(v) { entity.config.id = v; }));
             container.appendChild(renderField('URL', 'string', entity.config.url, function(v) { entity.config.url = v; }));
             container.appendChild(renderField('Mode', 'string', entity.config.mode, function(v) { entity.config.mode = v; }));
+            
+            // Culling Bounding Box
+            var h4 = document.createElement('h4');
+            h4.innerText = 'Culling Box (Crop Campus)';
+            h4.style.color = '#ff5555'; h4.style.marginTop = '8px';
+            container.appendChild(h4);
+            
+            if (!entity.config.clipBoxMin) entity.config.clipBoxMin = [-9999, -9999, -9999];
+            if (!entity.config.clipBoxMax) entity.config.clipBoxMax = [9999, 9999, 9999];
+            
+            container.appendChild(renderField('Min X,Y,Z', 'vec3', {x: entity.config.clipBoxMin[0], y: entity.config.clipBoxMin[1], z: entity.config.clipBoxMin[2]}, function(v) { entity.config.clipBoxMin = [v.x, v.y, v.z]; }));
+            container.appendChild(renderField('Max X,Y,Z', 'vec3', {x: entity.config.clipBoxMax[0], y: entity.config.clipBoxMax[1], z: entity.config.clipBoxMax[2]}, function(v) { entity.config.clipBoxMax = [v.x, v.y, v.z]; }));
+
         } else if (entity._isSpawnNode && entity.sp) {
             container.appendChild(renderField('Name', 'string', entity.sp.name, function(v) { entity.sp.name = v; }));
             container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function(v) { entity.sp.pos = v; }));
@@ -3369,6 +3382,19 @@ UI.prototype._renderAttributeEditor = function(entity) {
             container.appendChild(renderField('Level ID', 'string', entity.config.id, function(v) { entity.config.id = v; }));
             container.appendChild(renderField('URL', 'string', entity.config.url, function(v) { entity.config.url = v; }));
             container.appendChild(renderField('Mode', 'string', entity.config.mode, function(v) { entity.config.mode = v; }));
+            
+            // Culling Bounding Box
+            var h4 = document.createElement('h4');
+            h4.innerText = 'Culling Box (Crop Campus)';
+            h4.style.color = '#ff5555'; h4.style.marginTop = '8px';
+            container.appendChild(h4);
+            
+            if (!entity.config.clipBoxMin) entity.config.clipBoxMin = [-9999, -9999, -9999];
+            if (!entity.config.clipBoxMax) entity.config.clipBoxMax = [9999, 9999, 9999];
+            
+            container.appendChild(renderField('Min X,Y,Z', 'vec3', {x: entity.config.clipBoxMin[0], y: entity.config.clipBoxMin[1], z: entity.config.clipBoxMin[2]}, function(v) { entity.config.clipBoxMin = [v.x, v.y, v.z]; }));
+            container.appendChild(renderField('Max X,Y,Z', 'vec3', {x: entity.config.clipBoxMax[0], y: entity.config.clipBoxMax[1], z: entity.config.clipBoxMax[2]}, function(v) { entity.config.clipBoxMax = [v.x, v.y, v.z]; }));
+
         } else if (entity._isSpawnNode && entity.sp) {
             container.appendChild(renderField('Name', 'string', entity.sp.name, function(v) { entity.sp.name = v; }));
             container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function(v) { entity.sp.pos = v; }));
