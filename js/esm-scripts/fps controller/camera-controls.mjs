@@ -434,13 +434,23 @@ class CameraControls extends Script {
         ]);
         // mobile move
         v.set(0, 0, 0);
-        // In orbit mode, only the explicit UI joystick should pan, ignore general screen left/right touches
-        // Inverting the joystick by subtracting _uiJoyX and _uiJoyY
-        const activeJoyX = orbit ? -(this._uiJoyX || 0) : (leftInput[0] + (this._uiJoyX || 0));
-        const activeJoyY = orbit ? -(this._uiJoyY || 0) : (-leftInput[1] - (this._uiJoyY || 0));
         const joyMult = orbit ? (moveMult * 0.15) : moveMult; // Slow down further in orbit mode
-        const flyMove = tmpV2.set(activeJoyX, 0, activeJoyY);
-        v.add(flyMove.mulScalar(joyMult));
+        
+        if (orbit) {
+            // Use screenToWorld to create a proper world-space panning vector
+            const joyPanX = -(this._uiJoyX || 0) * 5; // Reduced speed drastically
+            const joyPanY = -(this._uiJoyY || 0) * 5; // Reduced speed drastically
+            if (joyPanX !== 0 || joyPanY !== 0) {
+                const joyPanMove = screenToWorld(this._camera, joyPanX, joyPanY, this._pose.distance);
+                v.add(joyPanMove.mulScalar(+this.enablePan));
+            }
+        } else {
+            const activeJoyX = leftInput[0] + (this._uiJoyX || 0);
+            const activeJoyY = -leftInput[1] - (this._uiJoyY || 0);
+            const flyMove = tmpV2.set(activeJoyX, 0, activeJoyY);
+            v.add(flyMove.mulScalar(joyMult));
+        }
+        
         const orbitMove = screenToWorld(this._camera, touch[0], touch[1], this._pose.distance);
         v.add(orbitMove.mulScalar(orbit * double * +this.enablePan));
         const pinchMove = tmpV2.set(0, 0, pinch[0]);

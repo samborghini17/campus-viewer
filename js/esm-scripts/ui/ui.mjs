@@ -540,11 +540,15 @@ UI.prototype._initElements = function() {
     var btnIntroStart = document.getElementById('btn-intro-start');
     if (introModal && btnIntroStart) {
         introModal.style.display = 'flex';
-        btnIntroStart.onclick = function() {
+        var startIntro = function(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
             introModal.style.display = 'none';
             // Maybe notify app that intro is done
             self.app.fire('ui:intro:finished');
         };
+        btnIntroStart.addEventListener('click', startIntro);
+        btnIntroStart.addEventListener('touchstart', startIntro, { passive: false });
+        btnIntroStart.addEventListener('pointerdown', startIntro);
     }
     var switchBtn = document.getElementById('btn-switch-campus');
     if (switchBtn) {
@@ -560,7 +564,14 @@ UI.prototype._initElements = function() {
         header.addEventListener('click', function() {
             card.classList.toggle('collapsed');
         });
-        if (platform.mobile) card.classList.add('collapsed');
+        if (platform.mobile) {
+            card.style.display = 'none';
+            card.classList.add('collapsed');
+        } else {
+            card.style.display = 'block';
+            // PC: steuerung eingeblendet, aber nicht ausgeklappt (keep collapsed class)
+            card.classList.add('collapsed');
+        }
         this._listDesktop = document.getElementById('ctrl-list-desktop');
         this._listTouch = document.getElementById('ctrl-list-touch');
     }
@@ -3171,6 +3182,16 @@ UI.prototype._updateContent = function(levelId) {
     var introLoc = document.getElementById('intro-location');
     if (introLoc) introLoc.innerText = this.currentLang === 'de' ? data.name_de : data.name_en;
     
+    var currentLocLink = document.getElementById('current-location-link');
+    var locPrefix = document.getElementById('location-prefix');
+    if (currentLocLink) {
+        currentLocLink.innerText = this.currentLang === 'de' ? data.name_de : data.name_en;
+        currentLocLink.href = data.link;
+    }
+    if (locPrefix) {
+        locPrefix.innerText = this.currentLang === 'de' ? data.prefix_de : data.prefix_en;
+    }
+    
     var logoEl = document.getElementById('header-logo');
     if (!logoEl) {
         logoEl = document.querySelector('.logo');
@@ -3261,6 +3282,7 @@ UI.prototype._onPresetChanged = function(presetName) {
 UI.prototype._updateButtonStates = function() {
     var self = this;
     this._buttons.forEach(function(btn, quality) {
+        if (!btn || !btn.classList) return;
         if (quality === self._currentPreset) btn.classList.add('active');
         else btn.classList.remove('active');
     });

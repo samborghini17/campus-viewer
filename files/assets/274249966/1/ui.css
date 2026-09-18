@@ -423,7 +423,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 
 #joystick-base {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 150px);
+    bottom: calc(var(--safe-bottom) + 80px);
     left: calc(var(--safe-left) + 30px);
     width: 120px;
     height: 120px;
@@ -590,20 +590,26 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 
     #controls-card { 
         display: block;
-        bottom: calc(var(--safe-bottom) + 20px) !important;
-        width: calc(100% - 40px) !important;
+        top: calc(var(--safe-top) + 60px) !important;
+        bottom: auto !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        transform-origin: top center !important;
+        width: calc(100% - 20px) !important;
         max-width: 400px !important;
     }
 
     /* POI Sidebar */
     #poi-sidebar { 
-        top: calc(var(--safe-top) + 60px); 
-        bottom: calc(var(--safe-bottom) + 190px); 
+        top: calc(var(--safe-top) + 70px); 
+        bottom: calc(var(--safe-bottom) + 220px); 
         height: auto;
         width: 230px; 
         max-width: calc(100vw - 60px);
         left: calc(var(--safe-left) + 8px); 
         transform: translateX(0); 
+        padding: 10px;
         z-index: 1005;
         border-radius: var(--radius-ui);
     } 
@@ -615,19 +621,17 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         border-radius: 0 10px 10px 0;
     }
 
-    /* POI Navbar (Tour Bar): Raised position above thumbs & joystick */
+    /* POI Navbar (Tour Bar): Reverted to bottom, compact like PC */
     #poi-navbar { 
         position: fixed;
-        bottom: calc(var(--safe-bottom) + 80px); 
+        bottom: calc(var(--safe-bottom) + 20px); 
         left: 50%;
         transform: translateX(-50%);
-        width: calc(100% - 28px);
-        max-width: 340px;
-        margin: 0;
+        width: auto;
         height: 46px;
-        justify-content: space-between; 
-        padding: 4px 8px;
-        gap: 6px;
+        justify-content: center; 
+        padding: 4px 12px;
+        gap: 8px;
         border-radius: var(--radius-ui);
         background: var(--bg-glass-card);
         backdrop-filter: var(--blur-strong);
@@ -686,9 +690,10 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 /* Landscape / Small-height screen adjustments */
 @media (max-height: 500px), (max-width: 600px) {
     #poi-navbar {
-        bottom: calc(var(--safe-bottom) + 80px);
+        bottom: calc(var(--safe-bottom) + 20px);
         height: 46px;
-        max-width: 90%;
+        width: auto;
+        justify-content: center;
         border-radius: var(--radius-btn);
         left: 50%;
         transform: translateX(-50%);
@@ -703,24 +708,22 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
     }
 
     #joystick-base {
-    position: fixed;
-    bottom: calc(var(--safe-bottom) + 30px);
-    left: calc(var(--safe-left) + 30px);
-    width: 120px;
-    height: 120px;
-    background: var(--bg-glass-card);
-    border: 1px solid var(--border-glass);
-    border-radius: 50%;
-    backdrop-filter: var(--blur-strong);
-    -webkit-backdrop-filter: var(--blur-strong);
-    box-shadow: var(--shadow-glass);
-    touch-action: none;
-    pointer-events: auto;
-    z-index: 1000;
-}
+        position: fixed;
+        bottom: calc(var(--safe-bottom) + 80px);
+        left: calc(var(--safe-left) + 30px);
+        width: 120px;
+        height: 120px;
+        background: var(--bg-glass-card);
+        border: 1px solid var(--border-glass);
+        border-radius: 50%;
+        backdrop-filter: var(--blur-strong);
+        -webkit-backdrop-filter: var(--blur-strong);
+        box-shadow: var(--shadow-glass);
+        touch-action: none;
+        pointer-events: auto !important;
+        z-index: 1010;
+    }
     #joystick-stick {
-    position: absolute;
-    top: 50%;
     left: 50%;
     width: 50px;
     height: 50px;

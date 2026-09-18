@@ -249,22 +249,27 @@
     </div>
 </div>
 
+<!-- INTRO MODAL -->
+<div id="intro-modal" class="aeroglass-panel mobile-only" style="display: none; position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%); z-index: 99999; flex-direction: column; align-items: center; text-align: center; padding: 24px; max-width: 85%; width: 340px; box-sizing: border-box; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+    <h2 id="intro-title" style="margin: 0 0 10px 0; font-size: 18px; color: var(--text-bright);">Willkommen zum interaktiven Campus</h2>
+    <p id="intro-subtitle" style="margin: 0 0 20px 0; font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+        Du befindest dich derzeit auf dem <b id="intro-location" style="color: var(--text-bright);">Campus</b>.<br><br>
+        <span style="font-size: 13px; color: rgba(255,255,255,0.85);"><b>Steuerung:</b> Wische zum Umsehen, nutze den Joystick zum Bewegen und tippe auf Gebäude.</span>
+    </p>
+    <button id="btn-intro-start" class="unified-btn active" style="width: 100%; padding: 10px; font-size: 15px; justify-content: center; pointer-events: auto; z-index: 999999;" onpointerdown="var m = document.getElementById('intro-modal'); if(m) { m.style.display='none'; m.style.visibility='hidden'; m.style.opacity='0'; } this.parentElement.style.display='none';">Starten</button>
+</div>
+
 <div id="gsplat-controls" class="header aeroglass-panel">
     <div class="branding">
         <a href="https://www.th-owl.de" target="_blank" rel="noopener noreferrer" class="logo-link">
             <img src="./icl.jpg" alt="Logo" class="logo" id="header-logo" onerror="this.onerror=null; this.src='./public/icl.jpg';">
         </a>
-    </div>
-    
-    <!-- INTRO MODAL -->
-    <div id="intro-modal" class="aeroglass-panel" style="display: none; position: fixed; top: calc(var(--safe-top) + 80px); left: 50%; transform: translateX(-50%); z-index: 99999; flex-direction: column; align-items: center; text-align: center; padding: 16px; max-width: 90%; width: 340px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-        <h2 id="intro-title" style="margin: 0 0 8px 0; font-size: 16px; color: var(--text-bright);">So steuerst du den Campus</h2>
-        <p id="intro-subtitle" style="margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
-            <b style="color: var(--text-bright);">Wischen</b> zum Umschauen.<br>
-            <b style="color: var(--text-bright);">Joystick</b> zum Bewegen.<br>
-            <b style="color: var(--text-bright);">Gebäude antippen</b> für weitere Infos.
-        </p>
-        <button id="btn-intro-start" class="unified-btn active" style="width: 100%; padding: 8px; font-size: 14px; justify-content: center;">Verstanden</button>
+        <div class="title-container pc-only">
+            <span class="title" id="lbl-welcome">Willkommen zum interaktiven Campus</span>
+            <span class="subtitle">
+                <span id="lbl-location-intro">Du befindest dich derzeit</span> <span id="location-prefix">auf dem</span> <a id="current-location-link" href="#" target="_blank" rel="noopener noreferrer">Campus</a>
+            </span>
+        </div>
     </div>
     
     <div class="right-controls">
