@@ -15,8 +15,8 @@
     --text-secondary: rgba(235, 235, 245, 0.6);
     --text-bright: #ffffff;
 
-    --col-accent: #007aff;
-    --col-accent-glow: rgba(0, 122, 255, 0.35);
+    --col-accent: #ff3b30;
+    --col-accent-glow: rgba(255, 59, 48, 0.35);
     --col-cyan: #32ade6;
     --col-red: #ff3b30;
     --col-amber: #ffcc00;
@@ -54,12 +54,13 @@
     --text-secondary: rgba(60, 60, 67, 0.6);
     --text-bright: #000000;
 
-    --col-accent: #007aff;
-    --col-accent-glow: rgba(0, 122, 255, 0.35);
+    --col-accent: #ff3b30;
+    --col-accent-glow: rgba(255, 59, 48, 0.35);
     --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
     --shadow-glass-sm: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 .hidden { display: none !important; pointer-events: none !important; }
+.mobile-only { display: none !important; }
 /* ============================================== */
 
 /* --- AEROGLASS PANEL --- */
@@ -163,7 +164,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
     border-color: rgba(255, 255, 255, 0.50);
     color: var(--text-bright);
 }
-#btn-switch-campus { padding: 6px 16px; border-radius: var(--radius-ui); justify-content: center; min-width: 220px; }
+#btn-switch-campus { padding: 6px 12px; border-radius: var(--radius-btn); justify-content: center; white-space: nowrap; }
 
 /* --- UNIFIED AEROGLASS PANEL DESIGN --- */
 .aeroglass-panel {
@@ -178,10 +179,8 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 /* --- BURGER MENU (AEROGLASS HARMONIZED) --- */
 #burger-menu-container {
     position: absolute;
-    top: calc(var(--safe-top) + 12px);
+    top: calc(var(--safe-top) + 17px);
     right: calc(var(--safe-right) + 14px);
-    height: 48px;
-    align-items: center;
     z-index: 10001;
     display: flex;
     flex-direction: column;
@@ -410,11 +409,12 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
     border-color: var(--border-glass-active);
     color: var(--col-cyan);
 }
+#btn-mobile-map { display: none !important; }
 
 /* --- VIRTUAL JOYSTICK (MOBILE) --- */
 #mobile-joystick-zone {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 20px);
+    bottom: calc(var(--safe-bottom) + 260px);
     left: calc(var(--safe-left) + 20px);
     z-index: 1010;
     pointer-events: auto !important;
@@ -423,16 +423,14 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 
 #joystick-base {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 30px);
+    bottom: calc(var(--safe-bottom) + 150px);
     left: calc(var(--safe-left) + 30px);
     width: 120px;
     height: 120px;
-    background: var(--bg-glass-card);
-    border: 1px solid var(--border-glass);
+    background: rgba(0, 0, 0, 0.35);
     border-radius: 50%;
-    backdrop-filter: var(--blur-strong);
-    -webkit-backdrop-filter: var(--blur-strong);
-    box-shadow: var(--shadow-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     touch-action: none;
     pointer-events: auto;
     z-index: 1000;
@@ -442,14 +440,17 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 50px;
-    height: 50px;
-    margin-top: -25px;
-    margin-left: -25px;
-    background: var(--text-primary);
+    width: 40px;
+    height: 40px;
+    margin-top: -20px;
+    margin-left: -20px;
+    background: rgba(255, 255, 255, 0.95);
     border-radius: 50%;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     pointer-events: none;
+}
+.joystick-returning {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* --- OVERLAY / MODAL --- */
@@ -466,9 +467,9 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 /* --- FOOTER BADGE --- */
 #gsplat-footer {
     position: absolute; bottom: 10px; right: 10px;
-    padding: 4px 10px; background: var(--bg-glass);
+    padding: 6px 14px; background: var(--bg-glass);
     backdrop-filter: var(--blur-strong); -webkit-backdrop-filter: var(--blur-strong);
-    border-radius: var(--radius-pill); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-ui); border: 1px solid var(--border-glass);
     color: var(--text-secondary); font-size: 11px; pointer-events: none; z-index: 999;
 }
 
@@ -495,7 +496,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         width: auto;
         padding: 0 10px;
         border-radius: var(--radius-ui);
-        background: var(--bg-glass);
+        background: var(--bg-glass-card);
         backdrop-filter: var(--blur-strong);
         -webkit-backdrop-filter: var(--blur-strong);
         border: 1px solid var(--border-glass);
@@ -510,7 +511,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         box-sizing: border-box;
     }
     
-    .title, .subtitle { display: none !important; }
+    .title, .subtitle { display: block !important; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
     
     .branding {
         gap: 8px;
@@ -519,12 +520,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         align-items: center;
     }
     .logo {
-        height: 28px;
-        width: auto;
-        max-width: 90px;
-        border-radius: 16px;
-        display: block !important;
-        object-fit: contain;
+        display: none !important;
     } 
     
     .right-controls {
@@ -535,19 +531,18 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         margin-left: auto;
     }
     #btn-switch-campus {
-        padding: 0 10px;
+        padding: 4px 12px;
         height: 32px;
         font-size: 11px;
-        min-width: auto;
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-btn);
     }
-    #switch-campus-text { display: none; }
+    #lbl-menu-btn { display: none !important; }
 
     .quality-buttons.mobile-only .unified-btn {
         padding: 0 8px;
         height: 32px;
         font-size: 11px;
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-btn);
     }
 
     /* Burger Menu: Perfectly harmonized top-right */
@@ -593,7 +588,12 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         border-radius: var(--radius-ui);
     }
 
-    #controls-card { display: none !important; }
+    #controls-card { 
+        display: block;
+        bottom: calc(var(--safe-bottom) + 20px) !important;
+        width: calc(100% - 40px) !important;
+        max-width: 400px !important;
+    }
 
     /* POI Sidebar */
     #poi-sidebar { 
@@ -618,7 +618,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
     /* POI Navbar (Tour Bar): Raised position above thumbs & joystick */
     #poi-navbar { 
         position: fixed;
-        bottom: calc(var(--safe-bottom) + 160px); 
+        bottom: calc(var(--safe-bottom) + 80px); 
         left: 50%;
         transform: translateX(-50%);
         width: calc(100% - 28px);
@@ -650,41 +650,10 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         border-radius: var(--radius-btn);
     }
 
-    /* Virtual Joystick on mobile */
+    /* Virtual Joystick on mobile - definitions moved to global scope, just ensure display */
     #mobile-joystick-zone {
         display: flex !important;
-        bottom: calc(var(--safe-bottom) + 20px);
-        left: calc(var(--safe-left) + 16px);
     }
-    #joystick-base {
-    position: fixed;
-    bottom: calc(var(--safe-bottom) + 30px);
-    left: calc(var(--safe-left) + 30px);
-    width: 120px;
-    height: 120px;
-    background: var(--bg-glass-card);
-    border: 1px solid var(--border-glass);
-    border-radius: 50%;
-    backdrop-filter: var(--blur-strong);
-    -webkit-backdrop-filter: var(--blur-strong);
-    box-shadow: var(--shadow-glass);
-    touch-action: none;
-    pointer-events: auto;
-    z-index: 1000;
-}
-    #joystick-stick {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 50px;
-    height: 50px;
-    margin-top: -25px;
-    margin-left: -25px;
-    background: var(--text-primary);
-    border-radius: 50%;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    pointer-events: none;
-}
 
     /* Mobile Map Button on mobile */
     #btn-mobile-map {
@@ -715,11 +684,14 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 }
 
 /* Landscape / Small-height screen adjustments */
-@media (max-height: 500px) {
+@media (max-height: 500px), (max-width: 600px) {
     #poi-navbar {
-        bottom: calc(var(--safe-bottom) + 10px);
-        height: 38px;
-        max-width: 300px;
+        bottom: calc(var(--safe-bottom) + 80px);
+        height: 46px;
+        max-width: 90%;
+        border-radius: var(--radius-btn);
+        left: 50%;
+        transform: translateX(-50%);
     }
     #poi-sidebar {
         top: calc(var(--safe-top) + 54px);
@@ -729,9 +701,7 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
         bottom: calc(var(--safe-bottom) + 10px);
         height: 38px;
     }
-    #mobile-joystick-zone {
-        bottom: calc(var(--safe-bottom) + 10px);
-    }
+
     #joystick-base {
     position: fixed;
     bottom: calc(var(--safe-bottom) + 30px);
@@ -766,6 +736,9 @@ details.sublevel-accordion[open] .arrow-icon { transform: rotate(180deg); }
 /* Hide joystick and mobile map on desktop */
 @media (min-width: 601px) {
     #mobile-joystick-zone {
+        display: none !important;
+    }
+    #intro-modal {
         display: none !important;
     }
     #btn-mobile-map {

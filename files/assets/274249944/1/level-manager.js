@@ -67,7 +67,7 @@ LevelManager.prototype.initialize = function() {
     this.overlay = document.createElement('div');
     Object.assign(this.overlay.style, {
         position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
-        backgroundColor: '#000000', opacity: '1', pointerEvents: 'auto', zIndex: '9999',
+        backgroundColor: '#000000', opacity: '1', pointerEvents: 'auto', zIndex: '20000',
         transition: 'opacity 0.8s ease'
     });
     document.body.appendChild(this.overlay);
@@ -1589,7 +1589,7 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
     var canvas = this.app.graphicsDevice.canvas;
 
     window.appSettings = window.appSettings || { indoorMouseOnly: false };
-    var useIndoorMouse = (mode === 'walk' && window.appSettings.indoorMouseOnly);
+    var useIndoorMouse = (mode === 'fly' && window.appSettings.indoorMouseOnly);
 
     if (mode === 'orbit' || useIndoorMouse) {
         // ORBIT / MOUSE ONLY MODE
@@ -1599,17 +1599,18 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
         if (!useIndoorMouse) {
             this.app.systems.rigidbody.gravity.set(0, 0, 0);
         } else {
-            this.app.systems.rigidbody.gravity.set(0, -9.81, 0);
+            // Indoor mouse-only: no gravity, just orbit/fly
+            this.app.systems.rigidbody.gravity.set(0, 0, 0);
         }
 
         if (controls) { 
             controls.enabled = true; 
             controls.enableOrbit = true; 
             controls.enableFly = true; 
-            controls.moveSpeed = useIndoorMouse ? 2 : this.outdoorSpeed;
-            controls.moveFastSpeed = useIndoorMouse ? 4 : this.outdoorFastSpeed;
-            controls.maxOrbitDistance = useIndoorMouse ? 100 : 2000;
-            controls.zoomSpeed = useIndoorMouse ? 0.02 : 0.05;
+            controls.moveSpeed = this.outdoorSpeed;
+            controls.moveFastSpeed = this.outdoorFastSpeed;
+            controls.maxOrbitDistance = useIndoorMouse ? 500 : 2000;
+            controls.zoomSpeed = useIndoorMouse ? 0.05 : 0.05;
         }
         if (flyCam) flyCam.enabled = false;
         this._setCharControllerActive(playerRig, false);
@@ -1637,13 +1638,10 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
             var charCtrl = playerRig.script['character-controller'];
             charCtrl.speed = this.indoorSpeed;
             charCtrl.fastSpeed = this.indoorFastSpeed;
-            charCtrl.gravityEnabled = hasCollider; // Fly freely if no collider
-            
-            if (hasCollider) {
-                this.app.systems.rigidbody.gravity.set(0, -9.81, 0);
-            } else {
-                this.app.systems.rigidbody.gravity.set(0, 0, 0);
-            }
+            // Always fly indoors - no gravity/bobbing/jumping
+            charCtrl.gravityEnabled = false;
+            charCtrl._gravityOff = true;
+            this.app.systems.rigidbody.gravity.set(0, 0, 0);
         }
     }
 };
@@ -1758,10 +1756,11 @@ LevelManager.prototype.update = function(dt) {
     }
 
     // Distance culling - only for indoor levels, disabled by default
-    if (!this._cullingEnabled || this._isOutdoorLevel(this.currentLevelId)) return;
+    var doDistanceCull = this._cullingEnabled && !this._isOutdoorLevel(this.currentLevelId);
     
     var data = this.getConfigById(this.currentLevelId);
-    if (!data || data.mode === 'orbit') return; // Skip outdoor/orbit modes
+    if (!data) return;
+    if (data.mode === 'orbit') doDistanceCull = false;
     
     var cam = this.cameraEntity;
     if (!cam) return;
@@ -1779,20 +1778,24 @@ LevelManager.prototype.update = function(dt) {
             if (!child || !child.gsplat) continue;
             var childPos = child.getPosition();
             
-            // 1. AABB Crop Check
+            // 1. AABB Crop Check (always applies if clip box is set)
             var isOutsideAABB = false;
             if (childPos.x < clipMin[0] || childPos.y < clipMin[1] || childPos.z < clipMin[2] ||
                 childPos.x > clipMax[0] || childPos.y > clipMax[1] || childPos.z > clipMax[2]) {
                 isOutsideAABB = true;
             }
 
-            // 2. Distance check
-            var dx = camPos.x - childPos.x;
-            var dy = camPos.y - childPos.y;
-            var dz = camPos.z - childPos.z;
-            var distSq = dx * dx + dy * dy + dz * dz;
+            // 2. Distance check (conditional)
+            var isOutsideDist = false;
+            if (doDistanceCull) {
+                var dx = camPos.x - childPos.x;
+                var dy = camPos.y - childPos.y;
+                var dz = camPos.z - childPos.z;
+                var distSq = dx * dx + dy * dy + dz * dz;
+                isOutsideDist = (distSq > cullDistSq);
+            }
 
-            if (distSq > cullDistSq || isOutsideAABB) {
+            if (isOutsideDist || isOutsideAABB) {
                 if (child.enabled) {
                     child.enabled = false;
                     if (this._culledEntities.indexOf(child) === -1) {

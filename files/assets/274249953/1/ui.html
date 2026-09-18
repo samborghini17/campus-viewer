@@ -217,7 +217,7 @@
                 </div>
 
                 <!-- CUSTOM COMPONENTS (Dynamically populated) -->
-                <div id="ed-custom-attrs" style="display:flex; flex-direction:column; gap:8px;"></div>
+                <div id="ed-ins-scripts" style="display:flex; flex-direction:column; gap:8px;"></div>
 
                 <!-- MATERIAL (For generic meshes) -->
                 <div class="ed-section" style="padding: 10px; background: rgba(255,255,255,0.03); border-radius: var(--radius-ui);">
@@ -254,17 +254,22 @@
         <a href="https://www.th-owl.de" target="_blank" rel="noopener noreferrer" class="logo-link">
             <img src="./icl.jpg" alt="Logo" class="logo" id="header-logo" onerror="this.onerror=null; this.src='./public/icl.jpg';">
         </a>
-        <div class="title-container">
-            <span class="title" id="lbl-welcome">Willkommen zum interaktiven Campus</span>
-            <span class="subtitle">
-                <span id="lbl-location-intro">Du befindest dich derzeit</span> <span id="location-prefix">auf dem</span> <a id="current-location-link" href="#" target="_blank" rel="noopener noreferrer">Campus</a>
-            </span>
-        </div>
+    </div>
+    
+    <!-- INTRO MODAL -->
+    <div id="intro-modal" class="aeroglass-panel" style="display: none; position: fixed; top: calc(var(--safe-top) + 80px); left: 50%; transform: translateX(-50%); z-index: 99999; flex-direction: column; align-items: center; text-align: center; padding: 16px; max-width: 90%; width: 340px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h2 id="intro-title" style="margin: 0 0 8px 0; font-size: 16px; color: var(--text-bright);">So steuerst du den Campus</h2>
+        <p id="intro-subtitle" style="margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
+            <b style="color: var(--text-bright);">Wischen</b> zum Umschauen.<br>
+            <b style="color: var(--text-bright);">Joystick</b> zum Bewegen.<br>
+            <b style="color: var(--text-bright);">Gebäude antippen</b> für weitere Infos.
+        </p>
+        <button id="btn-intro-start" class="unified-btn active" style="width: 100%; padding: 8px; font-size: 14px; justify-content: center;">Verstanden</button>
     </div>
     
     <div class="right-controls">
         <button id="btn-switch-campus" class="unified-btn" style="padding: 4px 12px; margin-right: 8px; font-size: 13px;">
-            <span class="icon" style="margin-right: 4px;">🚀</span> <span id="switch-campus-text">Detmold Campus</span>
+            <span class="icon" style="margin-right: 4px;">🚀</span> <span id="switch-campus-text">Zum Kreativcampus Detmold</span>
         </button>
 
         <div class="quality-buttons pc-only">
@@ -275,8 +280,8 @@
         </div>
         
         <div class="quality-buttons mobile-only">
-            <button id="btn-mob-low" class="unified-btn active" data-tooltip="Low">Low</button>
-            <button id="btn-mob-med" class="unified-btn" data-tooltip="Medium">Medium</button>
+            <button id="btn-mob-med" class="unified-btn active" data-tooltip="Ausgewogen (Standard)">Medium</button>
+            <button id="btn-mob-ultra" class="unified-btn" data-tooltip="Maximale Details">Ultra</button>
         </div>
     </div>
 </div>
@@ -338,7 +343,7 @@
 </div>
 
 <div id="pointer-lock-hint" class="aeroglass-panel" style="display:none; position:fixed; top:80px; left:50%; transform:translateX(-50%); padding:6px 12px; pointer-events:none; z-index:9000; opacity:0; transition:opacity 0.3s ease; display:flex; align-items:center; gap:8px;">
-    <span style="display:inline-flex; align-items:center; justify-content:center; padding: 2px 6px; background:var(--bg-glass); border:1px solid var(--border-glass); border-radius:4px; font-size:11px; font-weight:bold; color:var(--col-cyan);">ESC</span>
+    <span style="display:inline-flex; align-items:center; justify-content:center; padding: 2px 6px; background:var(--bg-glass); border:1px solid var(--border-glass); border-radius:4px; font-size:11px; font-weight:bold; color:var(--col-red);">ESC</span>
     <span style="color:var(--text-bright); font-size:12px; font-weight: 500;">für Menü</span>
 </div>
 

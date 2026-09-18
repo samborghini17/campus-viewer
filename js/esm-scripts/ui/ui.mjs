@@ -517,7 +517,7 @@ UI.prototype._initElements = function() {
         'medium',
         'low',
         'mob-med',
-        'mob-low'
+        'mob-ultra'
     ].forEach(function(quality) {
         var btn = document.getElementById('btn-' + quality);
         if (btn) {
@@ -536,8 +536,16 @@ UI.prototype._initElements = function() {
         }
     });
     this._splatCountEl = document.getElementById('splat-count');
-    this._prefixEl = document.getElementById('location-prefix');
-    this._linkEl = document.getElementById('current-location-link');
+    var introModal = document.getElementById('intro-modal');
+    var btnIntroStart = document.getElementById('btn-intro-start');
+    if (introModal && btnIntroStart) {
+        introModal.style.display = 'flex';
+        btnIntroStart.onclick = function() {
+            introModal.style.display = 'none';
+            // Maybe notify app that intro is done
+            self.app.fire('ui:intro:finished');
+        };
+    }
     var switchBtn = document.getElementById('btn-switch-campus');
     if (switchBtn) {
         switchBtn.onclick = function(e) {
@@ -582,6 +590,51 @@ UI.prototype._initBurgerMenu = function() {
             document.getElementById('lbl-menu-theme').innerText = isLight ? (self.currentLang === 'de' ? 'Dark Mode' : 'Dark Mode') : (self.currentLang === 'de' ? 'Light Mode' : 'Light Mode');
         });
     }
+
+    // Mouse-Only Indoor Toggle
+    window.appSettings = window.appSettings || { indoorMouseOnly: false };
+    var mouseBtn = document.getElementById('menu-mouse-toggle');
+    if (mouseBtn) {
+        mouseBtn.addEventListener('pointerdown', function(e) {
+            e.stopPropagation();
+            window.appSettings.indoorMouseOnly = !window.appSettings.indoorMouseOnly;
+            var isOn = window.appSettings.indoorMouseOnly;
+            var lbl = document.getElementById('lbl-menu-mouse');
+            if (lbl) lbl.innerText = isOn ? 'Indoor: Maus-Steuerung AN' : 'Indoor: Maus-Steuerung AUS';
+            mouseBtn.style.color = isOn ? 'var(--col-cyan)' : '';
+            mouseBtn.style.opacity = isOn ? '1' : '0.7';
+            
+            // Re-apply camera mode immediately
+            var lm = self.app.root.findByName('LevelManager');
+            if (lm && lm.script && lm.script.levelManager) {
+                var mgr = lm.script.levelManager;
+                var cfg = mgr.getConfigById(mgr.currentLevelId);
+                if (cfg) {
+                    var hasCol = mgr._dynamicColliderEntity != null || cfg.collider != null;
+                    mgr.setCameraMode(cfg.mode || 'fly', cfg.bounds, hasCol);
+                }
+            }
+        });
+    }
+
+    // Mobile presets
+    ['mob-med', 'mob-ultra'].forEach(preset => {
+        var btn = document.getElementById('btn-' + preset);
+        if (btn) {
+            self._buttons.set(preset, btn);
+            var newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            self._buttons.set(preset, newBtn);
+            newBtn.addEventListener('click', function(e) {
+                self.app.fire('preset:' + preset);
+                self._onPresetChanged(preset);
+            });
+        }
+    });
+    
+    var currentPreset = platform.mobile ? 'btn-mob-med' : 'btn-medium';
+    var activeBtn = document.getElementById(currentPreset);
+    if (activeBtn) activeBtn.classList.add('active');
 
     // TRUE Bulletproof menu handler with Capture Phase
     var toggleMenu = function(e) {
@@ -676,10 +729,21 @@ UI.prototype._initBurgerMenu = function() {
         if (container.classList.contains('open')) {
             var closeText = (self.currentLang === 'de' ? 'Schließen' : 'Close');
             btn.innerHTML = '<span class="icon">✕</span> <span id="lbl-menu-btn">' + closeText + '</span>';
+            btn.setAttribute('data-tooltip', closeText);
             btn.classList.add('active');
         } else {
             var menuText = (self.dict && self.dict[self.currentLang] && self.dict[self.currentLang].menuBtn) ? self.dict[self.currentLang].menuBtn : 'Menü';
             btn.innerHTML = '<span class="icon">☰</span> <span id="lbl-menu-btn">' + menuText + '</span>';
+            btn.setAttribute('data-tooltip', menuText);
+            btn.classList.remove('active');
+        }
+    });
+    this.app.on('ui:closeMenu', function() {
+        if (container.classList.contains('open')) {
+            container.classList.remove('open');
+            var menuText = (self.dict && self.dict[self.currentLang] && self.dict[self.currentLang].menuBtn) ? self.dict[self.currentLang].menuBtn : 'Menü';
+            btn.innerHTML = '<span class="icon">☰</span> <span id="lbl-menu-btn">' + menuText + '</span>';
+            btn.setAttribute('data-tooltip', menuText);
             btn.classList.remove('active');
         }
     });
@@ -688,6 +752,7 @@ UI.prototype._initBurgerMenu = function() {
             container.classList.remove('open');
             var menuText = (self.dict && self.dict[self.currentLang] && self.dict[self.currentLang].menuBtn) ? self.dict[self.currentLang].menuBtn : 'Menü';
             btn.innerHTML = '<span class="icon">☰</span> <span id="lbl-menu-btn">' + menuText + '</span>';
+            btn.setAttribute('data-tooltip', menuText);
             btn.classList.remove('active');
         }
     });
@@ -1006,7 +1071,8 @@ UI.prototype._initJoystick = function() {
             dy = (dy / dist) * maxRadius;
         }
         
-        joystickStick.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+        // Stick is already centered via top/left 50% and negative margin
+        joystickStick.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
         
         // Normalize to [-1, 1]
         var normX = dx / maxRadius;
@@ -1015,14 +1081,17 @@ UI.prototype._initJoystick = function() {
     };
 
     var resetStick = function() {
-        joystickStick.style.transform = 'translate(-50%, -50%)';
+        joystickStick.classList.add('joystick-returning');
+        joystickStick.style.transform = 'translate(0, 0)';
         self.app.fire('joystick:move', 0, 0);
         activeTouch = null;
+        setTimeout(() => { joystickStick.classList.remove('joystick-returning'); }, 200);
     };
 
     joystickBase.addEventListener('touchstart', function(e) {
         e.stopPropagation();
         if (activeTouch !== null) return; // Already tracking a touch
+        joystickStick.classList.remove('joystick-returning');
         var touch = e.changedTouches[0];
         activeTouch = touch.identifier;
         baseRect = joystickBase.getBoundingClientRect();
@@ -1042,6 +1111,7 @@ UI.prototype._initJoystick = function() {
     }, { passive: false });
 
     var onTouchEnd = function(e) {
+        if (activeTouch === null) return;
         for (var i = 0; i < e.changedTouches.length; i++) {
             if (e.changedTouches[i].identifier === activeTouch) {
                 resetStick();
@@ -1050,8 +1120,8 @@ UI.prototype._initJoystick = function() {
         }
     };
 
-    joystickBase.addEventListener('touchend', onTouchEnd, { passive: true });
-    joystickBase.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
     console.log('[UI] Mobile joystick initialized');
 };
@@ -2090,7 +2160,7 @@ UI.prototype._refreshOutlinerTree = function() {
 
         var allSceneEntities = [];
         var traverse = function(node) {
-            if (node.script && (node.script.infoHotspot || node.script.constructionZone || node.script.pathVisualizer || node.script.videoTexture)) {
+            if (node.script && (node.script.infoHotspot || node.script.constructionZone || node.script.pathVisualizer || node.script.videoTexture || node.script.streamedGsplat || node.script.gsplat)) {
                 allSceneEntities.push(node);
             }
             if (node.children) node.children.forEach(traverse);
@@ -2131,7 +2201,7 @@ UI.prototype._refreshOutlinerTree = function() {
         var renderLevelFolder = function(levelId, depth) {
             var lvlConfig = levels.find(l => l.id === levelId) || { id: levelId, name: levelId };
             var isLevelSelected = self._editorActiveObj && self._editorActiveObj._isLevelNode && self._editorActiveObj.id === levelId;
-            renderRow(lvlConfig.name || lvlConfig.id, '📁', depth, isLevelSelected, function(e) {
+            renderRow('[Level Config] ' + (lvlConfig.name || lvlConfig.id), '⚙️', depth, isLevelSelected, function(e) {
                 e.stopPropagation();
                 self._selectEntity({ _isLevelNode: true, id: lvlConfig.id, name: lvlConfig.name || lvlConfig.id, config: lvlConfig });
             });
@@ -2149,6 +2219,17 @@ UI.prototype._refreshOutlinerTree = function() {
                         });
                     });
                 }
+            }
+
+            var splats = lvlEnts.filter(e => e.script && (e.script.streamedGsplat || e.script.gsplat));
+            if (splats.length > 0) {
+                renderRow('Splat Models (3D)', '☁️', depth + 1, false, null);
+                splats.forEach(function(ent) {
+                    var isSelected = self._editorActiveObj === ent;
+                    renderRow(ent.name, '☁️', depth + 2, isSelected, function(e) {
+                        e.stopPropagation(); self._selectEntity(ent);
+                    }, function(e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+                });
             }
 
             var hotspots = lvlEnts.filter(e => e.script && (e.script.infoHotspot || e.script.constructionZone));
@@ -2933,8 +3014,8 @@ UI.prototype._applyTranslations = function() {
     setTxt('lbl-menu-home', d.menuHome);
     setTxt('lbl-menu-reset', d.menuReset);
     setTxt('lbl-menu-imprint', d.menuImprint);
-    setTxt('lbl-welcome', d.welcome);
-    setTxt('lbl-location-intro', d.locationIntro);
+    setTxt('intro-title', d.welcome);
+    // Location intro handled below
     setTxt('lbl-controls-title', d.controls);
     setTxt('lbl-desktop', d.desktop);
     setTxt('lbl-touch', d.touch);
@@ -2959,7 +3040,9 @@ UI.prototype._translateDynamic = function() {
     var container = document.getElementById('burger-menu-container');
     if (btn && container) {
         var isOpen = container.classList.contains('open');
-        btn.innerHTML = isOpen ? `<span class="icon">✕</span> ${this.currentLang === 'de' ? 'Schließen' : 'Close'}` : `<span class="icon">☰</span> ${d.menuBtn}`;
+        var text = isOpen ? (this.currentLang === 'de' ? 'Schließen' : 'Close') : d.menuBtn;
+        btn.innerHTML = isOpen ? `<span class="icon">✕</span> <span id="lbl-menu-btn">${text}</span>` : `<span class="icon">☰</span> <span id="lbl-menu-btn">${text}</span>`;
+        btn.setAttribute('data-tooltip', text);
     }
     var langFlag = document.getElementById('lang-flag');
     var langText = document.getElementById('lang-text');
@@ -3085,11 +3168,8 @@ UI.prototype.updateJumpBackButton = function() {
 UI.prototype._updateContent = function(levelId) {
     var data = this._levelData[levelId];
     if (!data) return;
-    if (this._prefixEl) this._prefixEl.innerText = this.currentLang === 'de' ? data.prefix_de : data.prefix_en;
-    if (this._linkEl) {
-        this._linkEl.innerText = this.currentLang === 'de' ? data.name_de : data.name_en;
-        this._linkEl.href = data.link;
-    }
+    var introLoc = document.getElementById('intro-location');
+    if (introLoc) introLoc.innerText = this.currentLang === 'de' ? data.name_de : data.name_en;
     
     var logoEl = document.getElementById('header-logo');
     if (!logoEl) {
@@ -3105,9 +3185,12 @@ UI.prototype._updateContent = function(levelId) {
         }
     }
     var switchText = document.getElementById('switch-campus-text');
+    var switchBtn = document.getElementById('btn-switch-campus');
     var d = this.dict[this.currentLang];
-    if (switchText) {
-        switchText.innerText = levelId === 'lemgo' ? d.switchDetmold : d.switchLemgo;
+    if (switchText && switchBtn) {
+        var text = levelId === 'lemgo' ? d.switchDetmold : d.switchLemgo;
+        switchText.innerText = text;
+        switchBtn.setAttribute('data-tooltip', text);
     }
     this._tourVisible = data.mode !== 'fly';
     this.app.fire('ui:toggleTour', this._tourVisible);
@@ -3156,14 +3239,19 @@ UI.prototype._updateContent = function(levelId) {
     this._updateControlsText(data.mode);
 };
 UI.prototype._updateControlsText = function(mode) {
-    if (!this._listDesktop || !this._listTouch) return;
-    var d = this.dict[this.currentLang];
-    if (mode === 'fly') {
-        this._listDesktop.innerHTML = d.flyDesktop;
-        this._listTouch.innerHTML = d.flyTouch;
-    } else {
-        this._listDesktop.innerHTML = d.orbitDesktop;
-        this._listTouch.innerHTML = d.orbitTouch;
+    if (this._listDesktop && this._listTouch) {
+        var d = this.dict[this.currentLang];
+        if (mode === 'fly') {
+            this._listDesktop.innerHTML = d.flyDesktop;
+            this._listTouch.innerHTML = d.flyTouch;
+        } else {
+            this._listDesktop.innerHTML = d.orbitDesktop;
+            this._listTouch.innerHTML = d.orbitTouch;
+        }
+    }
+    var joyZone = document.getElementById('mobile-joystick-zone');
+    if (joyZone) {
+        joyZone.style.display = 'block';
     }
 };
 UI.prototype._onPresetChanged = function(presetName) {

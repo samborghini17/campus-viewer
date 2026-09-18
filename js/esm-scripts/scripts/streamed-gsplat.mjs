@@ -17,7 +17,7 @@ class StreamedGsplat extends Script {
     initialize() {
         const app = this.app;
         this.isMobile = platform.mobile || window.innerWidth < 600;
-        this._currentPreset = this.isMobile ? 'mob-low' : 'medium';
+        this._currentPreset = this.isMobile ? 'mob-med' : 'medium';
         if (app.scene.gsplat) {
             app.scene.gsplat.radialSorting = true;
             app.scene.gsplat.lodUpdateAngle = 90;
@@ -31,7 +31,7 @@ class StreamedGsplat extends Script {
         app.on('preset:low', ()=>this._setPreset('low'), this);
         // Neue Mobile Presets
         app.on('preset:mob-med', ()=>this._setPreset('mob-med'), this);
-        app.on('preset:mob-low', ()=>this._setPreset('mob-low'), this);
+        app.on('preset:mob-ultra', ()=>this._setPreset('mob-ultra'), this);
         app.on('colorize:toggle', this._toggleColorize, this);
         this._applyResolution();
         if (this.splatUrl) this.loadSplat(this.splatUrl, false);
@@ -80,9 +80,9 @@ class StreamedGsplat extends Script {
             base: 10.0,
             mult: 2.0
         };
-        if (this._currentPreset === 'mob-low') return {
-            base: 5.0,
-            mult: 1.5
+        if (this._currentPreset === 'mob-ultra') return {
+            base: this.ultraLodBaseDistance || 25.0,
+            mult: this.ultraLodMultiplier || 3.0
         };
         switch(this._currentPreset){
             case 'ultra':
@@ -117,8 +117,8 @@ class StreamedGsplat extends Script {
             1,
             5
         ];
-        if (this._currentPreset === 'mob-low') return [
-            2,
+        if (this._currentPreset === 'mob-ultra') return [
+            0,
             5
         ];
         switch(this._currentPreset){

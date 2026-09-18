@@ -190,13 +190,19 @@ ConstructionZone.prototype.updateUiPosition = function() {
         var behind = this.screenPos.z < 0;
 
         if (this.card) {
-            this.card.style.display = (behind || !this.isOpen) ? 'none' : 'block';
+            this.card.style.display = (!this.isOpen && behind) ? 'none' : (this.isOpen ? 'block' : 'none');
             
             if(this.card.style.display === 'block') {
                 var cW = 220; 
                 var cH = this.card.offsetHeight || 100;
                 var tX = this.screenPos.x;
                 var tY = this.screenPos.y;
+                
+                if (behind) {
+                    // Stick near bottom center if behind camera
+                    tX = window.innerWidth / 2;
+                    tY = window.innerHeight - 10;
+                }
                 
                 var safeTop = window.safeAreaInsets ? window.safeAreaInsets.top : 40;
                 

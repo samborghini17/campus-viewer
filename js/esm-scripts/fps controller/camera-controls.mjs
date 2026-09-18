@@ -434,8 +434,13 @@ class CameraControls extends Script {
         ]);
         // mobile move
         v.set(0, 0, 0);
-        const flyMove = tmpV2.set(leftInput[0], 0, -leftInput[1]);
-        v.add(flyMove.mulScalar(fly * moveMult));
+        // In orbit mode, only the explicit UI joystick should pan, ignore general screen left/right touches
+        // Inverting the joystick by subtracting _uiJoyX and _uiJoyY
+        const activeJoyX = orbit ? -(this._uiJoyX || 0) : (leftInput[0] + (this._uiJoyX || 0));
+        const activeJoyY = orbit ? -(this._uiJoyY || 0) : (-leftInput[1] - (this._uiJoyY || 0));
+        const joyMult = orbit ? (moveMult * 0.15) : moveMult; // Slow down further in orbit mode
+        const flyMove = tmpV2.set(activeJoyX, 0, activeJoyY);
+        v.add(flyMove.mulScalar(joyMult));
         const orbitMove = screenToWorld(this._camera, touch[0], touch[1], this._pose.distance);
         v.add(orbitMove.mulScalar(orbit * double * +this.enablePan));
         const pinchMove = tmpV2.set(0, 0, pinch[0]);
@@ -682,6 +687,10 @@ class CameraControls extends Script {
         this._flyMobileInput.attach(this.app.graphicsDevice.canvas);
         this._gamepadInput.attach(this.app.graphicsDevice.canvas);
         // expose ui events
+        this.app.on('joystick:move', (x, y) => {
+            this._uiJoyX = x;
+            this._uiJoyY = y;
+        });
         this._flyMobileInput.on('joystick:position:left', ([bx, by, sx, sy])=>{
             if (this._mode !== 'fly') {
                 return;

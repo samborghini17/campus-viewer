@@ -397,26 +397,51 @@ PathVisualizer.prototype.update = function(dt) {
     camera.worldToScreen(this.uiWorldPos, this.screenPos);
     camera.worldToScreen(this.nextWorldPos, this.screenPosNext);
 
-    if (this.screenPos.z < 0) {
+    var isBehind = this.screenPos.z < 0;
+
+    if (isBehind && !this.isOpen) {
         this.spot.style.display = 'none';
         this.card.style.display = 'none';
     } else {
         var px = this.screenPos.x;
         var py = this.screenPos.y;
 
-        this.spot.style.left = px + 'px';
-        this.spot.style.top = py + 'px';
+        if (!isBehind) {
+            this.spot.style.display = 'block';
+            this.spot.style.left = px + 'px';
+            this.spot.style.top = py + 'px';
+            
+            var dx = this.screenPosNext.x - px;
+            var dy = this.screenPosNext.y - py;
+            var angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            var arrowEl = this.ring.querySelector('#arrow');
+            if (arrowEl) arrowEl.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+        } else {
+            this.spot.style.display = 'none';
+        }
         
-        var dx = this.screenPosNext.x - px;
-        var dy = this.screenPosNext.y - py;
-        var angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        // Wir drehen jetzt den Pfeil IM Ring!
-        var arrowEl = this.ring.querySelector('#arrow');
-        if (arrowEl) arrowEl.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
-        
-        if(this.card.style.display !== 'none') {
-            this.card.style.left = (px + 20) + 'px';
-            this.card.style.top = (py - 40) + 'px';
+        if (this.isOpen) {
+            this.card.style.display = 'block';
+            var cW = this.card.offsetWidth || 280;
+            var cH = this.card.offsetHeight || 150;
+            
+            var tX = px + 20;
+            var tY = py - 40;
+            
+            if (isBehind) {
+                // If the point is behind the camera but the card is open, we stick it near the bottom center
+                tX = window.innerWidth / 2 - cW / 2;
+                tY = window.innerHeight - cH - 20;
+            }
+            
+            var safeTop = window.safeAreaInsets ? window.safeAreaInsets.top : 40;
+            tX = Math.max(10, Math.min(tX, window.innerWidth - cW - 10));
+            tY = Math.max(safeTop + 60, Math.min(tY, window.innerHeight - cH - 20));
+
+            this.card.style.left = tX + 'px';
+            this.card.style.top = tY + 'px';
+        } else {
+            this.card.style.display = 'none';
         }
     }
 };
