@@ -18,7 +18,7 @@ UI.attributes.add('totalSplats', {
 });
 UI.prototype.initialize = function () {
     this._buttons = new Map();
-    this._currentPreset = platform.mobile ? 'low' : 'medium';
+    this._currentPreset = platform.mobile ? 'mob-med' : 'medium';
     this.uiContainer = document.createElement('div');
     this._currentLevelId = 'lemgo';
     this._uiVisible = true;
@@ -641,6 +641,17 @@ UI.prototype._initBurgerMenu = function () {
             });
         }
     });
+
+    this._updateButtonStates();
+
+    var controlsCard = document.getElementById('controls-card');
+    if (controlsCard) {
+        if (window.innerWidth <= 600) {
+            controlsCard.style.display = 'none';
+        } else {
+            controlsCard.classList.add('collapsed');
+        }
+    }
 
     var currentPreset = platform.mobile ? 'btn-mob-med' : 'btn-medium';
     var activeBtn = document.getElementById(currentPreset);

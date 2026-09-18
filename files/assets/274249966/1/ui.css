@@ -1130,9 +1130,10 @@ details.sublevel-accordion[open] .arrow-icon {
     }
 
     #nav-overlay .aeroglass-panel {
-        width: 100%;
-        max-width: 380px;
-        max-height: 85dvh;
+        width: 230px;
+        height: calc(100vh - 290px);
+        max-height: none;
+        overflow-y: auto;
         padding: 18px;
         border-radius: var(--radius-ui);
     }
