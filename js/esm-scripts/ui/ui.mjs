@@ -1270,6 +1270,7 @@ UI.prototype._initRealtimeEditor = function () {
             e.stopPropagation();
             panel.style.display = 'none';
             self._editorPanelOpen = false;
+            self._selectEntity(null);
             sessionStorage.removeItem('thowl_admin');
         };
     }
@@ -1280,6 +1281,7 @@ UI.prototype._initRealtimeEditor = function () {
             e.stopPropagation();
             panel.style.display = 'none';
             self._editorPanelOpen = false;
+            self._selectEntity(null);
             sessionStorage.removeItem('thowl_admin');
         };
     }
@@ -2173,139 +2175,46 @@ UI.prototype._refreshOutlinerTree = function () {
             self._selectEntity({ _isGlobalNode: true, name: 'Global Settings' });
         });
 
-        var levels = [];
-        var lm = self.app.root.findByName('LevelManager');
-        if (lm && lm.script && lm.script.levelManager && lm.script.levelManager.levelConfig) {
-            levels = lm.script.levelManager.levelConfig;
-        }
-
-        var allSceneEntities = [];
-        var traverse = function (node) {
-            if (node.script && (node.script.infoHotspot || node.script.constructionZone || node.script.pathVisualizer || node.script.videoTexture || node.script.streamedGsplat || node.script.gsplat)) {
-                allSceneEntities.push(node);
+        var renderEntityNode = function(node, depth) {
+            var icon = '📦';
+            if (node.script) {
+                if (node.script.streamedGsplat || node.script.gsplat || node.script.splatCulling) icon = '☁️';
+                else if (node.script.infoHotspot || node.script.constructionZone) icon = '🎯';
+                else if (node.script.pathVisualizer) icon = '🛣️';
+                else if (node.script.videoTexture) icon = '🎬';
+                else icon = '📜';
+            } else if (node.model || node.render) {
+                icon = '🟪';
+            } else if (node.camera) {
+                icon = '🎥';
+            } else if (node.light) {
+                icon = '💡';
             }
-            if (node.children) node.children.forEach(traverse);
-        };
-        traverse(self.app.root);
-
-        var entitiesByLevel = {};
-        var sublevelIdsSet = new Set();
-
-        allSceneEntities.forEach(function (ent) {
-            var belongsTo = 'lemgo';
-            if (ent.script && ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds && Array.isArray(ent.script.infoHotspot.sublevelIds)) {
-                ent.script.infoHotspot.sublevelIds.forEach(id => sublevelIdsSet.add(id));
+            if (node.name === 'LevelContainer' || node.name === 'Root') icon = '📁';
+            
+            var isSelected = self._editorActiveObj === node;
+            var displayName = node.name;
+            if (node.script && node.script.infoHotspot && node.script.infoHotspot.title) {
+                displayName += ' (' + node.script.infoHotspot.title + ')';
             }
-            var curr = ent;
-            while (curr) {
-                if (curr.parent && curr.parent.name === 'LevelContainer' && curr.name !== 'LevelContainer') {
-                    belongsTo = curr.name;
-                    break;
-                }
-                curr = curr.parent;
-            }
-            if (!entitiesByLevel[belongsTo]) entitiesByLevel[belongsTo] = [];
-            entitiesByLevel[belongsTo].push(ent);
-        });
-
-        var rootLevelIds = [];
-        levels.forEach(function (l) {
-            if (!sublevelIdsSet.has(l.id)) rootLevelIds.push(l.id);
-        });
-
-        if (rootLevelIds.length === 0) {
-            Object.keys(entitiesByLevel).forEach(function (k) {
-                if (!sublevelIdsSet.has(k)) rootLevelIds.push(k);
-            });
-        }
-
-        var renderLevelFolder = function (levelId, depth) {
-            var lvlConfig = levels.find(l => l.id === levelId) || { id: levelId, name: levelId };
-            var isLevelSelected = self._editorActiveObj && self._editorActiveObj._isLevelNode && self._editorActiveObj.id === levelId;
-            renderRow('[Level Config] ' + (lvlConfig.name || lvlConfig.id), '⚙️', depth, isLevelSelected, function (e) {
+            
+            renderRow(displayName, icon, depth, isSelected, function(e) {
                 e.stopPropagation();
-                self._selectEntity({ _isLevelNode: true, id: lvlConfig.id, name: lvlConfig.name || lvlConfig.id, config: lvlConfig });
-            });
-
-            var lvlEnts = entitiesByLevel[levelId] || [];
-
-            if (lvlConfig.spawnpoints && Array.isArray(lvlConfig.spawnpoints)) {
-                if (lvlConfig.spawnpoints.length > 0) {
-                    renderRow('Spawnpoints', '📍', depth + 1, false, null);
-                    lvlConfig.spawnpoints.forEach(function (sp, idx) {
-                        var isSpSelected = self._editorActiveObj && self._editorActiveObj._isSpawnNode && self._editorActiveObj.idx === idx && self._editorActiveObj.lvlId === lvlConfig.id;
-                        renderRow(sp.name || 'Spawnpoint ' + (idx + 1), '📍', depth + 2, isSpSelected, function (e) {
-                            e.stopPropagation();
-                            self._selectEntity({ _isSpawnNode: true, sp: sp, idx: idx, lvlId: lvlConfig.id, name: sp.name || 'Spawnpoint' });
-                        });
-                    });
-                }
-            }
-
-            var splats = lvlEnts.filter(e => e.script && (e.script.streamedGsplat || e.script.gsplat));
-            if (splats.length > 0) {
-                renderRow('Splat Models (3D)', '☁️', depth + 1, false, null);
-                splats.forEach(function (ent) {
-                    var isSelected = self._editorActiveObj === ent;
-                    renderRow(ent.name, '☁️', depth + 2, isSelected, function (e) {
-                        e.stopPropagation(); self._selectEntity(ent);
-                    }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
+                self._selectEntity(node);
+            }, function(e) {
+                e.stopPropagation();
+                node.enabled = !node.enabled;
+                self._refreshOutlinerTree();
+            }, node.enabled);
+            
+            if (node.children && node.children.length > 0) {
+                node.children.forEach(function(child) {
+                    renderEntityNode(child, depth + 1);
                 });
-            }
-
-            var hotspots = lvlEnts.filter(e => e.script && (e.script.infoHotspot || e.script.constructionZone));
-            if (hotspots.length > 0) {
-                renderRow('Hotspots & Zones', '🎯', depth + 1, false, null);
-                hotspots.forEach(function (ent) {
-                    var isSelected = self._editorActiveObj === ent;
-                    var n = ent.name;
-                    if (ent.script.infoHotspot && ent.script.infoHotspot.title) n += ' (' + ent.script.infoHotspot.title + ')';
-                    renderRow(n, ent.script.constructionZone ? '🚧' : '🎯', depth + 2, isSelected, function (e) {
-                        e.stopPropagation(); self._selectEntity(ent);
-                    }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
-
-                    if (ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds && Array.isArray(ent.script.infoHotspot.sublevelIds)) {
-                        ent.script.infoHotspot.sublevelIds.forEach(function (subId) {
-                            renderLevelFolder(subId, depth + 3);
-                        });
-                    }
-                });
-            }
-
-            var paths = lvlEnts.filter(e => e.script && e.script.pathVisualizer);
-            if (paths.length > 0) {
-                renderRow('Laufwege', '🛣️', depth + 1, false, null);
-                paths.forEach(function (ent) {
-                    var isSelected = self._editorActiveObj === ent;
-                    renderRow(ent.name, '🛣️', depth + 2, isSelected, function (e) {
-                        e.stopPropagation(); self._selectEntity(ent);
-                    }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
-                });
-            }
-
-            var media = lvlEnts.filter(e => e.script && e.script.videoTexture);
-            if (media.length > 0) {
-                renderRow('Media Screens', '🎬', depth + 1, false, null);
-                media.forEach(function (ent) {
-                    var isSelected = self._editorActiveObj === ent;
-                    renderRow(ent.name, '🎬', depth + 2, isSelected, function (e) {
-                        e.stopPropagation(); self._selectEntity(ent);
-                    }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
-                });
-            }
-
-            var colName = 'DynamicCollider_' + levelId;
-            var colEnt = self.app.root.findByName(colName);
-            if (colEnt) {
-                renderRow(colEnt.name, '📦', depth + 1, self._editorActiveObj === colEnt, function (e) {
-                    e.stopPropagation(); self._selectEntity(colEnt);
-                }, function (e) { e.stopPropagation(); colEnt.enabled = !colEnt.enabled; self._refreshOutlinerTree(); }, colEnt.enabled);
             }
         };
 
-        rootLevelIds.forEach(function (id) {
-            renderLevelFolder(id, 0);
-        });
+        renderEntityNode(self.app.root, 0);
 
     } catch (err) {
         document.getElementById('ed-outliner-tree').innerHTML = '<div style="color:#ff5555; font-size:11px; padding:10px;"><b>UI Error:</b><br>' + err.message + '</div>';
@@ -2552,6 +2461,13 @@ UI.prototype._renderAttributeEditor = function (entity) {
     if (!entity) return;
 
     var scriptDefs = {
+        'splatCulling': [
+            { n: 'enableCrop', t: 'boolean' },
+            { n: 'cropBoxMin', t: 'vec3' },
+            { n: 'cropBoxMax', t: 'vec3' },
+            { n: 'enableDistanceCulling', t: 'boolean' },
+            { n: 'cullDistance', t: 'number' }
+        ],
         'infoHotspot': [
             { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'buttonText', t: 'string' },
             { n: 'title_en', t: 'string' }, { n: 'description_en', t: 'string' }, { n: 'buttonText_en', t: 'string' },
@@ -3382,6 +3298,13 @@ UI.prototype._renderAttributeEditor = function (entity) {
     if (!entity) return;
 
     var scriptDefs = {
+        'splatCulling': [
+            { n: 'enableCrop', t: 'boolean' },
+            { n: 'cropBoxMin', t: 'vec3' },
+            { n: 'cropBoxMax', t: 'vec3' },
+            { n: 'enableDistanceCulling', t: 'boolean' },
+            { n: 'cullDistance', t: 'number' }
+        ],
         'infoHotspot': [
             { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'buttonText', t: 'string' },
             { n: 'title_en', t: 'string' }, { n: 'description_en', t: 'string' }, { n: 'buttonText_en', t: 'string' },

@@ -1480,6 +1480,23 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     if (sr) this.mainSplatEntity.setLocalEulerAngles(sr[0], sr[1], sr[2]);
     if (sp) this.mainSplatEntity.setLocalPosition(sp[0], sp[1], sp[2]);
     this.mainSplatEntity.syncHierarchy(); 
+    
+    // Attach culling script dynamically if it does not exist
+    if (!this.mainSplatEntity.script) this.mainSplatEntity.addComponent('script');
+    if (!this.mainSplatEntity.script.splatCulling) {
+        this.mainSplatEntity.script.create('splatCulling');
+    }
+    
+    var cullingConfig = data;
+    if (this.mainSplatEntity.script.splatCulling) {
+        var sc = this.mainSplatEntity.script.splatCulling;
+        sc.enableCrop = !!cullingConfig.clipBoxMin;
+        if (cullingConfig.clipBoxMin) sc.cropBoxMin = new pc.Vec3(cullingConfig.clipBoxMin[0], cullingConfig.clipBoxMin[1], cullingConfig.clipBoxMin[2]);
+        if (cullingConfig.clipBoxMax) sc.cropBoxMax = new pc.Vec3(cullingConfig.clipBoxMax[0], cullingConfig.clipBoxMax[1], cullingConfig.clipBoxMax[2]);
+        sc.enableDistanceCulling = this._cullingEnabled && !this._isOutdoorLevel(this.currentLevelId);
+        sc.cullDistance = this._cullDistance;
+        sc._updateUniforms();
+    }
 
     if (this.envSplatEntity && this.envSplatEntity.script && this.envSplatEntity.script.streamedGsplat) {
         if (data.envUrl) {
@@ -1754,61 +1771,206 @@ LevelManager.prototype.update = function(dt) {
             }
         }
     }
+};
 
-    // Distance culling - only for indoor levels, disabled by default
-    var doDistanceCull = this._cullingEnabled && !this._isOutdoorLevel(this.currentLevelId);
+LevelManager.prototype._updateCulling = function() {
+    if (!this.mainSplatEntity) return;
     
     var data = this.getConfigById(this.currentLevelId);
     if (!data) return;
+    
+    // Distance culling - only for indoor levels, disabled by default
+    var doDistanceCull = this._cullingEnabled && !this._isOutdoorLevel(this.currentLevelId);
     if (data.mode === 'orbit') doDistanceCull = false;
+
+    if (this.mainSplatEntity.script && this.mainSplatEntity.script.splatCulling) {
+        var sc = this.mainSplatEntity.script.splatCulling;
+        sc.enableDistanceCulling = doDistanceCull;
+        sc.cullDistance = this._cullDistance;
+        sc._updateUniforms();
+    }
+};
+
+// --- SPLAT CULLING COMPONENT ---
+var SplatCulling = pc.createScript('splatCulling');
+
+SplatCulling.attributes.add('enableCrop', { type: 'boolean', title: 'Enable Crop', default: false });
+SplatCulling.attributes.add('cropBoxMin', { type: 'vec3', title: 'Crop Box Min', default: [-999, -999, -999] });
+SplatCulling.attributes.add('cropBoxMax', { type: 'vec3', title: 'Crop Box Max', default: [999, 999, 999] });
+SplatCulling.attributes.add('enableDistanceCulling', { type: 'boolean', title: 'Distance Culling', default: false });
+SplatCulling.attributes.add('cullDistance', { type: 'number', title: 'Cull Distance', default: 100 });
+
+SplatCulling.prototype.initialize = function() {
+    this._shaderApplied = false;
+    this.app.on('culling:toggle', function(enabled) {
+        this.enableDistanceCulling = enabled;
+        this._updateUniforms();
+    }, this);
     
-    var cam = this.cameraEntity;
-    if (!cam) return;
-    var camPos = cam.getPosition();
-    var cullDistSq = this._cullDistance * this._cullDistance;
+    this.on('enable', this._applyCustomShader, this);
     
-    // Cull gsplat children based on squared distance (performance) and Bounding Box
-    if (this.mainSplatEntity) {
-        var children = this.mainSplatEntity.children;
-        var clipMin = data.clipBoxMin || [-9999, -9999, -9999];
-        var clipMax = data.clipBoxMax || [9999, 9999, 9999];
+    var self = this;
+    this._checkTimer = setInterval(function() {
+        if (self.entity.gsplat && self.entity.gsplat.instance && self.entity.gsplat.instance.material) {
+            clearInterval(self._checkTimer);
+            self._applyCPUCrop();
+            self._applyCustomShader();
+        }
+    }, 500);
+    
+    this.once('destroy', function() { clearInterval(self._checkTimer); });
+};
 
-        for (var i = 0; i < children.length; i++) {
-            var child = children[i];
-            if (!child || !child.gsplat) continue;
-            var childPos = child.getPosition();
-            
-            // 1. AABB Crop Check (always applies if clip box is set)
-            var isOutsideAABB = false;
-            if (childPos.x < clipMin[0] || childPos.y < clipMin[1] || childPos.z < clipMin[2] ||
-                childPos.x > clipMax[0] || childPos.y > clipMax[1] || childPos.z > clipMax[2]) {
-                isOutsideAABB = true;
-            }
+SplatCulling.prototype._applyCPUCrop = function() {
+    if (!this.enableCrop || !this.cropBoxMin || !this.cropBoxMax) return;
+    
+    var gsplat = this.entity.gsplat;
+    if (!gsplat || !gsplat.instance || !gsplat.instance.splat) return;
+    
+    var data = gsplat.instance.splat;
+    if (data._isCropped) return;
 
-            // 2. Distance check (conditional)
-            var isOutsideDist = false;
-            if (doDistanceCull) {
-                var dx = camPos.x - childPos.x;
-                var dy = camPos.y - childPos.y;
-                var dz = camPos.z - childPos.z;
-                var distSq = dx * dx + dy * dy + dz * dz;
-                isOutsideDist = (distSq > cullDistSq);
-            }
-
-            if (isOutsideDist || isOutsideAABB) {
-                if (child.enabled) {
-                    child.enabled = false;
-                    if (this._culledEntities.indexOf(child) === -1) {
-                        this._culledEntities.push(child);
-                    }
+    var x = data.getProp('x');
+    var y = data.getProp('y');
+    var z = data.getProp('z');
+    if (!x || !y || !z) return;
+    
+    var minX = this.cropBoxMin.x, minY = this.cropBoxMin.y, minZ = this.cropBoxMin.z;
+    var maxX = this.cropBoxMax.x, maxY = this.cropBoxMax.y, maxZ = this.cropBoxMax.z;
+    
+    var writeIdx = 0;
+    var numSplats = data.numSplats;
+    var vertexEl = data.getElement('vertex');
+    if (!vertexEl) return;
+    var props = vertexEl.properties;
+    var storages = [];
+    for (var i = 0; i < props.length; i++) {
+        storages.push(props[i].storage);
+    }
+    
+    for (var i = 0; i < numSplats; i++) {
+        var px = x[i], py = y[i], pz = z[i];
+        var inside = (px >= minX && px <= maxX && py >= minY && py <= maxY && pz >= minZ && pz <= maxZ);
+        if (!inside) {
+            if (writeIdx !== i) {
+                for (var s = 0; s < storages.length; s++) {
+                    storages[s][writeIdx] = storages[s][i];
                 }
-            } else {
-                if (!child.enabled) {
-                    child.enabled = true;
-                    var idx = this._culledEntities.indexOf(child);
-                    if (idx !== -1) this._culledEntities.splice(idx, 1);
-                }
             }
+            writeIdx++;
+        }
+    }
+    
+    var removedCount = numSplats - writeIdx;
+    if (removedCount > 0) {
+        console.log('[SplatCulling] CPU Crop removed ' + removedCount + ' splats. New count: ' + writeIdx);
+        data.numSplats = writeIdx;
+        vertexEl.count = writeIdx;
+        
+        for (var i = 0; i < props.length; i++) {
+            props[i].storage = props[i].storage.subarray(0, writeIdx);
+        }
+        
+        data._isCropped = true;
+        
+        // Force the splat instance to rebuild
+        var asset = gsplat.asset;
+        this.entity.removeComponent('gsplat');
+        this.entity.addComponent('gsplat', {
+            unified: true,
+            asset: asset
+        });
+    }
+};
+
+SplatCulling.prototype._applyCustomShader = function() {
+    if (this._shaderApplied) return;
+    
+    var gsplat = this.entity.gsplat;
+    if (!gsplat || !gsplat.instance) return;
+    
+    var material = gsplat.instance.material;
+    if (!material) return;
+
+    var injectUniforms = [
+        "uniform vec3 uCropBoxMin;",
+        "uniform vec3 uCropBoxMax;",
+        "uniform float uEnableCrop;",
+        "uniform float uCullDistanceSq;",
+        "uniform float uEnableDistanceCulling;",
+        "uniform vec3 uCameraPos;"
+    ].join('\n');
+    
+    var injectLogic = [
+        "vec3 centerWorld = mix(dPositionW, vertex_position, 0.0001);",
+        "if (uEnableCrop > 0.5) {",
+        "    if (centerWorld.x >= uCropBoxMin.x && centerWorld.x <= uCropBoxMax.x &&",
+        "        centerWorld.y >= uCropBoxMin.y && centerWorld.y <= uCropBoxMax.y &&",
+        "        centerWorld.z >= uCropBoxMin.z && centerWorld.z <= uCropBoxMax.z) {",
+        "        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);",
+        "        return;",
+        "    }",
+        "}",
+        "if (uEnableDistanceCulling > 0.5) {",
+        "    vec3 distVec = centerWorld - uCameraPos;",
+        "    if (dot(distVec, distVec) > uCullDistanceSq) {",
+        "        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);",
+        "        return;",
+        "    }",
+        "}"
+    ].join('\n');
+    
+    var foundChunk = false;
+    if (material.chunks.gsplatVS) {
+        material.chunks.gsplatVS = injectUniforms + "\n" + material.chunks.gsplatVS.replace('void main(void) {', 'void main(void) {\n' + injectLogic);
+        foundChunk = true;
+    } else if (material.chunks.transformVS) {
+         material.chunks.transformVS = injectUniforms + "\n" + material.chunks.transformVS.replace('void main(void) {', 'void main(void) {\n' + injectLogic);
+         foundChunk = true;
+    }
+    
+    if (!foundChunk) {
+        console.warn('[SplatCulling] Custom shader chunks could not be reliably injected. Using generic transformVS replacement...');
+        material.chunks.transformVS = injectUniforms + "\n" + [
+            "mat4 getModelMatrix() { return matrix_model; }",
+            "vec4 getPosition() {",
+            "    dPositionW = (matrix_model * vec4(vertex_position, 1.0)).xyz;",
+            "    vec4 pos = matrix_viewProjection * matrix_model * vec4(vertex_position, 1.0);",
+            "    " + injectLogic.replace(/\n/g, '\n    '),
+            "    return pos;",
+            "}",
+            "vec3 getWorldPosition() { return dPositionW; }"
+        ].join('\n');
+    }
+
+    material.update();
+    this._material = material;
+    this._shaderApplied = true;
+    this._updateUniforms();
+};
+
+SplatCulling.prototype._updateUniforms = function() {
+    if (!this._material) return;
+    
+    var cam = this.app.systems.camera.cameras[0];
+    var camPos = cam ? cam.entity.getPosition() : new pc.Vec3();
+
+    if (this.cropBoxMin && this.cropBoxMax) {
+        this._material.setParameter('uCropBoxMin', [this.cropBoxMin.x, this.cropBoxMin.y, this.cropBoxMin.z]);
+        this._material.setParameter('uCropBoxMax', [this.cropBoxMax.x, this.cropBoxMax.y, this.cropBoxMax.z]);
+    }
+    this._material.setParameter('uEnableCrop', this.enableCrop ? 1.0 : 0.0);
+    this._material.setParameter('uCullDistanceSq', (this.cullDistance || 100) * (this.cullDistance || 100));
+    this._material.setParameter('uEnableDistanceCulling', this.enableDistanceCulling ? 1.0 : 0.0);
+    this._material.setParameter('uCameraPos', [camPos.x, camPos.y, camPos.z]);
+};
+
+SplatCulling.prototype.update = function() {
+    if (this._shaderApplied && this.enableDistanceCulling) {
+        var cam = this.app.systems.camera.cameras[0];
+        if (cam) {
+            var pos = cam.entity.getPosition();
+            this._material.setParameter('uCameraPos', [pos.x, pos.y, pos.z]);
         }
     }
 };
