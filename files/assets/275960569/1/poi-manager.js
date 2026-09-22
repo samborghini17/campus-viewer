@@ -23,6 +23,9 @@ PoiManager.prototype.initialize = function() {
     this.app.on('level:contentReady', this.refreshList, this);
     this.app.on('level:switch', this.onLevelSwitch, this);
     this.app.on('poi:refresh', this.refreshList, this);
+    this.app.on('ui:closePoiSidebar', function() {
+        if (this.isSidebarOpen) this.toggleSidebar();
+    }, this);
 };
 
 PoiManager.prototype.onLevelSwitch = function() {
