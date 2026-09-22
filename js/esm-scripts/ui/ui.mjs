@@ -2547,19 +2547,16 @@ UI.prototype._renderAttributeEditor = function (entity) {
             
             if (Array.isArray(val)) {
                 if (type === 'array_vec3' || (val.length > 0 && val[0] && typeof val[0].x === 'number')) {
-                    inp.value = val.map(v => v.x + ', ' + v.y + ', ' + v.z).join('
-');
+                    inp.value = val.map(v => v.x + ', ' + v.y + ', ' + v.z).join('\n');
                 } else {
-                    inp.value = val.join('
-');
+                    inp.value = val.join('\n');
                 }
             } else {
                 inp.value = '';
             }
             
             inp.onchange = function(e) { 
-                var lines = e.target.value.split('
-').map(s=>s.trim()).filter(s=>s.length>0);
+                var lines = e.target.value.split('\n').map(s=>s.trim()).filter(s=>s.length>0);
                 if (type === 'array_vec3' || (val && val.length > 0 && typeof val[0].x === 'number')) {
                     var vecs = lines.map(function(line) {
                         var parts = line.split(',').map(s=>parseFloat(s.trim()));
