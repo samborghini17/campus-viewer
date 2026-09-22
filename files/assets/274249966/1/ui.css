@@ -1025,7 +1025,7 @@ details.sublevel-accordion[open] .arrow-icon {
     }
 
     #burger-dropdown {
-        width: min(290px, calc(100vw - 20px));
+        width: 230px;
         right: 0;
         top: calc(100% + 8px);
         max-height: calc(100dvh - var(--safe-top) - 75px);
