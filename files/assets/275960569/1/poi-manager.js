@@ -603,7 +603,7 @@ PoiManager.prototype.toggleSidebar = function() {
     if (el) {
         if(this.isSidebarOpen) {
             el.classList.remove('collapsed');
-            this.app.fire('ui:closeMenu');
+            if (window.innerWidth <= 600) this.app.fire('ui:closeMenu');
         }
         else {
             el.classList.add('collapsed');

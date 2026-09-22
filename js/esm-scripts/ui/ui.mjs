@@ -662,7 +662,7 @@ UI.prototype._initBurgerMenu = function () {
         if (e) { e.preventDefault(); e.stopPropagation(); }
         container.classList.toggle('open');
         if (container.classList.contains('open')) {
-            self.app.fire('ui:closePoiSidebar');
+            if (window.innerWidth <= 600) self.app.fire('ui:closePoiSidebar');
             var closeText = (self.currentLang === 'de' ? 'Schließen' : 'Close');
             btn.innerHTML = '<span class="icon">✕</span> <span id="lbl-menu-btn">' + closeText + '</span>';
             btn.setAttribute('data-tooltip', closeText);

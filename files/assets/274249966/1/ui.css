@@ -344,12 +344,7 @@ details.sublevel-accordion[open] .arrow-icon {
     color: var(--text-bright);
 }
 
-#btn-switch-campus {
-    padding: 6px 12px;
-    border-radius: var(--radius-btn);
-    justify-content: center;
-    white-space: nowrap;
-}
+
 
 /* --- UNIFIED AEROGLASS PANEL DESIGN --- */
 .aeroglass-panel {
@@ -599,7 +594,7 @@ details.sublevel-accordion[open] .arrow-icon {
 /* --- POI SIDEBAR --- */
 #poi-sidebar {
     position: absolute;
-    top: calc(var(--safe-top) + 17px);
+    top: calc(var(--safe-top) + 67px);
     left: calc(var(--safe-left) + 14px);
     bottom: 140px;
     width: 220px;
@@ -968,12 +963,7 @@ details.sublevel-accordion[open] .arrow-icon {
         margin-left: auto;
     }
 
-    #btn-switch-campus {
-        padding: 4px 12px;
-        height: 32px;
-        font-size: 11px;
-        border-radius: var(--radius-btn);
-    }
+
 
     #lbl-menu-btn {
         display: none !important;
@@ -1026,7 +1016,7 @@ details.sublevel-accordion[open] .arrow-icon {
     }
 
     #burger-dropdown {
-        width: 230px;
+        width: 250px;
         right: 0;
         top: calc(100% + 8px);
         max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 290px);
