@@ -976,6 +976,51 @@ UI.prototype._initBurgerMenu = function () {
         };
     }
 
+    // --- Gamepad Toggle (Auto-Detect) ---
+    window.appSettings = window.appSettings || {};
+    window.appSettings.gamepadEnabled = false;
+    
+    var gamepadToggleBtn = document.getElementById('menu-gamepad-toggle');
+    var lblGamepad = document.getElementById('lbl-gamepad');
+
+    var updateGamepadUI = function() {
+        if (!gamepadToggleBtn) return;
+        gamepadToggleBtn.style.opacity = window.appSettings.gamepadEnabled ? '1' : '0.5';
+        gamepadToggleBtn.style.color = window.appSettings.gamepadEnabled ? 'var(--col-red)' : '';
+        if (lblGamepad) {
+            lblGamepad.innerText = window.appSettings.gamepadEnabled
+                ? (self.currentLang === 'de' ? 'Gamepad: AN' : 'Gamepad: ON')
+                : (self.currentLang === 'de' ? 'Gamepad: AUS' : 'Gamepad: OFF');
+        }
+    };
+
+    if (gamepadToggleBtn) {
+        gamepadToggleBtn.onclick = function() {
+            window.appSettings.gamepadEnabled = !window.appSettings.gamepadEnabled;
+            updateGamepadUI();
+        };
+    }
+
+    // Auto-enable when a controller is connected
+    window.addEventListener("gamepadconnected", function(e) {
+        console.log("Gamepad connected at index %d: %s.", e.gamepad.index, e.gamepad.id);
+        window.appSettings.gamepadEnabled = true;
+        updateGamepadUI();
+    });
+
+    window.addEventListener("gamepaddisconnected", function(e) {
+        console.log("Gamepad disconnected from index %d: %s", e.gamepad.index, e.gamepad.id);
+        var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        var anyConnected = false;
+        for (var i = 0; i < gamepads.length; i++) {
+            if (gamepads[i] && gamepads[i].connected) anyConnected = true;
+        }
+        if (!anyConnected) {
+            window.appSettings.gamepadEnabled = false;
+            updateGamepadUI();
+        }
+    });
+
     // --- FPS Meter Toggle (Standard OFF) ---
     this._fpsMeterEnabled = false;
     var fpsToggleBtn = document.getElementById('menu-fps-toggle');

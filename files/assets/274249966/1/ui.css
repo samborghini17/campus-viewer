@@ -661,18 +661,11 @@ details.sublevel-accordion[open] .arrow-icon {
 }
 
 .poi-header {
-<<<<<<< HEAD
     padding: 0 14px;
     height: 42px;
     display: flex;
     align-items: center;
     box-sizing: border-box;
-=======
-    height: 42px;
-    display: flex;
-    align-items: center;
-    padding: 0 14px;
->>>>>>> fd3db9f170fd2b9510e738464c80e39bc974d6dd
     font-weight: 600;
     color: var(--text-bright);
     border-bottom: 1px solid var(--border-glass);

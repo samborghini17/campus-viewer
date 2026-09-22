@@ -84,6 +84,8 @@ CharacterController.prototype.initialize = function() {
     this._lastMouseX = 0;
     this._lastMouseY = 0;
 
+    this._mouseDragZ = 0; // forward/backward for indoor scroll
+
     this._onMouseDown = function(e) {
         if (!self.enabled) return;
         var useIndoorMouse = window.appSettings && window.appSettings.indoorMouseOnly;
@@ -100,8 +102,8 @@ CharacterController.prototype.initialize = function() {
         }
     };
     this._onMouseUp = function(e) {
-        if (e.button === 0) { self._isLeftDragging = false; self._mouseDragX = 0; self._mouseDragY = 0; }
-        if (e.button === 2) self._isRightDragging = false;
+        if (e.button === 0) self._isLeftDragging = false;
+        if (e.button === 2) { self._isRightDragging = false; self._mouseDragX = 0; self._mouseDragY = 0; }
     };
     this._canvas.addEventListener('mousedown', this._onMouseDown);
     window.addEventListener('mouseup', this._onMouseUp);
@@ -121,12 +123,12 @@ CharacterController.prototype.initialize = function() {
             self._lastMouseX = e.clientX;
             self._lastMouseY = e.clientY;
 
-            if (self._isRightDragging) {
+            if (self._isLeftDragging) { // Blender-like: Left click normally orbit/look
                 self.yaw -= dx * self.lookSens * 1.5;
                 self.pitch -= dy * self.lookSens * 1.5;
                 self.pitch = pc.math.clamp(self.pitch, -89, 89);
                 self.camera.setLocalEulerAngles(self.pitch, self.yaw, 0);
-            } else if (self._isLeftDragging) {
+            } else if (self._isRightDragging) { // Right click pan
                 self._mouseDragX = pc.math.clamp(self._mouseDragX + dx * 0.005, -1, 1);
                 self._mouseDragY = pc.math.clamp(self._mouseDragY + dy * 0.005, -1, 1);
             }
@@ -149,9 +151,16 @@ CharacterController.prototype.initialize = function() {
     this._speedMultiplier = 1.0;
     this._onWheel = function(e) {
         if (!self.enabled) return;
-        var delta = Math.max(-100, Math.min(100, e.deltaY));
-        var factor = Math.exp(-delta * 0.002);
-        self._targetSpeedMultiplier = pc.math.clamp(self._targetSpeedMultiplier * factor, 0.2, 5.0);
+        var useIndoorMouse = window.appSettings && window.appSettings.indoorMouseOnly;
+        if (useIndoorMouse) {
+            // Scroll moves forward/backward
+            self._mouseDragZ += Math.sign(e.deltaY) * 0.5; // Impulse
+        } else {
+            // Outdoor smooth speed
+            var delta = Math.max(-100, Math.min(100, e.deltaY));
+            var factor = Math.exp(-delta * 0.002);
+            self._targetSpeedMultiplier = pc.math.clamp(self._targetSpeedMultiplier * factor, 0.2, 5.0);
+        }
     };
     this._canvas.addEventListener('wheel', this._onWheel, { passive: true });
 
@@ -320,39 +329,43 @@ CharacterController.prototype.update = function(dt) {
     }
 
     if (window.appSettings && window.appSettings.indoorMouseOnly) {
-        if (Math.abs(this._mouseDragX) > 0.01 || Math.abs(this._mouseDragY) > 0.01) {
+        if (Math.abs(this._mouseDragX) > 0.01 || Math.abs(this._mouseDragY) > 0.01 || Math.abs(this._mouseDragZ) > 0.01) {
+            moveDir.add(ff.clone().mulScalar(this._mouseDragZ));
             moveDir.add(ff.clone().mulScalar(-this._mouseDragY));
             moveDir.add(fr.clone().mulScalar(this._mouseDragX));
             // Auto decay mouse drag
             this._mouseDragX *= 0.9;
             this._mouseDragY *= 0.9;
+            this._mouseDragZ *= 0.9;
         }
     }
 
     // Gamepad support
-    var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    for (var i = 0; i < gamepads.length; i++) {
-        var gp = gamepads[i];
-        if (gp && gp.connected) {
-            var lx = gp.axes[0];
-            var ly = gp.axes[1];
-            var rx = gp.axes[2];
-            var ry = gp.axes[3];
-            
-            // Movement (Left Stick)
-            if (Math.abs(lx) > 0.1 || Math.abs(ly) > 0.1) {
-                moveDir.add(ff.clone().mulScalar(-ly));
-                moveDir.add(fr.clone().mulScalar(lx));
+    if (window.appSettings && window.appSettings.gamepadEnabled) {
+        var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (var i = 0; i < gamepads.length; i++) {
+            var gp = gamepads[i];
+            if (gp && gp.connected) {
+                var lx = gp.axes[0];
+                var ly = gp.axes[1];
+                var rx = gp.axes[2];
+                var ry = gp.axes[3];
+                
+                // Movement (Left Stick)
+                if (Math.abs(lx) > 0.1 || Math.abs(ly) > 0.1) {
+                    moveDir.add(ff.clone().mulScalar(-ly));
+                    moveDir.add(fr.clone().mulScalar(lx));
+                }
+                
+                // Look (Right Stick)
+                if (Math.abs(rx) > 0.1 || Math.abs(ry) > 0.1) {
+                    this.yaw -= rx * this.lookSens * 15.0;
+                    this.pitch -= ry * this.lookSens * 15.0;
+                    this.pitch = pc.math.clamp(this.pitch, -89, 89);
+                    this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);
+                }
+                break; // Only process the first connected controller
             }
-            
-            // Look (Right Stick)
-            if (Math.abs(rx) > 0.1 || Math.abs(ry) > 0.1) {
-                this.yaw -= rx * this.lookSens * 15.0;
-                this.pitch -= ry * this.lookSens * 15.0;
-                this.pitch = pc.math.clamp(this.pitch, -89, 89);
-                this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);
-            }
-            break; // Only process the first connected controller
         }
     }
 
