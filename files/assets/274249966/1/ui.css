@@ -599,7 +599,7 @@ details.sublevel-accordion[open] .arrow-icon {
 /* --- POI SIDEBAR --- */
 #poi-sidebar {
     position: absolute;
-    top: 100px;
+    top: calc(var(--safe-top) + 17px);
     left: 10px;
     bottom: 140px;
     width: 220px;
@@ -665,7 +665,10 @@ details.sublevel-accordion[open] .arrow-icon {
 }
 
 .poi-header {
-    padding: 12px 14px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
     font-weight: 600;
     color: var(--text-bright);
     border-bottom: 1px solid var(--border-glass);
@@ -1056,6 +1059,10 @@ details.sublevel-accordion[open] .arrow-icon {
         border-radius: var(--radius-ui);
     }
 
+    .poi-header {
+        height: 44px;
+    }
+
     #poi-sidebar.collapsed {
         transform: translateX(calc(-100% - 10px));
     }
@@ -1152,11 +1159,7 @@ details.sublevel-accordion[open] .arrow-icon {
         transform: translateX(-50%);
     }
 
-    #poi-sidebar {
-        top: calc(var(--safe-top) + 60px);
-        bottom: calc(var(--safe-bottom) + 230px);
-        /* Keep it above joystick (which is at 80px + 120px height) */
-    }
+
 
     #btn-mobile-map {
         bottom: calc(var(--safe-bottom) + 10px);

@@ -1209,6 +1209,7 @@ UI.prototype._initSearch = function () {
 };
 UI.prototype._initRealtimeEditor = function () {
     var self = this;
+    this._editorExpandedNodes = this._editorExpandedNodes || new Set();
     var panel = document.getElementById('editor-workstation-panel');
     if (!panel) return;
 
@@ -2148,14 +2149,20 @@ UI.prototype._refreshOutlinerTree = function () {
         tree.innerHTML = '';
         var self = this;
         var search = (this._editorSearchQuery || '').toLowerCase();
+        if (!self._editorExpandedNodes) {
+            self._editorExpandedNodes = new Set();
+        }
 
-        var renderRow = function (name, icon, depth, isSelected, onClick, onEyeClick, isEnabled) {
+        var renderRow = function (name, icon, depth, isSelected, onClick, onEyeClick, isEnabled, hasChildren, isExpanded, onArrowClick) {
             if (search && name.toLowerCase().indexOf(search) === -1) return;
             var row = document.createElement('div');
             row.className = 'ed-tree-node' + (isSelected ? ' selected' : '');
             row.style.paddingLeft = (depth * 14 + 6) + 'px';
 
-            var arrowHtml = depth === 0 ? '<span class="ed-tree-arrow" style="transform:rotate(90deg)">▶</span>' : '<span style="width:14px; display:inline-block;"></span>';
+            var arrowHtml = '<span style="width:14px; display:inline-block;"></span>';
+            if (hasChildren) {
+                arrowHtml = '<span class="ed-tree-arrow" style="cursor:pointer; display:inline-block; width:14px; transform:' + (isExpanded ? 'rotate(90deg)' : 'rotate(0deg)') + '">▶</span>';
+            }
             var eyeClass = (isEnabled !== false) ? 'ed-tree-eye' : 'ed-tree-eye disabled';
             var eyeHtml = onEyeClick ? '<span class="' + eyeClass + '" title="Ein-/Ausblenden">👁️</span>' : '';
 
@@ -2165,7 +2172,16 @@ UI.prototype._refreshOutlinerTree = function () {
                 var eye = row.querySelector('.ed-tree-eye');
                 if (eye) eye.onclick = onEyeClick;
             }
-            if (onClick) row.onclick = onClick;
+            if (hasChildren && onArrowClick) {
+                var arrow = row.querySelector('.ed-tree-arrow');
+                if (arrow) arrow.onclick = onArrowClick;
+            }
+            if (onClick) {
+                var nameSpan = row.querySelector('.ed-tree-name');
+                if (nameSpan) nameSpan.onclick = onClick;
+                var iconSpan = row.querySelector('.ed-tree-icon');
+                if (iconSpan) iconSpan.onclick = onClick;
+            }
             tree.appendChild(row);
         };
 
@@ -2173,7 +2189,7 @@ UI.prototype._refreshOutlinerTree = function () {
         renderRow('App Settings & Export', '⚙️', 0, isGlobalSelected, function (e) {
             e.stopPropagation();
             self._selectEntity({ _isGlobalNode: true, name: 'Global Settings' });
-        });
+        }, null, true, false, false, null);
 
         var renderEntityNode = function(node, depth) {
             var icon = '📦';
@@ -2198,16 +2214,26 @@ UI.prototype._refreshOutlinerTree = function () {
                 displayName += ' (' + node.script.infoHotspot.title + ')';
             }
             
+            var hasChildren = node.children && node.children.length > 0;
+            var isExpanded = self._editorExpandedNodes.has(node.getGuid());
+            if (search) isExpanded = true;
+            
             renderRow(displayName, icon, depth, isSelected, function(e) {
                 e.stopPropagation();
                 self._selectEntity(node);
+                self._refreshOutlinerTree();
             }, function(e) {
                 e.stopPropagation();
                 node.enabled = !node.enabled;
                 self._refreshOutlinerTree();
-            }, node.enabled);
+            }, node.enabled, hasChildren, isExpanded, function(e) {
+                e.stopPropagation();
+                if (isExpanded) self._editorExpandedNodes.delete(node.getGuid());
+                else self._editorExpandedNodes.add(node.getGuid());
+                self._refreshOutlinerTree();
+            });
             
-            if (node.children && node.children.length > 0) {
+            if (hasChildren && isExpanded) {
                 node.children.forEach(function(child) {
                     renderEntityNode(child, depth + 1);
                 });
@@ -2460,48 +2486,7 @@ UI.prototype._renderAttributeEditor = function (entity) {
 
     if (!entity) return;
 
-    var scriptDefs = {
-        'splatCulling': [
-            { n: 'enableCrop', t: 'boolean' },
-            { n: 'cropBoxMin', t: 'vec3' },
-            { n: 'cropBoxMax', t: 'vec3' },
-            { n: 'enableDistanceCulling', t: 'boolean' },
-            { n: 'cullDistance', t: 'number' }
-        ],
-        'infoHotspot': [
-            { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'buttonText', t: 'string' },
-            { n: 'title_en', t: 'string' }, { n: 'description_en', t: 'string' }, { n: 'buttonText_en', t: 'string' },
-            { n: 'sublevelIds', t: 'array_string' }, { n: 'targetLevelId', t: 'string' }, { n: 'linkUrl', t: 'string' },
-            { n: 'baseDelay', t: 'number' }, { n: 'randomWindow', t: 'number' }, { n: 'radius', t: 'number' },
-            { n: 'primaryColor', t: 'rgb' }, { n: 'secondaryColor', t: 'rgb' }, { n: 'textColor', t: 'rgb' },
-            { n: 'showBorder', t: 'boolean' }, { n: 'whiteCore', t: 'boolean' }, { n: 'vrScale', t: 'number' },
-            { n: 'customPos', t: 'vec3' }, { n: 'customRot', t: 'vec3' }
-        ],
-        'pathVisualizer': [
-            { n: 'targetLevelId', t: 'string' }, { n: 'title', t: 'string' }, { n: 'description', t: 'string' },
-            { n: 'buttonText', t: 'string' }, { n: 'baseDelay', t: 'number' }, { n: 'randomWindow', t: 'number' },
-            { n: 'revealDuration', t: 'number' }, { n: 'primaryColor', t: 'rgb' }, { n: 'secondaryColor', t: 'rgb' },
-            { n: 'pathColor', t: 'rgb' }, { n: 'pathWidth', t: 'number' }, { n: 'targetOpacity', t: 'number' },
-            { n: 'showBackground', t: 'boolean' }, { n: 'yOffset', t: 'number' }, { n: 'customPos', t: 'vec3' },
-            { n: 'customRot', t: 'vec3' }
-        ],
-        'constructionZone': [
-            { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'addToTour', t: 'boolean' },
-            { n: 'baseColor', t: 'rgb' }, { n: 'glowColor', t: 'rgb' }, { n: 'targetOpacity', t: 'number' },
-            { n: 'scanlineIntensity', t: 'number' }, { n: 'showBorderLines', t: 'boolean' }, { n: 'borderColor', t: 'rgb' },
-            { n: 'height', t: 'number' }, { n: 'showButtonBackground', t: 'boolean' }, { n: 'fadeDistance', t: 'number' },
-            { n: 'customPos', t: 'vec3' }, { n: 'customRot', t: 'vec3' }
-        ],
-        'videoTexture': [
-            { n: 'videoUrl', t: 'string' }, { n: 'playAudio', t: 'boolean' }, { n: 'volume', t: 'number' },
-            { n: 'videoScale', t: 'number' }
-        ],
-        'splatBlur': [
-            { n: 'blurScale', t: 'number' }, { n: 'blurIntensity', t: 'number' }
-        ]
-    };
-
-    var renderField = function (label, type, val, onChange) {
+    var renderField = function(label, type, val, onChange) {
         var wrap = document.createElement('div');
         wrap.className = 'ed-ins-row';
         var lbl = document.createElement('div');
@@ -2515,54 +2500,88 @@ UI.prototype._renderAttributeEditor = function (entity) {
             var inp = document.createElement('input');
             inp.type = 'text';
             inp.value = val || '';
-            inp.onchange = function (e) { onChange(e.target.value); };
+            inp.onchange = function(e) { onChange(e.target.value); };
             ctrl.appendChild(inp);
         } else if (type === 'number') {
             var inp = document.createElement('input');
             inp.type = 'number';
             inp.step = '0.01';
             inp.value = val !== undefined ? val : 0;
-            inp.onchange = function (e) { onChange(parseFloat(e.target.value)); };
+            inp.onchange = function(e) { onChange(parseFloat(e.target.value)); };
             ctrl.appendChild(inp);
         } else if (type === 'boolean') {
             var inp = document.createElement('input');
             inp.type = 'checkbox';
             inp.checked = !!val;
-            inp.onchange = function (e) { onChange(e.target.checked); };
+            inp.onchange = function(e) { onChange(e.target.checked); };
             ctrl.appendChild(inp);
         } else if (type === 'rgb' || type === 'vec3') {
-            var makeInp = function (v, i) {
+            var makeInp = function(v, i) {
                 var inp = document.createElement('input');
                 inp.type = 'number';
                 inp.step = '0.01';
                 inp.style.width = '30%';
                 inp.value = v !== undefined ? v : 0;
-                inp.onchange = function (e) {
+                inp.onchange = function(e) {
                     var newVal = parseFloat(e.target.value);
                     if (type === 'rgb') {
-                        if (i === 0) val.r = newVal; else if (i === 1) val.g = newVal; else val.b = newVal;
+                        if (i===0) val.r = newVal; else if (i===1) val.g = newVal; else val.b = newVal;
                     } else {
-                        if (i === 0) val.x = newVal; else if (i === 1) val.y = newVal; else val.z = newVal;
+                        if (i===0) val.x = newVal; else if (i===1) val.y = newVal; else val.z = newVal;
                     }
                     onChange(val);
                 };
                 return inp;
             };
-            var v = val || (type === 'rgb' ? { r: 1, g: 1, b: 1 } : { x: 0, y: 0, z: 0 });
+            var v = val || (type==='rgb'?{r:1,g:1,b:1}:{x:0,y:0,z:0});
             if (type === 'rgb') {
                 ctrl.appendChild(makeInp(v.r, 0)); ctrl.appendChild(makeInp(v.g, 1)); ctrl.appendChild(makeInp(v.b, 2));
             } else {
                 ctrl.appendChild(makeInp(v.x, 0)); ctrl.appendChild(makeInp(v.y, 1)); ctrl.appendChild(makeInp(v.z, 2));
             }
-        } else if (type === 'array_string') {
-            var inp = document.createElement('input');
-            inp.type = 'text';
-            inp.value = Array.isArray(val) ? val.join(',') : '';
-            inp.onchange = function (e) {
-                var arr = e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-                onChange(arr);
+        } else if (type === 'array_string' || type === 'array_vec3' || type === 'array') {
+            var inp = document.createElement('textarea');
+            inp.style.width = '100%';
+            inp.style.resize = 'vertical';
+            inp.rows = 3;
+            
+            if (Array.isArray(val)) {
+                if (type === 'array_vec3' || (val.length > 0 && val[0] && typeof val[0].x === 'number')) {
+                    inp.value = val.map(v => v.x + ', ' + v.y + ', ' + v.z).join('
+');
+                } else {
+                    inp.value = val.join('
+');
+                }
+            } else {
+                inp.value = '';
+            }
+            
+            inp.onchange = function(e) { 
+                var lines = e.target.value.split('
+').map(s=>s.trim()).filter(s=>s.length>0);
+                if (type === 'array_vec3' || (val && val.length > 0 && typeof val[0].x === 'number')) {
+                    var vecs = lines.map(function(line) {
+                        var parts = line.split(',').map(s=>parseFloat(s.trim()));
+                        return new pc.Vec3(parts[0]||0, parts[1]||0, parts[2]||0);
+                    });
+                    onChange(vecs);
+                } else {
+                    onChange(lines); 
+                }
             };
             ctrl.appendChild(inp);
+        } else if (type === 'entity') {
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.value = val ? val : '';
+            inp.placeholder = 'Entity GUID';
+            inp.onchange = function(e) { onChange(e.target.value); };
+            ctrl.appendChild(inp);
+        } else {
+            var p = document.createElement('span');
+            p.innerText = 'Unk type: ' + type;
+            ctrl.appendChild(p);
         }
         wrap.appendChild(ctrl);
         return wrap;
@@ -2577,7 +2596,7 @@ UI.prototype._renderAttributeEditor = function (entity) {
         wrap1.className = 'ed-ins-row';
         var b1 = document.createElement('button');
         b1.innerText = 'Export JSON';
-        b1.onclick = function () { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
+        b1.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
         wrap1.appendChild(b1);
         container.appendChild(wrap1);
 
@@ -2585,7 +2604,7 @@ UI.prototype._renderAttributeEditor = function (entity) {
         wrap2.className = 'ed-ins-row';
         var b2 = document.createElement('button');
         b2.innerText = 'Local Save';
-        b2.onclick = function () { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
+        b2.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
         wrap2.appendChild(b2);
         container.appendChild(wrap2);
         return;
@@ -2597,42 +2616,40 @@ UI.prototype._renderAttributeEditor = function (entity) {
         container.appendChild(h3);
 
         if (entity._isLevelNode && entity.config) {
-            container.appendChild(renderField('Level ID', 'string', entity.config.id, function (v) { entity.config.id = v; }));
-            container.appendChild(renderField('URL', 'string', entity.config.url, function (v) { entity.config.url = v; }));
-            container.appendChild(renderField('Mode', 'string', entity.config.mode, function (v) { entity.config.mode = v; }));
-
-            // Culling Bounding Box
-            var h4 = document.createElement('h4');
-            h4.innerText = 'Culling Box (Crop Campus)';
-            h4.style.color = '#ff5555'; h4.style.marginTop = '8px';
-            container.appendChild(h4);
-
-            if (!entity.config.clipBoxMin) entity.config.clipBoxMin = [-9999, -9999, -9999];
-            if (!entity.config.clipBoxMax) entity.config.clipBoxMax = [9999, 9999, 9999];
-
-            container.appendChild(renderField('Min X,Y,Z', 'vec3', { x: entity.config.clipBoxMin[0], y: entity.config.clipBoxMin[1], z: entity.config.clipBoxMin[2] }, function (v) { entity.config.clipBoxMin = [v.x, v.y, v.z]; }));
-            container.appendChild(renderField('Max X,Y,Z', 'vec3', { x: entity.config.clipBoxMax[0], y: entity.config.clipBoxMax[1], z: entity.config.clipBoxMax[2] }, function (v) { entity.config.clipBoxMax = [v.x, v.y, v.z]; }));
-
+            container.appendChild(renderField('Level ID', 'string', entity.config.id, function(v) { entity.config.id = v; }));
+            container.appendChild(renderField('URL', 'string', entity.config.url, function(v) { entity.config.url = v; }));
+            container.appendChild(renderField('Mode', 'string', entity.config.mode, function(v) { entity.config.mode = v; }));
         } else if (entity._isSpawnNode && entity.sp) {
-            container.appendChild(renderField('Name', 'string', entity.sp.name, function (v) { entity.sp.name = v; }));
-            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function (v) { entity.sp.pos = v; }));
-            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function (v) { entity.sp.rot = v; }));
+            container.appendChild(renderField('Name', 'string', entity.sp.name, function(v) { entity.sp.name = v; }));
+            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function(v) { entity.sp.pos = v; }));
+            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function(v) { entity.sp.rot = v; }));
         }
         return;
     }
 
-    if (entity.script) {
-        Object.keys(scriptDefs).forEach(function (scriptName) {
-            if (entity.script[scriptName]) {
-                var h3 = document.createElement('h3');
-                h3.innerText = 'Script: ' + scriptName;
-                container.appendChild(h3);
-
-                var scriptInst = entity.script[scriptName];
-                scriptDefs[scriptName].forEach(function (prop) {
-                    var val = scriptInst[prop.n];
-                    container.appendChild(renderField(prop.n, prop.t, val, function (newVal) {
-                        scriptInst[prop.n] = newVal;
+    if (entity.script && entity.script.scripts) {
+        var scripts = entity.script.scripts;
+        scripts.forEach(function(scriptObj) {
+            var scriptName = scriptObj.__scriptType.name;
+            var h3 = document.createElement('h3');
+            h3.innerText = 'Script: ' + scriptName;
+            container.appendChild(h3);
+            
+            var scriptInst = entity.script[scriptName];
+            if (!scriptInst) return;
+            
+            var attributes = scriptObj.__scriptType.attributes;
+            if (attributes && attributes.index) {
+                var attrs = Object.keys(attributes.index);
+                attrs.forEach(function(attrName) {
+                    var attrType = attributes.index[attrName].type;
+                    if (attributes.index[attrName].array) {
+                        attrType = 'array_' + attrType;
+                        if (attrType === 'array_undefined') attrType = 'array';
+                    }
+                    var val = scriptInst[attrName];
+                    container.appendChild(renderField(attrName, attrType, val, function(newVal) {
+                        scriptInst[attrName] = newVal;
                     }));
                 });
             }
@@ -3287,194 +3304,6 @@ UI.prototype._refreshCustomObjectsList = function () {
 
     traverse(this.app.root);
     select.value = oldVal;
-};
-
-UI.prototype._renderAttributeEditor = function (entity) {
-    var self = this;
-    var container = document.getElementById('ed-ins-scripts');
-    if (!container) return;
-    container.innerHTML = '';
-
-    if (!entity) return;
-
-    var scriptDefs = {
-        'splatCulling': [
-            { n: 'enableCrop', t: 'boolean' },
-            { n: 'cropBoxMin', t: 'vec3' },
-            { n: 'cropBoxMax', t: 'vec3' },
-            { n: 'enableDistanceCulling', t: 'boolean' },
-            { n: 'cullDistance', t: 'number' }
-        ],
-        'infoHotspot': [
-            { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'buttonText', t: 'string' },
-            { n: 'title_en', t: 'string' }, { n: 'description_en', t: 'string' }, { n: 'buttonText_en', t: 'string' },
-            { n: 'sublevelIds', t: 'array_string' }, { n: 'targetLevelId', t: 'string' }, { n: 'linkUrl', t: 'string' },
-            { n: 'baseDelay', t: 'number' }, { n: 'randomWindow', t: 'number' }, { n: 'radius', t: 'number' },
-            { n: 'primaryColor', t: 'rgb' }, { n: 'secondaryColor', t: 'rgb' }, { n: 'textColor', t: 'rgb' },
-            { n: 'showBorder', t: 'boolean' }, { n: 'whiteCore', t: 'boolean' }, { n: 'vrScale', t: 'number' },
-            { n: 'customPos', t: 'vec3' }, { n: 'customRot', t: 'vec3' }
-        ],
-        'pathVisualizer': [
-            { n: 'targetLevelId', t: 'string' }, { n: 'title', t: 'string' }, { n: 'description', t: 'string' },
-            { n: 'buttonText', t: 'string' }, { n: 'baseDelay', t: 'number' }, { n: 'randomWindow', t: 'number' },
-            { n: 'revealDuration', t: 'number' }, { n: 'primaryColor', t: 'rgb' }, { n: 'secondaryColor', t: 'rgb' },
-            { n: 'pathColor', t: 'rgb' }, { n: 'pathWidth', t: 'number' }, { n: 'targetOpacity', t: 'number' },
-            { n: 'showBackground', t: 'boolean' }, { n: 'yOffset', t: 'number' }, { n: 'customPos', t: 'vec3' },
-            { n: 'customRot', t: 'vec3' }
-        ],
-        'constructionZone': [
-            { n: 'title', t: 'string' }, { n: 'description', t: 'string' }, { n: 'addToTour', t: 'boolean' },
-            { n: 'baseColor', t: 'rgb' }, { n: 'glowColor', t: 'rgb' }, { n: 'targetOpacity', t: 'number' },
-            { n: 'scanlineIntensity', t: 'number' }, { n: 'showBorderLines', t: 'boolean' }, { n: 'borderColor', t: 'rgb' },
-            { n: 'height', t: 'number' }, { n: 'showButtonBackground', t: 'boolean' }, { n: 'fadeDistance', t: 'number' },
-            { n: 'customPos', t: 'vec3' }, { n: 'customRot', t: 'vec3' }
-        ],
-        'videoTexture': [
-            { n: 'videoUrl', t: 'string' }, { n: 'playAudio', t: 'boolean' }, { n: 'volume', t: 'number' },
-            { n: 'videoScale', t: 'number' }
-        ],
-        'splatBlur': [
-            { n: 'blurScale', t: 'number' }, { n: 'blurIntensity', t: 'number' }
-        ]
-    };
-
-    var renderField = function (label, type, val, onChange) {
-        var wrap = document.createElement('div');
-        wrap.className = 'ed-ins-row';
-        var lbl = document.createElement('div');
-        lbl.className = 'ed-ins-lbl';
-        lbl.innerText = label;
-        wrap.appendChild(lbl);
-        var ctrl = document.createElement('div');
-        ctrl.className = 'ed-ins-ctrl';
-
-        if (type === 'string') {
-            var inp = document.createElement('input');
-            inp.type = 'text';
-            inp.value = val || '';
-            inp.onchange = function (e) { onChange(e.target.value); };
-            ctrl.appendChild(inp);
-        } else if (type === 'number') {
-            var inp = document.createElement('input');
-            inp.type = 'number';
-            inp.step = '0.01';
-            inp.value = val !== undefined ? val : 0;
-            inp.onchange = function (e) { onChange(parseFloat(e.target.value)); };
-            ctrl.appendChild(inp);
-        } else if (type === 'boolean') {
-            var inp = document.createElement('input');
-            inp.type = 'checkbox';
-            inp.checked = !!val;
-            inp.onchange = function (e) { onChange(e.target.checked); };
-            ctrl.appendChild(inp);
-        } else if (type === 'rgb' || type === 'vec3') {
-            var makeInp = function (v, i) {
-                var inp = document.createElement('input');
-                inp.type = 'number';
-                inp.step = '0.01';
-                inp.style.width = '30%';
-                inp.value = v !== undefined ? v : 0;
-                inp.onchange = function (e) {
-                    var newVal = parseFloat(e.target.value);
-                    if (type === 'rgb') {
-                        if (i === 0) val.r = newVal; else if (i === 1) val.g = newVal; else val.b = newVal;
-                    } else {
-                        if (i === 0) val.x = newVal; else if (i === 1) val.y = newVal; else val.z = newVal;
-                    }
-                    onChange(val);
-                };
-                return inp;
-            };
-            var v = val || (type === 'rgb' ? { r: 1, g: 1, b: 1 } : { x: 0, y: 0, z: 0 });
-            if (type === 'rgb') {
-                ctrl.appendChild(makeInp(v.r, 0)); ctrl.appendChild(makeInp(v.g, 1)); ctrl.appendChild(makeInp(v.b, 2));
-            } else {
-                ctrl.appendChild(makeInp(v.x, 0)); ctrl.appendChild(makeInp(v.y, 1)); ctrl.appendChild(makeInp(v.z, 2));
-            }
-        } else if (type === 'array_string') {
-            var inp = document.createElement('input');
-            inp.type = 'text';
-            inp.value = Array.isArray(val) ? val.join(',') : '';
-            inp.onchange = function (e) {
-                var arr = e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-                onChange(arr);
-            };
-            ctrl.appendChild(inp);
-        }
-        wrap.appendChild(ctrl);
-        return wrap;
-    };
-
-    if (entity._isGlobalNode) {
-        var h3 = document.createElement('h3');
-        h3.innerText = 'Global Settings & Admin';
-        container.appendChild(h3);
-
-        var wrap1 = document.createElement('div');
-        wrap1.className = 'ed-ins-row';
-        var b1 = document.createElement('button');
-        b1.innerText = 'Export JSON';
-        b1.onclick = function () { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
-        wrap1.appendChild(b1);
-        container.appendChild(wrap1);
-
-        var wrap2 = document.createElement('div');
-        wrap2.className = 'ed-ins-row';
-        var b2 = document.createElement('button');
-        b2.innerText = 'Local Save';
-        b2.onclick = function () { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
-        wrap2.appendChild(b2);
-        container.appendChild(wrap2);
-        return;
-    }
-
-    if (entity._isLevelNode || entity._isSpawnNode) {
-        var h3 = document.createElement('h3');
-        h3.innerText = entity._isLevelNode ? 'Level Settings' : 'Spawnpoint Settings';
-        container.appendChild(h3);
-
-        if (entity._isLevelNode && entity.config) {
-            container.appendChild(renderField('Level ID', 'string', entity.config.id, function (v) { entity.config.id = v; }));
-            container.appendChild(renderField('URL', 'string', entity.config.url, function (v) { entity.config.url = v; }));
-            container.appendChild(renderField('Mode', 'string', entity.config.mode, function (v) { entity.config.mode = v; }));
-
-            // Culling Bounding Box
-            var h4 = document.createElement('h4');
-            h4.innerText = 'Culling Box (Crop Campus)';
-            h4.style.color = '#ff5555'; h4.style.marginTop = '8px';
-            container.appendChild(h4);
-
-            if (!entity.config.clipBoxMin) entity.config.clipBoxMin = [-9999, -9999, -9999];
-            if (!entity.config.clipBoxMax) entity.config.clipBoxMax = [9999, 9999, 9999];
-
-            container.appendChild(renderField('Min X,Y,Z', 'vec3', { x: entity.config.clipBoxMin[0], y: entity.config.clipBoxMin[1], z: entity.config.clipBoxMin[2] }, function (v) { entity.config.clipBoxMin = [v.x, v.y, v.z]; }));
-            container.appendChild(renderField('Max X,Y,Z', 'vec3', { x: entity.config.clipBoxMax[0], y: entity.config.clipBoxMax[1], z: entity.config.clipBoxMax[2] }, function (v) { entity.config.clipBoxMax = [v.x, v.y, v.z]; }));
-
-        } else if (entity._isSpawnNode && entity.sp) {
-            container.appendChild(renderField('Name', 'string', entity.sp.name, function (v) { entity.sp.name = v; }));
-            container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function (v) { entity.sp.pos = v; }));
-            container.appendChild(renderField('Rotation', 'vec3', entity.sp.rot, function (v) { entity.sp.rot = v; }));
-        }
-        return;
-    }
-
-    if (entity.script) {
-        Object.keys(scriptDefs).forEach(function (scriptName) {
-            if (entity.script[scriptName]) {
-                var h3 = document.createElement('h3');
-                h3.innerText = 'Script: ' + scriptName;
-                container.appendChild(h3);
-
-                var scriptInst = entity.script[scriptName];
-                scriptDefs[scriptName].forEach(function (prop) {
-                    var val = scriptInst[prop.n];
-                    container.appendChild(renderField(prop.n, prop.t, val, function (newVal) {
-                        scriptInst[prop.n] = newVal;
-                    }));
-                });
-            }
-        });
-    }
 };
 
 UI.prototype.onDestroy = function () {
