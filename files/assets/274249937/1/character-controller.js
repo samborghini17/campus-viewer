@@ -77,31 +77,70 @@ CharacterController.prototype.initialize = function() {
     };
     document.addEventListener('pointerlockchange', this._onPointerLockChange);
 
+    this._mouseDragX = 0;
+    this._mouseDragY = 0;
+    this._isRightDragging = false;
+    this._isLeftDragging = false;
+    this._lastMouseX = 0;
+    this._lastMouseY = 0;
+
     this._onMouseDown = function(e) {
         if (!self.enabled) return;
-        // Only lock if left-clicking exactly on the canvas (not on UI)
-        if (e.target === self._canvas && e.button === 0) {
-            if (!self._isPointerLocked) {
-                self._canvas.requestPointerLock();
+        var useIndoorMouse = window.appSettings && window.appSettings.indoorMouseOnly;
+        
+        if (e.target === self._canvas) {
+            if (useIndoorMouse) {
+                if (e.button === 0) self._isLeftDragging = true;
+                if (e.button === 2) self._isRightDragging = true;
+                self._lastMouseX = e.clientX;
+                self._lastMouseY = e.clientY;
+            } else if (e.button === 0) {
+                if (!self._isPointerLocked) self._canvas.requestPointerLock();
             }
         }
     };
+    this._onMouseUp = function(e) {
+        if (e.button === 0) { self._isLeftDragging = false; self._mouseDragX = 0; self._mouseDragY = 0; }
+        if (e.button === 2) self._isRightDragging = false;
+    };
     this._canvas.addEventListener('mousedown', this._onMouseDown);
+    window.addEventListener('mouseup', this._onMouseUp);
+
+    // Prevent context menu on right click
+    this._canvas.addEventListener('contextmenu', function(e) {
+        if (window.appSettings && window.appSettings.indoorMouseOnly) e.preventDefault();
+    });
 
     this._onMouseMove = function(e) {
-        if (!self.enabled || !self.camera || !self._isPointerLocked) return;
-        
-        var dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-        var dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-        
-        // Fix for pointer lock bugs on widescreen monitors where movement values explode at screen edges
-        dx = pc.math.clamp(dx, -100, 100);
-        dy = pc.math.clamp(dy, -100, 100);
+        if (!self.enabled || !self.camera) return;
+        var useIndoorMouse = window.appSettings && window.appSettings.indoorMouseOnly;
 
-        self.yaw -= dx * self.lookSens;
-        self.pitch -= dy * self.lookSens;
-        self.pitch = pc.math.clamp(self.pitch, -89, 89);
-        self.camera.setLocalEulerAngles(self.pitch, self.yaw, 0);
+        if (useIndoorMouse) {
+            var dx = e.clientX - self._lastMouseX;
+            var dy = e.clientY - self._lastMouseY;
+            self._lastMouseX = e.clientX;
+            self._lastMouseY = e.clientY;
+
+            if (self._isRightDragging) {
+                self.yaw -= dx * self.lookSens * 1.5;
+                self.pitch -= dy * self.lookSens * 1.5;
+                self.pitch = pc.math.clamp(self.pitch, -89, 89);
+                self.camera.setLocalEulerAngles(self.pitch, self.yaw, 0);
+            } else if (self._isLeftDragging) {
+                self._mouseDragX = pc.math.clamp(self._mouseDragX + dx * 0.005, -1, 1);
+                self._mouseDragY = pc.math.clamp(self._mouseDragY + dy * 0.005, -1, 1);
+            }
+        } else if (self._isPointerLocked) {
+            var dxLock = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+            var dyLock = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+            dxLock = pc.math.clamp(dxLock, -100, 100);
+            dyLock = pc.math.clamp(dyLock, -100, 100);
+
+            self.yaw -= dxLock * self.lookSens;
+            self.pitch -= dyLock * self.lookSens;
+            self.pitch = pc.math.clamp(self.pitch, -89, 89);
+            self.camera.setLocalEulerAngles(self.pitch, self.yaw, 0);
+        }
     };
     document.addEventListener('mousemove', this._onMouseMove);
 
@@ -278,6 +317,43 @@ CharacterController.prototype.update = function(dt) {
     if (Math.abs(this._joystickX) > 0.05 || Math.abs(this._joystickY) > 0.05) {
         moveDir.add(ff.clone().mulScalar(this._joystickY));
         moveDir.add(fr.clone().mulScalar(this._joystickX));
+    }
+
+    if (window.appSettings && window.appSettings.indoorMouseOnly) {
+        if (Math.abs(this._mouseDragX) > 0.01 || Math.abs(this._mouseDragY) > 0.01) {
+            moveDir.add(ff.clone().mulScalar(-this._mouseDragY));
+            moveDir.add(fr.clone().mulScalar(this._mouseDragX));
+            // Auto decay mouse drag
+            this._mouseDragX *= 0.9;
+            this._mouseDragY *= 0.9;
+        }
+    }
+
+    // Gamepad support
+    var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (var i = 0; i < gamepads.length; i++) {
+        var gp = gamepads[i];
+        if (gp && gp.connected) {
+            var lx = gp.axes[0];
+            var ly = gp.axes[1];
+            var rx = gp.axes[2];
+            var ry = gp.axes[3];
+            
+            // Movement (Left Stick)
+            if (Math.abs(lx) > 0.1 || Math.abs(ly) > 0.1) {
+                moveDir.add(ff.clone().mulScalar(-ly));
+                moveDir.add(fr.clone().mulScalar(lx));
+            }
+            
+            // Look (Right Stick)
+            if (Math.abs(rx) > 0.1 || Math.abs(ry) > 0.1) {
+                this.yaw -= rx * this.lookSens * 15.0;
+                this.pitch -= ry * this.lookSens * 15.0;
+                this.pitch = pc.math.clamp(this.pitch, -89, 89);
+                this.camera.setLocalEulerAngles(this.pitch, this.yaw, 0);
+            }
+            break; // Only process the first connected controller
+        }
     }
 
     if (flyActive) {

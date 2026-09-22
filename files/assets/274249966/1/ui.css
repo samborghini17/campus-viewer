@@ -596,8 +596,9 @@ details.sublevel-accordion[open] .arrow-icon {
     position: absolute;
     top: calc(var(--safe-top) + 67px);
     left: calc(var(--safe-left) + 14px);
-    bottom: 140px;
-    width: 220px;
+    bottom: auto;
+    width: 260px;
+    max-height: calc(100vh - 80px);
     background: var(--bg-glass-card);
     backdrop-filter: var(--blur-strong);
     -webkit-backdrop-filter: var(--blur-strong);
@@ -660,11 +661,18 @@ details.sublevel-accordion[open] .arrow-icon {
 }
 
 .poi-header {
+<<<<<<< HEAD
     padding: 0 14px;
     height: 42px;
     display: flex;
     align-items: center;
     box-sizing: border-box;
+=======
+    height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+>>>>>>> fd3db9f170fd2b9510e738464c80e39bc974d6dd
     font-weight: 600;
     color: var(--text-bright);
     border-bottom: 1px solid var(--border-glass);
@@ -914,9 +922,9 @@ details.sublevel-accordion[open] .arrow-icon {
         position: fixed;
         top: calc(var(--safe-top) + 8px);
         left: calc(var(--safe-left) + 10px);
-        right: calc(var(--safe-right) + 62px);
+        right: auto;
         height: 44px;
-        width: auto;
+        width: max-content;
         padding: 0 10px;
         border-radius: var(--radius-ui);
         background: var(--bg-glass-card);
@@ -1036,18 +1044,21 @@ details.sublevel-accordion[open] .arrow-icon {
         max-width: 400px !important;
     }
 
-    /* POI Sidebar */
     #poi-sidebar {
-        top: calc(var(--safe-top) + 70px);
+        top: calc(var(--safe-top) + 60px);
         bottom: calc(var(--safe-bottom) + 220px);
         height: auto;
-        width: 230px;
+        width: 250px;
         max-width: calc(100vw - 60px);
         left: calc(var(--safe-left) + 8px);
         transform: translateX(0);
         padding: 10px;
         z-index: 1005;
         border-radius: var(--radius-ui);
+    }
+
+    .poi-header {
+        height: 44px;
     }
 
     #poi-sidebar.collapsed {
@@ -1146,11 +1157,7 @@ details.sublevel-accordion[open] .arrow-icon {
         transform: translateX(-50%);
     }
 
-    #poi-sidebar {
-        top: calc(var(--safe-top) + 60px);
-        bottom: calc(var(--safe-bottom) + 230px);
-        /* Keep it above joystick (which is at 80px + 120px height) */
-    }
+
 
     #btn-mobile-map {
         bottom: calc(var(--safe-bottom) + 10px);

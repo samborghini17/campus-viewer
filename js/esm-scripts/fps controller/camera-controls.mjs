@@ -512,8 +512,10 @@ class CameraControls extends Script {
         }
         // update controller by consuming frame
         this._pose.copy(this._controller.update(frame, dt));
-        // --- HARD LIMITS (The "Glass Box") ---
-        // 1. Min Height (Floor) - disabled to prevent jitter
+        // 1. Min Height (Floor)
+        if (this.minHeight !== undefined) {
+            this._pose.position.y = Math.max(this.minHeight, this._pose.position.y);
+        }
         // 2. Max Height (Ceiling) - disabled to prevent jitter
         // 3. Optional: X/Z Bounds
         if (this.minBounds && this.maxBounds) {
@@ -618,11 +620,11 @@ class CameraControls extends Script {
      * @attribute
      * @type {number}
      * @default 2000
-     */ _define_property(this, "maxOrbitDistance", 2000), /**
+     */ _define_property(this, "maxOrbitDistance", 2000),    /**
      * @attribute
      * @type {number}
-     * @default 0.7
-     */ _define_property(this, "minHeight", 0.7), /**
+     * @default 0.3
+     */ _define_property(this, "minHeight", 0.3), /**
      * @attribute
      * @type {number}
      * @default 500

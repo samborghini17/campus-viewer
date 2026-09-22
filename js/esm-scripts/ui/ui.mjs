@@ -554,8 +554,7 @@ UI.prototype._initElements = function () {
     if (switchBtn) {
         switchBtn.onclick = function (e) {
             e.preventDefault();
-            var targetLevel = self._currentLevelId === 'lemgo' ? 'detmold' : 'lemgo';
-            self.app.fire('level:switch', targetLevel);
+            self.app.fire('level:switch', 'detmold');
         };
     }
     var card = document.getElementById('controls-card');
@@ -611,7 +610,7 @@ UI.prototype._initBurgerMenu = function () {
             var isOn = window.appSettings.indoorMouseOnly;
             var lbl = document.getElementById('lbl-menu-mouse');
             if (lbl) lbl.innerText = isOn ? 'Indoor: Maus-Steuerung AN' : 'Indoor: Maus-Steuerung AUS';
-            mouseBtn.style.color = isOn ? 'var(--col-cyan)' : '';
+            mouseBtn.style.color = isOn ? 'var(--col-red)' : '';
             mouseBtn.style.opacity = isOn ? '1' : '0.7';
 
             // Re-apply camera mode immediately
@@ -830,7 +829,7 @@ UI.prototype._initBurgerMenu = function () {
         mockFps.onclick = function () {
             mockFps.classList.add('active');
             mockFps.style.opacity = '1';
-            mockFps.style.color = 'var(--col-cyan)';
+            mockFps.style.color = 'var(--col-red)';
             mockDrag.classList.remove('active');
             mockDrag.style.opacity = '0.5';
             mockDrag.style.color = '';
@@ -839,7 +838,7 @@ UI.prototype._initBurgerMenu = function () {
         mockDrag.onclick = function () {
             mockDrag.classList.add('active');
             mockDrag.style.opacity = '1';
-            mockDrag.style.color = 'var(--col-cyan)';
+            mockDrag.style.color = 'var(--col-red)';
             mockFps.classList.remove('active');
             mockFps.style.opacity = '0.5';
             mockFps.style.color = '';
@@ -859,7 +858,7 @@ UI.prototype._initBurgerMenu = function () {
                     ? (self.currentLang === 'de' ? 'Culling: AN' : 'Culling: ON')
                     : (self.currentLang === 'de' ? 'Culling: AUS' : 'Culling: OFF');
             }
-            cullingBtn.style.color = self._cullingEnabled ? 'var(--col-cyan)' : '';
+            cullingBtn.style.color = self._cullingEnabled ? 'var(--col-red)' : '';
             cullingBtn.style.opacity = self._cullingEnabled ? '1' : '0.5';
             self.app.fire('culling:toggle', self._cullingEnabled);
         };
@@ -893,7 +892,7 @@ UI.prototype._initBurgerMenu = function () {
         debugBtn.onclick = function () {
             self._debugEnabled = !self._debugEnabled;
             debugBtn.style.opacity = self._debugEnabled ? '1' : '0.5';
-            debugBtn.style.color = self._debugEnabled ? 'var(--col-cyan)' : '';
+            debugBtn.style.color = self._debugEnabled ? 'var(--col-red)' : '';
             if (colScaleContainer) {
                 colScaleContainer.style.display = self._debugEnabled ? 'flex' : 'none';
             }
@@ -931,7 +930,7 @@ UI.prototype._initBurgerMenu = function () {
         adaptiveBtn.onclick = function () {
             self._adaptiveEnabled = !self._adaptiveEnabled;
             adaptiveBtn.style.opacity = self._adaptiveEnabled ? '1' : '0.5';
-            adaptiveBtn.style.color = self._adaptiveEnabled ? 'var(--col-cyan)' : '';
+            adaptiveBtn.style.color = self._adaptiveEnabled ? 'var(--col-red)' : '';
             var lbl = document.getElementById('lbl-adaptive');
             if (lbl) {
                 lbl.innerText = self._adaptiveEnabled
@@ -990,7 +989,7 @@ UI.prototype._initBurgerMenu = function () {
             self._fpsMeterEnabled = !self._fpsMeterEnabled;
             if (fpsBadge) fpsBadge.style.display = self._fpsMeterEnabled ? 'flex' : 'none';
             fpsToggleBtn.style.opacity = self._fpsMeterEnabled ? '1' : '0.5';
-            fpsToggleBtn.style.color = self._fpsMeterEnabled ? 'var(--col-cyan)' : '';
+            fpsToggleBtn.style.color = self._fpsMeterEnabled ? 'var(--col-red)' : '';
             if (lblFps) {
                 lblFps.innerText = self._fpsMeterEnabled
                     ? (self.currentLang === 'de' ? 'FPS-Anzeige: AN' : 'FPS Meter: ON')
@@ -1225,6 +1224,7 @@ UI.prototype._initSearch = function () {
 };
 UI.prototype._initRealtimeEditor = function () {
     var self = this;
+    this._editorExpandedNodes = this._editorExpandedNodes || new Set();
     var panel = document.getElementById('editor-workstation-panel');
     if (!panel) return;
 
@@ -1286,6 +1286,7 @@ UI.prototype._initRealtimeEditor = function () {
             e.stopPropagation();
             panel.style.display = 'none';
             self._editorPanelOpen = false;
+            self._selectEntity(null);
             sessionStorage.removeItem('thowl_admin');
         };
     }
@@ -1296,6 +1297,7 @@ UI.prototype._initRealtimeEditor = function () {
             e.stopPropagation();
             panel.style.display = 'none';
             self._editorPanelOpen = false;
+            self._selectEntity(null);
             sessionStorage.removeItem('thowl_admin');
         };
     }
@@ -2163,44 +2165,38 @@ UI.prototype._refreshOutlinerTree = function () {
         tree.innerHTML = '';
         var self = this;
         var search = (this._editorSearchQuery || '').toLowerCase();
+        if (!self._editorExpandedNodes) {
+            self._editorExpandedNodes = new Set();
+        }
 
-        var renderRow = function (name, icon, depth, isSelected, onClick, onEyeClick, isEnabled, nodeId, isFolder) {
+        var renderRow = function (name, icon, depth, isSelected, onClick, onEyeClick, isEnabled, hasChildren, isExpanded, onArrowClick) {
             if (search && name.toLowerCase().indexOf(search) === -1) return;
             var row = document.createElement('div');
             row.className = 'ed-tree-node' + (isSelected ? ' selected' : '');
             row.style.paddingLeft = (depth * 14 + 6) + 'px';
 
-            var isExpanded = nodeId && self._expandedNodes.has(nodeId);
-            var arrowHtml = isFolder ? '<span class="ed-tree-arrow' + (isExpanded ? '' : ' collapsed') + '">▼</span>' : '<span style="width:14px; display:inline-block;"></span>';
+            var arrowHtml = '<span style="width:14px; display:inline-block;"></span>';
+            if (hasChildren) {
+                arrowHtml = '<span class="ed-tree-arrow" style="cursor:pointer; display:inline-block; width:14px; transform:' + (isExpanded ? 'rotate(90deg)' : 'rotate(0deg)') + '">▶</span>';
+            }
             var eyeClass = (isEnabled !== false) ? 'ed-tree-eye' : 'ed-tree-eye disabled';
             var eyeHtml = onEyeClick ? '<span class="' + eyeClass + '" title="Ein-/Ausblenden">👁️</span>' : '';
 
             row.innerHTML = arrowHtml + '<span class="ed-tree-icon">' + icon + '</span>' + '<span class="ed-tree-name">' + name + '</span>' + eyeHtml;
 
-            if (isFolder) {
+            if (hasChildren && onArrowClick) {
                 var arrow = row.querySelector('.ed-tree-arrow');
-                if (arrow) {
-                    arrow.onclick = function(e) {
-                        e.stopPropagation();
-                        if (isExpanded) self._expandedNodes.delete(nodeId);
-                        else self._expandedNodes.add(nodeId);
-                        self._refreshOutlinerTree();
-                    };
-                }
+                if (arrow) arrow.onclick = onArrowClick;
             }
-
             if (onEyeClick) {
                 var eye = row.querySelector('.ed-tree-eye');
                 if (eye) eye.onclick = onEyeClick;
             }
             if (onClick) {
-                row.onclick = function(e) { 
-                    if (isFolder && !search) {
-                         if (isExpanded) self._expandedNodes.delete(nodeId);
-                         else self._expandedNodes.add(nodeId);
-                    }
-                    onClick(e); 
-                };
+                var nameSpan = row.querySelector('.ed-tree-name');
+                if (nameSpan) nameSpan.onclick = onClick;
+                var iconSpan = row.querySelector('.ed-tree-icon');
+                if (iconSpan) iconSpan.onclick = onClick;
             }
             tree.appendChild(row);
             return (search !== '') || isExpanded;
@@ -2210,154 +2206,70 @@ UI.prototype._refreshOutlinerTree = function () {
         renderRow('App Settings & Export', '⚙️', 0, isGlobalSelected, function (e) {
             e.stopPropagation();
             self._selectEntity({ _isGlobalNode: true, name: 'Global Settings' });
-        });
+        }, null, true, false, false, null);
 
-        var levels = [];
-        var lm = self.app.root.findByName('LevelManager');
-        if (lm && lm.script && lm.script.levelManager && lm.script.levelManager.levelConfig) {
-            levels = lm.script.levelManager.levelConfig;
-        }
-
-        var allSceneEntities = [];
-        var traverse = function (node) {
-            if (node.script && (node.script.infoHotspot || node.script.constructionZone || node.script.pathVisualizer || node.script.videoTexture || node.script.streamedGsplat || node.script.gsplat)) {
-                allSceneEntities.push(node);
-            }
-            if (node.children) node.children.forEach(traverse);
-        };
-        traverse(self.app.root);
-
-        var entitiesByLevel = {};
-        var sublevelIdsSet = new Set();
-
-        allSceneEntities.forEach(function (ent) {
-            var belongsTo = 'lemgo';
-            if (ent.script && ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds && Array.isArray(ent.script.infoHotspot.sublevelIds)) {
-                ent.script.infoHotspot.sublevelIds.forEach(id => sublevelIdsSet.add(id));
-            }
-            var curr = ent;
-            while (curr) {
-                if (curr.parent && curr.parent.name === 'LevelContainer' && curr.name !== 'LevelContainer') {
-                    belongsTo = curr.name;
-                    break;
-                }
-                curr = curr.parent;
-            }
-            if (!entitiesByLevel[belongsTo]) entitiesByLevel[belongsTo] = [];
-            entitiesByLevel[belongsTo].push(ent);
-        });
-
-        var rootLevelIds = [];
-        levels.forEach(function (l) {
-            if (!sublevelIdsSet.has(l.id)) rootLevelIds.push(l.id);
-        });
-
-        if (rootLevelIds.length === 0) {
-            Object.keys(entitiesByLevel).forEach(function (k) {
-                if (!sublevelIdsSet.has(k)) rootLevelIds.push(k);
-            });
-        }
-
-        var renderLevelFolder = function (levelId, depth) {
-            var lvlConfig = levels.find(l => l.id === levelId) || { id: levelId, name: levelId };
-            var isLevelSelected = self._editorActiveObj && self._editorActiveObj._isLevelNode && self._editorActiveObj.id === levelId;
-            var isExpanded = renderRow('[Level Config] ' + (lvlConfig.name || lvlConfig.id), '⚙️', depth, isLevelSelected, function (e) {
+        var lmEnt = self.app.root.findByName('LevelManager');
+        var levels = lmEnt && lmEnt.script && lmEnt.script.levelManager ? lmEnt.script.levelManager.levels : [];
+        
+        levels.forEach(function(lvlConfig) {
+            var isSelected = self._editorActiveObj && self._editorActiveObj._isLevelNode && self._editorActiveObj.config.id === lvlConfig.id;
+            renderRow('[Level Config] ' + (lvlConfig.name || lvlConfig.id), '⚙️', 0, isSelected, function(e) {
                 e.stopPropagation();
                 self._selectEntity({ _isLevelNode: true, id: lvlConfig.id, name: lvlConfig.name || lvlConfig.id, config: lvlConfig });
                 self._refreshOutlinerTree();
-            }, null, true, 'lvl_' + levelId, true);
+            }, null, true, false, false, null);
+        });
 
-            if (!isExpanded) return;
-
-            var lvlEnts = entitiesByLevel[levelId] || [];
-
-            if (lvlConfig.spawnpoints && Array.isArray(lvlConfig.spawnpoints)) {
-                if (lvlConfig.spawnpoints.length > 0) {
-                    var spExpanded = renderRow('Spawnpoints', '📍', depth + 1, false, function(e){ e.stopPropagation(); self._refreshOutlinerTree(); }, null, true, 'sp_' + levelId, true);
-                    if (spExpanded) {
-                        lvlConfig.spawnpoints.forEach(function (sp, idx) {
-                            var isSpSelected = self._editorActiveObj && self._editorActiveObj._isSpawnNode && self._editorActiveObj.idx === idx && self._editorActiveObj.lvlId === lvlConfig.id;
-                            renderRow(sp.name || 'Spawnpoint ' + (idx + 1), '📍', depth + 2, isSpSelected, function (e) {
-                                e.stopPropagation();
-                                self._selectEntity({ _isSpawnNode: true, sp: sp, idx: idx, lvlId: lvlConfig.id, name: sp.name || 'Spawnpoint' });
-                            });
-                        });
-                    }
-                }
+        var renderEntityNode = function(node, depth) {
+            var icon = '📦';
+            if (node.script) {
+                if (node.script.streamedGsplat || node.script.gsplat || node.script.splatCulling) icon = '☁️';
+                else if (node.script.infoHotspot || node.script.constructionZone) icon = '🎯';
+                else if (node.script.pathVisualizer) icon = '🛣️';
+                else if (node.script.videoTexture) icon = '🎬';
+                else icon = '📜';
+            } else if (node.model || node.render) {
+                icon = '🟪';
+            } else if (node.camera) {
+                icon = '🎥';
+            } else if (node.light) {
+                icon = '💡';
             }
-
-            var splats = lvlEnts.filter(e => e.script && (e.script.streamedGsplat || e.script.gsplat));
-            if (splats.length > 0) {
-                var splatExpanded = renderRow('Splat Models (3D)', '☁️', depth + 1, false, function(e){ e.stopPropagation(); self._refreshOutlinerTree(); }, null, true, 'splats_' + levelId, true);
-                if (splatExpanded) {
-                    splats.forEach(function (ent) {
-                        var isSelected = self._editorActiveObj === ent;
-                        renderRow(ent.name, '☁️', depth + 2, isSelected, function (e) {
-                            e.stopPropagation(); self._selectEntity(ent);
-                        }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
-                    });
-                }
+            if (node.name === 'LevelContainer' || node.name === 'Root') icon = '📁';
+            
+            var isSelected = self._editorActiveObj === node;
+            var displayName = node.name;
+            if (node.script && node.script.infoHotspot && node.script.infoHotspot.title) {
+                displayName += ' (' + node.script.infoHotspot.title + ')';
             }
-
-            var hotspots = lvlEnts.filter(e => e.script && (e.script.infoHotspot || e.script.constructionZone));
-            if (hotspots.length > 0) {
-                var hsExpanded = renderRow('Hotspots & Zones', '🎯', depth + 1, false, function(e){ e.stopPropagation(); self._refreshOutlinerTree(); }, null, true, 'hs_' + levelId, true);
-                if (hsExpanded) {
-                    hotspots.forEach(function (ent) {
-                        var isSelected = self._editorActiveObj === ent;
-                        var n = ent.name;
-                        if (ent.script.infoHotspot && ent.script.infoHotspot.title) n += ' (' + ent.script.infoHotspot.title + ')';
-                        renderRow(n, ent.script.constructionZone ? '🚧' : '🎯', depth + 2, isSelected, function (e) {
-                            e.stopPropagation(); self._selectEntity(ent);
-                        }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
-
-                        if (ent.script.infoHotspot && ent.script.infoHotspot.sublevelIds && Array.isArray(ent.script.infoHotspot.sublevelIds)) {
-                            ent.script.infoHotspot.sublevelIds.forEach(function (subId) {
-                                renderLevelFolder(subId, depth + 3);
-                            });
-                        }
-                    });
-                }
-            }
-
-            var paths = lvlEnts.filter(e => e.script && e.script.pathVisualizer);
-            if (paths.length > 0) {
-                var pathExpanded = renderRow('Laufwege', '🛣️', depth + 1, false, function(e){ e.stopPropagation(); self._refreshOutlinerTree(); }, null, true, 'path_' + levelId, true);
-                if (pathExpanded) {
-                    paths.forEach(function (ent) {
-                        var isSelected = self._editorActiveObj === ent;
-                        renderRow(ent.name, '🛣️', depth + 2, isSelected, function (e) {
-                            e.stopPropagation(); self._selectEntity(ent);
-                        }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
-                    });
-                }
-            }
-
-            var media = lvlEnts.filter(e => e.script && e.script.videoTexture);
-            if (media.length > 0) {
-                var mediaExpanded = renderRow('Media Screens', '🎬', depth + 1, false, function(e){ e.stopPropagation(); self._refreshOutlinerTree(); }, null, true, 'media_' + levelId, true);
-                if (mediaExpanded) {
-                    media.forEach(function (ent) {
-                        var isSelected = self._editorActiveObj === ent;
-                        renderRow(ent.name, '🎬', depth + 2, isSelected, function (e) {
-                            e.stopPropagation(); self._selectEntity(ent);
-                        }, function (e) { e.stopPropagation(); ent.enabled = !ent.enabled; self._refreshOutlinerTree(); }, ent.enabled);
-                    });
-                }
-            }
-
-            var colName = 'DynamicCollider_' + levelId;
-            var colEnt = self.app.root.findByName(colName);
-            if (colEnt) {
-                renderRow(colEnt.name, '📦', depth + 1, self._editorActiveObj === colEnt, function (e) {
-                    e.stopPropagation(); self._selectEntity(colEnt);
-                }, function (e) { e.stopPropagation(); colEnt.enabled = !colEnt.enabled; self._refreshOutlinerTree(); }, colEnt.enabled);
+            
+            var hasChildren = node.children && node.children.length > 0;
+            var isExpanded = self._editorExpandedNodes.has(node.getGuid());
+            if (search) isExpanded = true;
+            
+            renderRow(displayName, icon, depth, isSelected, function(e) {
+                e.stopPropagation();
+                self._selectEntity(node);
+                self._refreshOutlinerTree();
+            }, function(e) {
+                e.stopPropagation();
+                node.enabled = !node.enabled;
+                self._refreshOutlinerTree();
+            }, node.enabled, hasChildren, isExpanded, function(e) {
+                e.stopPropagation();
+                if (isExpanded) self._editorExpandedNodes.delete(node.getGuid());
+                else self._editorExpandedNodes.add(node.getGuid());
+                self._refreshOutlinerTree();
+            });
+            
+            if (hasChildren && isExpanded) {
+                node.children.forEach(function(child) {
+                    renderEntityNode(child, depth + 1);
+                });
             }
         };
 
-        rootLevelIds.forEach(function (id) {
-            renderLevelFolder(id, 0);
-        });
+        renderEntityNode(self.app.root, 0);
 
     } catch (err) {
         document.getElementById('ed-outliner-tree').innerHTML = '<div style="color:#ff5555; font-size:11px; padding:10px;"><b>UI Error:</b><br>' + err.message + '</div>';
@@ -2641,6 +2553,9 @@ UI.prototype._renderAttributeEditor = function (entity) {
                 inp.value = v !== undefined ? v : 0;
                 inp.onchange = function(e) {
                     var newVal = parseFloat(e.target.value);
+                    if (!val) {
+                        val = type === 'rgb' ? { r: 1, g: 1, b: 1 } : { x: 0, y: 0, z: 0 };
+                    }
                     if (type === 'rgb') {
                         if (i===0) val.r = newVal; else if (i===1) val.g = newVal; else val.b = newVal;
                     } else {
@@ -2664,16 +2579,16 @@ UI.prototype._renderAttributeEditor = function (entity) {
             
             if (Array.isArray(val)) {
                 if (type === 'array_vec3' || (val.length > 0 && val[0] && typeof val[0].x === 'number')) {
-                    inp.value = val.map(v => v.x + ', ' + v.y + ', ' + v.z).join('\\n');
+                    inp.value = val.map(v => v.x + ', ' + v.y + ', ' + v.z).join('\n');
                 } else {
-                    inp.value = val.join('\\n');
+                    inp.value = val.join('\n');
                 }
             } else {
                 inp.value = '';
             }
             
             inp.onchange = function(e) { 
-                var lines = e.target.value.split('\\n').map(s=>s.trim()).filter(s=>s.length>0);
+                var lines = e.target.value.split('\n').map(s=>s.trim()).filter(s=>s.length>0);
                 if (type === 'array_vec3' || (val && val.length > 0 && typeof val[0].x === 'number')) {
                     var vecs = lines.map(function(line) {
                         var parts = line.split(',').map(s=>parseFloat(s.trim()));
@@ -2688,9 +2603,12 @@ UI.prototype._renderAttributeEditor = function (entity) {
         } else if (type === 'entity') {
             var inp = document.createElement('input');
             inp.type = 'text';
-            inp.value = val ? val : '';
+            inp.value = val ? (val.getGuid ? val.getGuid() : val) : '';
             inp.placeholder = 'Entity GUID';
-            inp.onchange = function(e) { onChange(e.target.value); };
+            inp.onchange = function(e) { 
+                var v = e.target.value.trim();
+                onChange(v === '' ? null : v); 
+            };
             ctrl.appendChild(inp);
         } else {
             var p = document.createElement('span');
@@ -2762,7 +2680,8 @@ UI.prototype._renderAttributeEditor = function (entity) {
                         if (attrType === 'array_undefined') attrType = 'array';
                     }
                     var val = scriptInst[attrName];
-                    container.appendChild(renderField(attrName, attrType, val, function(newVal) {
+                    var attrTitle = attributes.index[attrName].title || attrName;
+                    container.appendChild(renderField(attrTitle, attrType, val, function(newVal) {
                         scriptInst[attrName] = newVal;
                     }));
                 });
