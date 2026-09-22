@@ -599,8 +599,8 @@ details.sublevel-accordion[open] .arrow-icon {
 /* --- POI SIDEBAR --- */
 #poi-sidebar {
     position: absolute;
-    top: 100px;
-    left: 10px;
+    top: calc(var(--safe-top) + 17px);
+    left: calc(var(--safe-left) + 14px);
     bottom: 140px;
     width: 220px;
     background: var(--bg-glass-card);
@@ -665,7 +665,11 @@ details.sublevel-accordion[open] .arrow-icon {
 }
 
 .poi-header {
-    padding: 12px 14px;
+    padding: 0 14px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
     font-weight: 600;
     color: var(--text-bright);
     border-bottom: 1px solid var(--border-glass);
@@ -1022,10 +1026,10 @@ details.sublevel-accordion[open] .arrow-icon {
     }
 
     #burger-dropdown {
-        width: min(290px, calc(100vw - 20px));
+        width: 230px;
         right: 0;
         top: calc(100% + 8px);
-        max-height: calc(100dvh - var(--safe-top) - 75px);
+        max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 290px);
         padding: 8px;
         border-radius: var(--radius-ui);
     }

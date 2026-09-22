@@ -23,6 +23,7 @@ PoiManager.prototype.initialize = function() {
     this.app.on('level:contentReady', this.refreshList, this);
     this.app.on('level:switch', this.onLevelSwitch, this);
     this.app.on('poi:refresh', this.refreshList, this);
+    this.app.on('ui:closePoiSidebar', this.closeSidebar, this);
 };
 
 PoiManager.prototype.onLevelSwitch = function() {
@@ -588,12 +589,25 @@ PoiManager.prototype.toggleAutoTour = function() {
     }
 };
 
+PoiManager.prototype.closeSidebar = function() {
+    this.isSidebarOpen = false;
+    var el = document.getElementById('poi-sidebar');
+    if (el) {
+        el.classList.add('collapsed');
+    }
+};
+
 PoiManager.prototype.toggleSidebar = function() {
     this.isSidebarOpen = !this.isSidebarOpen;
     var el = document.getElementById('poi-sidebar');
     if (el) {
-        if(this.isSidebarOpen) el.classList.remove('collapsed');
-        else el.classList.add('collapsed');
+        if(this.isSidebarOpen) {
+            el.classList.remove('collapsed');
+            this.app.fire('ui:closeMenu');
+        }
+        else {
+            el.classList.add('collapsed');
+        }
     }
 };
 
