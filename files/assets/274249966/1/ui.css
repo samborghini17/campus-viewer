@@ -598,7 +598,9 @@ details.sublevel-accordion[open] .arrow-icon {
     left: calc(var(--safe-left) + 14px);
     bottom: auto;
     width: 260px;
+    height: calc(100vh - 80px);
     max-height: calc(100vh - 80px);
+    overflow: visible;
     background: var(--bg-glass-card);
     backdrop-filter: var(--blur-strong);
     -webkit-backdrop-filter: var(--blur-strong);
@@ -914,11 +916,11 @@ details.sublevel-accordion[open] .arrow-icon {
     #gsplat-controls {
         position: fixed;
         top: calc(var(--safe-top) + 8px);
-        left: calc(var(--safe-left) + 10px);
-        right: auto;
+        left: auto;
+        right: calc(var(--safe-right) + 64px);
         height: 44px;
         width: max-content;
-        padding: 0 10px;
+        padding: 5px;
         border-radius: var(--radius-ui);
         background: var(--bg-glass-card);
         backdrop-filter: var(--blur-strong);
@@ -946,10 +948,7 @@ details.sublevel-accordion[open] .arrow-icon {
     }
 
     .branding {
-        gap: 8px;
-        flex: 0 0 auto;
-        display: flex;
-        align-items: center;
+        display: none !important;
     }
 
     .logo {
@@ -959,7 +958,7 @@ details.sublevel-accordion[open] .arrow-icon {
     .right-controls {
         width: auto;
         justify-content: flex-end;
-        flex: 1;
+        flex: 0 0 auto;
         gap: 6px;
         margin-left: auto;
     }
@@ -975,6 +974,9 @@ details.sublevel-accordion[open] .arrow-icon {
         height: 32px;
         font-size: 11px;
         border-radius: var(--radius-btn);
+        min-width: 58px;
+        justify-content: center;
+        text-align: center;
     }
 
     /* Burger Menu: Perfectly harmonized top-right */
@@ -1026,7 +1028,7 @@ details.sublevel-accordion[open] .arrow-icon {
     }
 
     #controls-card {
-        display: block;
+        display: none;
         top: calc(var(--safe-top) + 60px) !important;
         bottom: auto !important;
         left: 50% !important;
@@ -1189,6 +1191,18 @@ details.sublevel-accordion[open] .arrow-icon {
 
 /* Hide joystick and mobile map on desktop */
 @media (min-width: 601px) {
+    #poi-sidebar,
+    #burger-dropdown {
+        width: 260px;
+        height: calc(100vh - var(--safe-top) - 140px);
+        max-height: calc(100vh - var(--safe-top) - 140px);
+        box-sizing: border-box;
+    }
+
+    #poi-sidebar.collapsed {
+        transform: translateX(calc(-100% - var(--safe-left) - 14px));
+    }
+
     #mobile-joystick-zone {
         display: none !important;
     }

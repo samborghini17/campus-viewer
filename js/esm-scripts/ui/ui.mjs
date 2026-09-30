@@ -18,7 +18,8 @@ UI.attributes.add('totalSplats', {
 });
 UI.prototype.initialize = function () {
     this._buttons = new Map();
-    this._currentPreset = platform.mobile ? 'mob-med' : 'medium';
+    this._isMobileUi = platform.mobile || window.innerWidth <= 600;
+    this._currentPreset = this._isMobileUi ? 'mob-ultra' : 'ultra';
     this.uiContainer = document.createElement('div');
     this._currentLevelId = 'lemgo';
     this._uiVisible = true;
@@ -508,6 +509,7 @@ UI.prototype.initialize = function () {
     this.app.on('level:switch', this._onLevelSwitchEvent, this);
     this.on('destroy', this.onDestroy, this);
     this._updateContent('lemgo');
+    setTimeout(() => this._applyDefaultPresetForLevel('lemgo'), 0);
 };
 UI.prototype._initElements = function () {
     var self = this;
@@ -652,7 +654,7 @@ UI.prototype._initBurgerMenu = function () {
         }
     }
 
-    var currentPreset = platform.mobile ? 'btn-mob-med' : 'btn-medium';
+    var currentPreset = self._isMobileUi ? 'btn-mob-ultra' : 'btn-ultra';
     var activeBtn = document.getElementById(currentPreset);
     if (activeBtn) activeBtn.classList.add('active');
 
@@ -762,7 +764,7 @@ UI.prototype._initBurgerMenu = function () {
         // Wait, if it fires, let's just make sure we update the UI text and fire the close event if open.
         // To be safe, we let toggleMenu handle the `.open` class and we just update text based on state.
         if (container.classList.contains('open')) {
-            self.app.fire('ui:closePoiSidebar');
+            if (window.innerWidth <= 600) self.app.fire('ui:closePoiSidebar');
             var closeText = (self.currentLang === 'de' ? 'Schließen' : 'Close');
             btn.innerHTML = '<span class="icon">✕</span> <span id="lbl-menu-btn">' + closeText + '</span>';
             btn.setAttribute('data-tooltip', closeText);
@@ -849,17 +851,30 @@ UI.prototype._initBurgerMenu = function () {
     // --- Culling Toggle ---
     this._cullingEnabled = false;
     var cullingBtn = document.getElementById('menu-culling-toggle');
+    var updateCullingControls = function (enabled, distance) {
+        self._cullingEnabled = !!enabled;
+        var lbl = document.getElementById('lbl-culling');
+        if (lbl) {
+            lbl.innerText = self._cullingEnabled
+                ? (self.currentLang === 'de' ? 'Culling: AN' : 'Culling: ON')
+                : (self.currentLang === 'de' ? 'Culling: AUS' : 'Culling: OFF');
+        }
+        if (cullingBtn) {
+            cullingBtn.style.color = self._cullingEnabled ? 'var(--col-red)' : '';
+            cullingBtn.style.opacity = self._cullingEnabled ? '1' : '0.5';
+        }
+        var slider = document.getElementById('culling-distance-slider');
+        var distanceLabel = document.getElementById('lbl-cull-dist');
+        if (slider && Number.isFinite(Number(distance))) slider.value = Number(distance);
+        if (slider && distanceLabel) {
+            distanceLabel.innerText = (self.currentLang === 'de' ? 'Culling-Distanz: ' : 'Culling Distance: ') + slider.value + 'm';
+        }
+    };
+    this.app.on('culling:state', updateCullingControls);
     if (cullingBtn) {
         cullingBtn.onclick = function () {
             self._cullingEnabled = !self._cullingEnabled;
-            var lbl = document.getElementById('lbl-culling');
-            if (lbl) {
-                lbl.innerText = self._cullingEnabled
-                    ? (self.currentLang === 'de' ? 'Culling: AN' : 'Culling: ON')
-                    : (self.currentLang === 'de' ? 'Culling: AUS' : 'Culling: OFF');
-            }
-            cullingBtn.style.color = self._cullingEnabled ? 'var(--col-red)' : '';
-            cullingBtn.style.opacity = self._cullingEnabled ? '1' : '0.5';
+            updateCullingControls(self._cullingEnabled);
             self.app.fire('culling:toggle', self._cullingEnabled);
         };
     }
@@ -1076,7 +1091,10 @@ UI.prototype._initBurgerMenu = function () {
         if (editorPanel) {
             editorPanel.style.display = 'flex';
             self._editorPanelOpen = true;
+            self._removeOrphanedBlurState();
             if (self._populateEditorLevel) self._populateEditorLevel(self._currentLevelId);
+            self._ensurePrivacyZoneEntities();
+            self._setPrivacyVisualsVisible(self._currentLevelId === 'lemgo');
             self._refreshOutlinerTree();
             self._initGizmoSystem();
             self._initViewportPicker();
@@ -1331,6 +1349,9 @@ UI.prototype._initRealtimeEditor = function () {
             e.stopPropagation();
             panel.style.display = 'none';
             self._editorPanelOpen = false;
+            self._privacyDrawEntity = null;
+            self.app._privacyDrawing = false;
+            self._setPrivacyVisualsVisible(false);
             self._selectEntity(null);
             sessionStorage.removeItem('thowl_admin');
         };
@@ -1342,6 +1363,9 @@ UI.prototype._initRealtimeEditor = function () {
             e.stopPropagation();
             panel.style.display = 'none';
             self._editorPanelOpen = false;
+            self._privacyDrawEntity = null;
+            self.app._privacyDrawing = false;
+            self._setPrivacyVisualsVisible(false);
             self._selectEntity(null);
             sessionStorage.removeItem('thowl_admin');
         };
@@ -1438,6 +1462,17 @@ UI.prototype._initRealtimeEditor = function () {
         { id: 'mensa', name: 'Mensa & Cafeteria Lemgo' }
     ];
 
+    var editorLevelManager = self._getLevelManager ? self._getLevelManager() : null;
+    if (editorLevelManager && Array.isArray(editorLevelManager.levelConfig)) {
+        levels = editorLevelManager.levelConfig.map(function (config) {
+            var uiData = self._levelData && self._levelData[config.id];
+            return {
+                id: config.id,
+                name: (uiData && (self.currentLang === 'de' ? uiData.name_de : uiData.name_en)) || config.name || config.id
+            };
+        });
+    }
+
     var levelSelect = document.getElementById('ed-level-select');
     var pathTargetSelect = document.getElementById('ed-path-target-level');
 
@@ -1529,6 +1564,10 @@ UI.prototype._initRealtimeEditor = function () {
         insName.addEventListener('input', function (e) {
             if (self._editorActiveObj) {
                 self._editorActiveObj.name = e.target.value;
+                if (self._editorActiveObj.tags && self._editorActiveObj.tags.has('custom-editor-privacy')) {
+                    self._editorActiveObj._privacyZone.name = e.target.value;
+                    self._syncPrivacyZones();
+                }
                 self._refreshOutlinerTree();
             }
         });
@@ -1623,8 +1662,14 @@ UI.prototype._initRealtimeEditor = function () {
                 e.stopPropagation();
                 if (!self._editorActiveObj) return;
                 if (confirm('Entity "' + self._editorActiveObj.name + '" wirklich löschen?')) {
+                    var wasPrivacyZone = self._editorActiveObj.tags && self._editorActiveObj.tags.has('custom-editor-privacy');
+                    if (self._privacyDrawEntity === self._editorActiveObj) {
+                        self._privacyDrawEntity = null;
+                        self.app._privacyDrawing = false;
+                    }
                     self._editorActiveObj.destroy();
                     self._editorActiveObj = null;
+                    if (wasPrivacyZone) self._syncPrivacyZones();
                     self._selectEntity(null);
                     self._refreshOutlinerTree();
                 }
@@ -1676,7 +1721,8 @@ UI.prototype._initRealtimeEditor = function () {
             entity.setPosition(spawnPos);
             entity.tags.add('custom-editor-object');
 
-            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            var targetLevelId = self._getEditorTargetLevelId();
+            var levelContainer = self._getLevelFolder(targetLevelId, true) || self.app.root.findByName('LevelContainer') || self.app.root;
 
             if (type === 'box' || type === 'sphere' || type === 'plane') {
                 entity.addComponent('render', { type: type });
@@ -1688,9 +1734,9 @@ UI.prototype._initRealtimeEditor = function () {
                 entity.script.create('infoHotspot', {
                     attributes: {
                         title: 'Neuer Hotspot',
-                        titleEn: 'New Hotspot',
+                        title_en: 'New Hotspot',
                         description: 'Beschreibung hier eingeben...',
-                        descriptionEn: 'Enter description here...',
+                        description_en: 'Enter description here...',
                         linkUrl: ''
                     }
                 });
@@ -1700,18 +1746,45 @@ UI.prototype._initRealtimeEditor = function () {
                 entity.script.create('pathVisualizer', {
                     attributes: {
                         title: 'Neuer Laufweg',
-                        color: '#00ff88',
-                        width: 0.8,
-                        points: [[spawnPos.x, spawnPos.y - 1.5, spawnPos.z]]
+                        pathColor: new pc.Color(0, 1, 0.53),
+                        pathWidth: 0.8,
+                        pathPoints: [spawnPos.x, spawnPos.y - 1.5, spawnPos.z]
                     }
                 });
             } else if (type === 'screen') {
                 entity.tags.add('custom-editor-media');
                 entity.addComponent('render', { type: 'plane' });
                 entity.setLocalScale(2.0, 1.125, 1.0);
+            } else if (type === 'privacy-blur') {
+                if (targetLevelId !== 'lemgo') {
+                    alert('Privacy masks can only be drawn on the Lemgo outdoor scan.');
+                    return;
+                }
+                if (self._currentLevelId !== 'lemgo') self.app.fire('level:switch', 'lemgo');
+                entity.name = 'BLUR_' + Date.now().toString().slice(-4);
+                entity.tags.add('custom-editor-privacy');
+                entity._privacyZone = {
+                    id: 'privacy-' + Date.now(),
+                    name: entity.name,
+                    enabled: true,
+                    mode: 'blur',
+                    points: [],
+                    drawY: 0,
+                    minY: -10000,
+                    maxY: 10000,
+                    strength: 8
+                };
             }
 
             levelContainer.addChild(entity);
+            entity.setPosition(spawnPos);
+            entity._editorLevelId = targetLevelId;
+            entity.tags.add('level:' + targetLevelId);
+            if (type === 'privacy-blur') {
+                self._privacyDrawEntity = entity;
+                self.app._privacyDrawing = true;
+                self._syncPrivacyZones();
+            }
             self._refreshOutlinerTree();
             self._selectEntity(entity);
         };
@@ -1816,13 +1889,17 @@ UI.prototype._initRealtimeEditor = function () {
             pathEntity.script.create('pathVisualizer', {
                 attributes: {
                     title: pathName,
-                    color: '#ff3b47',
-                    width: 0.6,
-                    points: []
+                    pathColor: new pc.Color(1, 0.23, 0.28),
+                    pathWidth: 0.6,
+                    pathPoints: []
                 }
             });
-            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            var targetLevelId = self._getEditorTargetLevelId();
+            var levelContainer = self._getLevelFolder(targetLevelId, true) || self.app.root;
             levelContainer.addChild(pathEntity);
+            pathEntity.tags.add('custom-editor-object');
+            pathEntity.tags.add('level:' + targetLevelId);
+            pathEntity._editorLevelId = targetLevelId;
             self._refreshPathsList(pathEntity.getGuid());
         };
     }
@@ -1844,12 +1921,11 @@ UI.prototype._initRealtimeEditor = function () {
             var pt = [parseFloat(pos.x.toFixed(2)), parseFloat((pos.y - 1.5).toFixed(2)), parseFloat(pos.z.toFixed(2))];
 
             var pv = pathEntity.script.pathVisualizer;
-            if (!pv.points) pv.points = [];
-            pv.points.push(pt);
-            if (pv.redraw) pv.redraw();
+            if (!pv.pathPoints) pv.pathPoints = [];
+            pv.pathPoints = pv.pathPoints.concat(pt);
 
-            self._refreshPathPointsUI(pv.points);
-            addPathPointBtn.innerText = '✅ Punkt hinzugefügt (' + pv.points.length + ')';
+            self._refreshPathPointsUI(pv.pathPoints);
+            addPathPointBtn.innerText = 'Point added (' + (pv.pathPoints.length / 3) + ')';
             setTimeout(function () { addPathPointBtn.innerText = '+ Punkt an Kamera'; }, 1000);
         };
     }
@@ -1870,10 +1946,12 @@ UI.prototype._initRealtimeEditor = function () {
                 var titleInp = document.getElementById('ed-path-title');
                 if (titleInp) titleInp.value = pv.title || ent.name;
                 var colorInp = document.getElementById('ed-path-color');
-                if (colorInp && pv.color) colorInp.value = pv.color;
+                if (colorInp && pv.pathColor) colorInp.value = '#' + [pv.pathColor.r, pv.pathColor.g, pv.pathColor.b].map(function(value) {
+                    return Math.round(value * 255).toString(16).padStart(2, '0');
+                }).join('');
                 var widthInp = document.getElementById('ed-path-width');
-                if (widthInp && pv.width) widthInp.value = pv.width;
-                self._refreshPathPointsUI(pv.points || []);
+                if (widthInp && pv.pathWidth) widthInp.value = pv.pathWidth;
+                self._refreshPathPointsUI(pv.pathPoints || []);
             }
         });
     }
@@ -1894,14 +1972,18 @@ UI.prototype._initRealtimeEditor = function () {
             entity.script.create('infoHotspot', {
                 attributes: {
                     title: 'Neuer Hotspot',
-                    titleEn: 'New Hotspot',
+                    title_en: 'New Hotspot',
                     description: 'Beschreibung hier eingeben...',
-                    descriptionEn: 'Enter description here...',
+                    description_en: 'Enter description here...',
                     linkUrl: ''
                 }
             });
-            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            var targetLevelId = self._getEditorTargetLevelId();
+            var levelContainer = self._getLevelFolder(targetLevelId, true) || self.app.root;
             levelContainer.addChild(entity);
+            entity.tags.add('custom-editor-object');
+            entity.tags.add('level:' + targetLevelId);
+            entity._editorLevelId = targetLevelId;
             self._refreshPoiList(entity.getGuid());
         };
     }
@@ -1922,12 +2004,16 @@ UI.prototype._initRealtimeEditor = function () {
                 attributes: {
                     title: 'Baustelle Campus',
                     description: 'Modernisierungsarbeiten im Gange.',
-                    status: 'In Bearbeitung',
-                    progress: 60
+                    polygonPoints: [-5, -5, 5, -5, 5, 5, -5, 5],
+                    height: 15
                 }
             });
-            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            var targetLevelId = self._getEditorTargetLevelId();
+            var levelContainer = self._getLevelFolder(targetLevelId, true) || self.app.root;
             levelContainer.addChild(entity);
+            entity.tags.add('custom-editor-object');
+            entity.tags.add('level:' + targetLevelId);
+            entity._editorLevelId = targetLevelId;
             self._refreshPoiList(entity.getGuid());
         };
     }
@@ -1986,12 +2072,40 @@ UI.prototype._initRealtimeEditor = function () {
     var spawnMediaBtn = document.getElementById('ed-spawn-media-btn') || document.getElementById('ed-create-screen-btn');
 
     if (mediaDropzone && mediaFileInput) {
+        var persistEditorMedia = function (file) {
+            var status = mediaDropzone.querySelector('div:nth-child(2)');
+            if (status) status.innerText = 'Uploading ' + file.name + '...';
+            return new Promise(function(resolve, reject) {
+                var reader = new FileReader();
+                reader.onerror = function() { reject(new Error('Could not read file')); };
+                reader.onload = function() {
+                    fetch('/__upload-editor-media', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: file.name, dataUrl: reader.result })
+                    }).then(function(response) {
+                        if (!response.ok) throw new Error('Upload endpoint unavailable');
+                        return response.json();
+                    }).then(function(result) {
+                        if (!result.success || !result.url) throw new Error(result.error || 'Upload failed');
+                        if (mediaUrlInput) mediaUrlInput.value = result.url;
+                        if (status) status.innerText = 'Saved to project: ' + file.name;
+                        resolve(result.url);
+                    }).catch(function(error) {
+                        if (mediaUrlInput) mediaUrlInput.value = '';
+                        if (status) status.innerText = 'Upload requires the local editor server';
+                        alert('This file was not saved. Run npm run dev, upload it again, then commit public/editor-uploads before deploying.');
+                        reject(error);
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        };
         mediaDropzone.onclick = function () { mediaFileInput.click(); };
         mediaFileInput.onchange = function (e) {
             var file = e.target.files[0];
             if (!file) return;
-            var objectUrl = URL.createObjectURL(file);
-            if (mediaUrlInput) mediaUrlInput.value = objectUrl;
+            persistEditorMedia(file).catch(function() {});
             var dropText = mediaDropzone.querySelector('div:nth-child(2)');
             if (dropText) dropText.innerText = '✅ ' + file.name;
         };
@@ -2011,8 +2125,7 @@ UI.prototype._initRealtimeEditor = function () {
             mediaDropzone.style.background = '';
             var file = e.dataTransfer.files[0];
             if (file) {
-                var objectUrl = URL.createObjectURL(file);
-                if (mediaUrlInput) mediaUrlInput.value = objectUrl;
+                persistEditorMedia(file).catch(function() {});
                 var dropText = mediaDropzone.querySelector('div:nth-child(2)');
                 if (dropText) dropText.innerText = '✅ ' + file.name;
             }
@@ -2055,8 +2168,12 @@ UI.prototype._initRealtimeEditor = function () {
                 });
             }
 
-            var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
+            var targetLevelId = self._getEditorTargetLevelId();
+            var levelContainer = self._getLevelFolder(targetLevelId, true) || self.app.root;
             levelContainer.addChild(screenEntity);
+            screenEntity.tags.add('custom-editor-object');
+            screenEntity.tags.add('level:' + targetLevelId);
+            screenEntity._editorLevelId = targetLevelId;
             spawnMediaBtn.innerText = '✅ 3D Screen platziert!';
             setTimeout(function () { spawnMediaBtn.innerText = '✨ Media Screen an Kamera platzieren'; }, 1500);
         };
@@ -2244,7 +2361,7 @@ UI.prototype._refreshOutlinerTree = function () {
                 if (iconSpan) iconSpan.onclick = onClick;
             }
             tree.appendChild(row);
-            return (search !== '') || isExpanded;
+            return row;
         };
 
         var isGlobalSelected = self._editorActiveObj && self._editorActiveObj._isGlobalNode;
@@ -2254,7 +2371,7 @@ UI.prototype._refreshOutlinerTree = function () {
         }, null, true, false, false, null);
 
         var lmEnt = self.app.root.findByName('LevelManager');
-        var levels = lmEnt && lmEnt.script && lmEnt.script.levelManager ? lmEnt.script.levelManager.levels : [];
+        var levels = lmEnt && lmEnt.script && lmEnt.script.levelManager ? lmEnt.script.levelManager.levelConfig : [];
         
         levels.forEach(function(lvlConfig) {
             var isSelected = self._editorActiveObj && self._editorActiveObj._isLevelNode && self._editorActiveObj.config.id === lvlConfig.id;
@@ -2263,9 +2380,29 @@ UI.prototype._refreshOutlinerTree = function () {
                 self._selectEntity({ _isLevelNode: true, id: lvlConfig.id, name: lvlConfig.name || lvlConfig.id, config: lvlConfig });
                 self._refreshOutlinerTree();
             }, null, true, false, false, null);
+            var levelDropRow = tree.lastElementChild;
+            if (levelDropRow) {
+                levelDropRow.title = 'Drop an entity here to assign it to this level';
+                levelDropRow.ondragover = function(e) {
+                    e.preventDefault();
+                    levelDropRow.style.outline = '1px solid var(--col-cyan)';
+                };
+                levelDropRow.ondragleave = function() { levelDropRow.style.outline = '';
+                };
+                levelDropRow.ondrop = function(e) {
+                    e.preventDefault();
+                    levelDropRow.style.outline = '';
+                    if (self._outlinerDraggedEntity) {
+                        self._assignEntityToLevel(self._outlinerDraggedEntity, lvlConfig.id);
+                        self._editorTargetLevelId = lvlConfig.id;
+                        self._refreshOutlinerTree();
+                    }
+                };
+            }
         });
 
         var renderEntityNode = function(node, depth) {
+            if (node.tags && node.tags.has('editor-helper')) return;
             var icon = '📦';
             if (node.script) {
                 if (node.script.streamedGsplat || node.script.gsplat || node.script.splatCulling) icon = '☁️';
@@ -2306,6 +2443,22 @@ UI.prototype._refreshOutlinerTree = function () {
                 else self._editorExpandedNodes.add(node.getGuid());
                 self._refreshOutlinerTree();
             });
+            var renderedEntityRow = tree.lastElementChild;
+            var canReassignNode = node.tags && node.tags.has('custom-editor-object');
+            canReassignNode = canReassignNode || (node.script && (
+                node.script.infoHotspot || node.script.pathVisualizer || node.script.constructionZone || node.script.videoTexture
+            ));
+            if (renderedEntityRow && canReassignNode) {
+                renderedEntityRow.draggable = true;
+                renderedEntityRow.title = 'Drag onto a level to reassign';
+                renderedEntityRow.ondragstart = function(e) {
+                    self._outlinerDraggedEntity = node;
+                    if (e.dataTransfer) e.dataTransfer.setData('text/plain', node.getGuid());
+                };
+                renderedEntityRow.ondragend = function() {
+                    self._outlinerDraggedEntity = null;
+                };
+            }
             
             if (hasChildren && isExpanded) {
                 node.children.forEach(function(child) {
@@ -2314,7 +2467,10 @@ UI.prototype._refreshOutlinerTree = function () {
             }
         };
 
-        renderEntityNode(self.app.root, 0);
+        var hierarchyLevelId = self._editorTargetLevelId || self._currentLevelId;
+        var hierarchyFolder = self._getLevelFolder(hierarchyLevelId, false);
+        if (hierarchyFolder) self._editorExpandedNodes.add(hierarchyFolder.getGuid());
+        renderEntityNode(hierarchyFolder || self.app.root, 0);
 
     } catch (err) {
         document.getElementById('ed-outliner-tree').innerHTML = '<div style="color:#ff5555; font-size:11px; padding:10px;"><b>UI Error:</b><br>' + err.message + '</div>';
@@ -2322,12 +2478,25 @@ UI.prototype._refreshOutlinerTree = function () {
 };
 UI.prototype._selectEntity = function (entity) {
     this._editorActiveObj = entity;
+    if (entity && entity._isLevelNode && entity.config) {
+        this._editorTargetLevelId = entity.config.id;
+        this._getLevelFolder(entity.config.id, true);
+    }
+    else if (entity) this._editorTargetLevelId = this._getEntityLevelId(entity) || this._editorTargetLevelId;
     this._refreshOutlinerTree();
 
     var tag = document.getElementById('ed-inspector-selected-tag');
     var nameInp = document.getElementById('ed-inspect-name');
     if (tag) tag.innerText = entity ? entity.name : 'Keine Auswahl';
     if (nameInp && entity) nameInp.value = entity.name;
+
+    if (entity && (entity._isGlobalNode || entity._isLevelNode || entity._isSpawnNode)) {
+        if (this._translateGizmo) this._translateGizmo.detach();
+        if (this._rotateGizmo) this._rotateGizmo.detach();
+        if (this._scaleGizmo) this._scaleGizmo.detach();
+        this._renderAttributeEditor(entity);
+        return;
+    }
 
     if (entity) {
         var pos = entity.getLocalPosition();
@@ -2452,6 +2621,242 @@ UI.prototype._setGizmoMode = function (mode) {
     }
 };
 
+UI.prototype._getLevelManager = function () {
+    var managerEntity = this.app.root.findByName('LevelManager');
+    return managerEntity && managerEntity.script && managerEntity.script.levelManager;
+};
+
+UI.prototype._getLevelFolder = function (levelId, createIfMissing) {
+    var manager = this._getLevelManager();
+    if (!manager || !levelId) return null;
+    var folder = (manager.levelFolders || []).find(function (candidate) {
+        return candidate && candidate.name.toLowerCase() === String(levelId).toLowerCase();
+    });
+    if (!folder) folder = this.app.root.findByName(levelId);
+    if (!folder && createIfMissing) {
+        folder = new pc.Entity(levelId);
+        folder.tags.add('editor-level-folder');
+        this.app.root.addChild(folder);
+        manager.levelFolders = manager.levelFolders || [];
+        manager.levelFolders.push(folder);
+        folder.enabled = manager.currentLevelId === levelId;
+    }
+    return folder;
+};
+
+UI.prototype._getEntityLevelId = function (entity) {
+    if (!entity) return null;
+    if (entity._editorLevelId) return entity._editorLevelId;
+    var manager = this._getLevelManager();
+    var folders = manager && manager.levelFolders ? manager.levelFolders : [];
+    var current = entity;
+    while (current) {
+        var match = folders.find(function (folder) { return folder === current; });
+        if (match) return match.name;
+        current = current.parent;
+    }
+    return null;
+};
+
+UI.prototype._getEditorTargetLevelId = function () {
+    if (this._editorActiveObj) {
+        if (this._editorActiveObj._isLevelNode) return this._editorActiveObj.config.id;
+        var owner = this._getEntityLevelId(this._editorActiveObj);
+        if (owner) return owner;
+    }
+    return this._editorTargetLevelId || this._currentLevelId;
+};
+
+UI.prototype._assignEntityToLevel = function (entity, levelId) {
+    if (!entity || !levelId) return;
+    var folder = this._getLevelFolder(levelId, true);
+    if (!folder || entity === folder) return;
+    var worldPosition = entity.getPosition().clone();
+    var worldRotation = entity.getRotation().clone();
+    if (entity.parent) entity.parent.removeChild(entity);
+    folder.addChild(entity);
+    entity.setPosition(worldPosition);
+    entity.setRotation(worldRotation);
+    entity._editorLevelId = levelId;
+    entity.tags.add('level:' + levelId);
+    if (entity.tags.has('custom-editor-privacy')) this._syncPrivacyZones();
+};
+
+UI.prototype._getPrivacyConfig = function () {
+    var managerEntity = this.app.root.findByName('LevelManager');
+    var manager = managerEntity && managerEntity.script && managerEntity.script.levelManager;
+    if (!manager || !Array.isArray(manager.levelConfig)) return null;
+    return manager.levelConfig.find(function (config) { return config.id === 'lemgo'; }) || null;
+};
+
+UI.prototype._removeOrphanedBlurState = function () {
+    var cleanupKey = 'thowl_orphaned_blur_cleanup_v1';
+    try {
+        if (localStorage.getItem(cleanupKey) === 'done') return;
+    } catch (error) {
+        // Continue with the in-memory cleanup when storage is unavailable.
+    }
+
+    var privacyEntities = this.app.root.findByTag('custom-editor-privacy').slice();
+    var visit = function (entity) {
+        entity.children.slice().forEach(visit);
+        if (entity.script && entity.script.splatBlur && privacyEntities.indexOf(entity) === -1) {
+            privacyEntities.push(entity);
+        }
+    };
+    visit(this.app.root);
+    privacyEntities.forEach(function (entity) {
+        if (entity && !entity._destroyed) entity.destroy();
+    });
+
+    this._privacyDrawEntity = null;
+    this.app._privacyDrawing = false;
+
+    var manager = this._getLevelManager();
+    if (manager && Array.isArray(manager.levelConfig)) {
+        manager.levelConfig.forEach(function (config) {
+            if (config.id === 'lemgo') config.privacyZones = [];
+            if (Array.isArray(config.entityOverrides)) {
+                config.entityOverrides = config.entityOverrides.filter(function (saved) {
+                    return !(saved && saved.scripts && saved.scripts.splatBlur);
+                });
+            }
+        });
+        try {
+            localStorage.setItem('thowl_custom_levels', JSON.stringify(manager.levelConfig));
+        } catch (error) {
+            console.warn('[Editor] Could not persist orphaned blur cleanup:', error);
+        }
+        if (manager._updateCulling) manager._updateCulling();
+    }
+
+    try { localStorage.setItem(cleanupKey, 'done'); } catch (error) {}
+};
+
+UI.prototype._setPrivacyVisualsVisible = function (visible) {
+    this.app.root.findByTag('custom-editor-privacy').forEach(function (entity) {
+        (entity._privacyVisuals || []).forEach(function (visual) {
+            if (visual && visual.render) visual.render.enabled = !!visible;
+        });
+    });
+};
+
+UI.prototype._syncPrivacyZones = function () {
+    var config = this._getPrivacyConfig();
+    if (!config) return;
+    var self = this;
+    config.privacyZones = this.app.root.findByTag('custom-editor-privacy').filter(function (entity) {
+        return self._getEntityLevelId(entity) === 'lemgo';
+    }).map(function (entity) {
+        var zone = entity._privacyZone || {};
+        zone.name = entity.name;
+        zone.points = Array.isArray(zone.points) ? zone.points : [];
+        return {
+            id: zone.id || ('privacy-' + entity.getGuid()),
+            name: zone.name,
+            enabled: zone.enabled !== false,
+            mode: zone.mode === 'crop' ? 'crop' : 'blur',
+            points: zone.points.map(function (point) { return [Number(point[0]) || 0, Number(point[1]) || 0, Number(point[2]) || 0]; }),
+            drawY: Number(zone.drawY) || 0,
+            minY: Number.isFinite(Number(zone.minY)) ? Number(zone.minY) : -10000,
+            maxY: Number.isFinite(Number(zone.maxY)) ? Number(zone.maxY) : 10000,
+            strength: Math.max(1, Number(zone.strength) || 8)
+        };
+    });
+    var managerEntity = this.app.root.findByName('LevelManager');
+    var manager = managerEntity && managerEntity.script && managerEntity.script.levelManager;
+    if (manager && manager._updateCulling) manager._updateCulling();
+};
+
+UI.prototype._refreshPrivacyZoneVisual = function (entity) {
+    if (!entity || !entity._privacyZone) return;
+    (entity._privacyVisuals || []).forEach(function (visual) {
+        if (visual && !visual._destroyed) visual.destroy();
+    });
+    entity._privacyVisuals = [];
+    var points = entity._privacyZone.points || [];
+    var material = new pc.StandardMaterial();
+    material.diffuse = new pc.Color(0.7, 0.05, 0.9);
+    material.emissive = new pc.Color(0.35, 0.02, 0.5);
+    material.opacity = 0.85;
+    material.blendType = pc.BLEND_NORMAL;
+    material.update();
+    points.forEach(function (point, index) {
+        var worldPoint = new pc.Vec3(point[0], point[1], point[2]);
+        var marker = new pc.Entity('PrivacyPoint_' + (index + 1));
+        marker.addComponent('render', { type: 'sphere' });
+        marker.tags.add('editor-helper');
+        marker.render.material = material;
+        marker.setLocalScale(0.35, 0.35, 0.35);
+        entity.addChild(marker);
+        marker.setPosition(worldPoint);
+        entity._privacyVisuals.push(marker);
+        if (index > 0) {
+            var previous = points[index - 1];
+            var edge = new pc.Entity('PrivacyEdge');
+            edge.addComponent('render', { type: 'box' });
+            edge.tags.add('editor-helper');
+            edge.render.material = material;
+            entity.addChild(edge);
+            var start = new pc.Vec3(previous[0], previous[1], previous[2]);
+            var end = worldPoint;
+            edge.setPosition(new pc.Vec3().add2(start, end).mulScalar(0.5));
+            edge.lookAt(end);
+            edge.setLocalScale(0.08, 0.08, start.distance(end));
+            entity._privacyVisuals.push(edge);
+        }
+    });
+    if (points.length > 2) {
+        var first = points[0];
+        var last = points[points.length - 1];
+        var closingEdge = new pc.Entity('PrivacyEdgeClosed');
+        closingEdge.addComponent('render', { type: 'box' });
+        closingEdge.tags.add('editor-helper');
+        closingEdge.render.material = material;
+        entity.addChild(closingEdge);
+        var firstPosition = new pc.Vec3(first[0], first[1], first[2]);
+        var lastPosition = new pc.Vec3(last[0], last[1], last[2]);
+        closingEdge.setPosition(new pc.Vec3().add2(firstPosition, lastPosition).mulScalar(0.5));
+        closingEdge.lookAt(firstPosition);
+        closingEdge.setLocalScale(0.08, 0.08, lastPosition.distance(firstPosition));
+        entity._privacyVisuals.push(closingEdge);
+    }
+};
+
+UI.prototype._ensurePrivacyZoneEntities = function () {
+    if (this._currentLevelId !== 'lemgo') return;
+    var config = this._getPrivacyConfig();
+    if (!config || !Array.isArray(config.privacyZones)) return;
+    var existingIds = {};
+    this.app.root.findByTag('custom-editor-privacy').forEach(function (entity) {
+        if (entity._privacyZone && entity._privacyZone.id) existingIds[entity._privacyZone.id] = true;
+    });
+    var parent = this._getLevelFolder('lemgo', true) || this.app.root.findByName('LevelContainer') || this.app.root;
+    var self = this;
+    config.privacyZones.forEach(function (source, index) {
+        var id = source.id || ('privacy-saved-' + index);
+        if (existingIds[id]) return;
+        var entity = new pc.Entity(source.name || ('BLUR_' + (index + 1)));
+        entity.tags.add('custom-editor-object');
+        entity.tags.add('custom-editor-privacy');
+        entity.tags.add('level:lemgo');
+        entity._editorLevelId = 'lemgo';
+        entity._privacyZone = {
+            id: id,
+            name: entity.name,
+            enabled: source.enabled !== false,
+            mode: source.mode === 'crop' ? 'crop' : 'blur',
+            points: Array.isArray(source.points) ? source.points.map(function (point) { return point.slice(0, 3); }) : [],
+            drawY: Number(source.drawY) || 0,
+            minY: Number.isFinite(Number(source.minY)) ? Number(source.minY) : -10000,
+            maxY: Number.isFinite(Number(source.maxY)) ? Number(source.maxY) : 10000,
+            strength: Math.max(1, Number(source.strength) || 8)
+        };
+        parent.addChild(entity);
+        self._refreshPrivacyZoneVisual(entity);
+    });
+};
+
 UI.prototype._initViewportPicker = function () {
     var self = this;
     if (this._pickerInitialized) return;
@@ -2484,6 +2889,29 @@ UI.prototype._initViewportPicker = function () {
         camEntity.camera.screenToWorld(e.clientX, e.clientY, camEntity.camera.farClip, farWorld);
         ray.direction.sub2(farWorld, ray.origin).normalize();
 
+        if (self._privacyDrawEntity && self._privacyDrawEntity._privacyZone) {
+            var rayEnd = new pc.Vec3().copy(ray.direction).mulScalar(camEntity.camera.farClip).add(ray.origin);
+            var privacyHit = self.app.systems.rigidbody && self.app.systems.rigidbody.raycastFirst(ray.origin, rayEnd);
+            var privacyPoint = privacyHit ? privacyHit.point : null;
+            if (!privacyPoint) {
+                var drawY = Number(self._privacyDrawEntity._privacyZone.drawY) || 0;
+                if (Math.abs(ray.direction.y) < 0.00001) return;
+                var planeDistance = (drawY - ray.origin.y) / ray.direction.y;
+                if (planeDistance <= 0) return;
+                privacyPoint = new pc.Vec3().copy(ray.direction).mulScalar(planeDistance).add(ray.origin);
+            }
+            var privacyPoints = self._privacyDrawEntity._privacyZone.points;
+            if (privacyPoints.length >= 16) {
+                alert('A privacy mask supports up to 16 points. Finish this mask or create another.');
+                return;
+            }
+            privacyPoints.push([privacyPoint.x, privacyPoint.y, privacyPoint.z]);
+            self._refreshPrivacyZoneVisual(self._privacyDrawEntity);
+            self._syncPrivacyZones();
+            self._renderAttributeEditor(self._privacyDrawEntity);
+            return;
+        }
+
         var candidates = [];
         var levelContainer = self.app.root.findByName('LevelContainer') || self.app.root;
 
@@ -2494,6 +2922,7 @@ UI.prototype._initViewportPicker = function () {
                 ent.tags.has('custom-editor-poi') ||
                 ent.tags.has('custom-editor-media') ||
                 ent.tags.has('custom-editor-path') ||
+                ent.tags.has('custom-editor-privacy') ||
                 ent.tags.has('gsplat')
             )) || (ent.script && (
                 ent.script.infoHotspot || ent.script.pathVisualizer || ent.script.videoTexture || ent.script.constructionZone
@@ -2552,6 +2981,37 @@ UI.prototype._initViewportPicker = function () {
     });
 };
 
+UI.prototype._duplicateEditorEntity = function (source) {
+    if (!source) return null;
+    var duplicate;
+    if (source.tags && source.tags.has('custom-editor-privacy') && source._privacyZone) {
+        duplicate = new pc.Entity(source.name + '_copy');
+        duplicate.tags.add('custom-editor-object');
+        duplicate.tags.add('custom-editor-privacy');
+        duplicate._privacyZone = JSON.parse(JSON.stringify(source._privacyZone));
+        duplicate._privacyZone.id = 'privacy-' + Date.now();
+        duplicate._privacyZone.name = duplicate.name;
+    } else {
+        duplicate = source.clone();
+        duplicate.name = source.name + '_copy';
+        duplicate.tags.add('custom-editor-object');
+    }
+    var levelId = this._getEntityLevelId(source) || this._getEditorTargetLevelId();
+    var parent = this._getLevelFolder(levelId, true) || source.parent || this.app.root;
+    parent.addChild(duplicate);
+    duplicate.setPosition(source.getPosition().clone().add(new pc.Vec3(0.5, 0, 0.5)));
+    duplicate.setRotation(source.getRotation());
+    duplicate._editorLevelId = levelId;
+    duplicate.tags.add('level:' + levelId);
+    if (duplicate._privacyZone) {
+        this._refreshPrivacyZoneVisual(duplicate);
+        this._syncPrivacyZones();
+    }
+    this._refreshOutlinerTree();
+    this._selectEntity(duplicate);
+    return duplicate;
+};
+
 UI.prototype._renderAttributeEditor = function (entity) {
     var self = this;
     var container = document.getElementById('ed-ins-scripts');
@@ -2571,8 +3031,15 @@ UI.prototype._renderAttributeEditor = function (entity) {
         ctrl.className = 'ed-ins-ctrl';
 
         if (type === 'string') {
-            var inp = document.createElement('input');
-            inp.type = 'text';
+            var inp = (String(val || '').length > 80 || String(val || '').indexOf('\n') !== -1)
+                ? document.createElement('textarea')
+                : document.createElement('input');
+            if (inp.tagName === 'INPUT') inp.type = 'text';
+            else {
+                inp.rows = 4;
+                inp.style.width = '100%';
+                inp.style.resize = 'vertical';
+            }
             inp.value = val || '';
             inp.onchange = function(e) { onChange(e.target.value); };
             ctrl.appendChild(inp);
@@ -2589,7 +3056,7 @@ UI.prototype._renderAttributeEditor = function (entity) {
             inp.checked = !!val;
             inp.onchange = function(e) { onChange(e.target.checked); };
             ctrl.appendChild(inp);
-        } else if (type === 'rgb' || type === 'vec3') {
+        } else if (type === 'rgb' || type === 'rgba' || type === 'vec2' || type === 'vec3' || type === 'vec4') {
             var makeInp = function(v, i) {
                 var inp = document.createElement('input');
                 inp.type = 'number';
@@ -2601,22 +3068,25 @@ UI.prototype._renderAttributeEditor = function (entity) {
                     if (!val) {
                         val = type === 'rgb' ? { r: 1, g: 1, b: 1 } : { x: 0, y: 0, z: 0 };
                     }
-                    if (type === 'rgb') {
-                        if (i===0) val.r = newVal; else if (i===1) val.g = newVal; else val.b = newVal;
+                    if (type === 'rgb' || type === 'rgba') {
+                        if (i===0) val.r = newVal; else if (i===1) val.g = newVal; else if (i===2) val.b = newVal; else val.a = newVal;
                     } else {
-                        if (i===0) val.x = newVal; else if (i===1) val.y = newVal; else val.z = newVal;
+                        if (i===0) val.x = newVal; else if (i===1) val.y = newVal; else if (i===2) val.z = newVal; else val.w = newVal;
                     }
                     onChange(val);
                 };
                 return inp;
             };
-            var v = val || (type==='rgb'?{r:1,g:1,b:1}:{x:0,y:0,z:0});
-            if (type === 'rgb') {
+            var v = val || ((type === 'rgb' || type === 'rgba') ? {r:1,g:1,b:1,a:1} : {x:0,y:0,z:0,w:0});
+            if (type === 'rgb' || type === 'rgba') {
                 ctrl.appendChild(makeInp(v.r, 0)); ctrl.appendChild(makeInp(v.g, 1)); ctrl.appendChild(makeInp(v.b, 2));
+                if (type === 'rgba') ctrl.appendChild(makeInp(v.a, 3));
             } else {
-                ctrl.appendChild(makeInp(v.x, 0)); ctrl.appendChild(makeInp(v.y, 1)); ctrl.appendChild(makeInp(v.z, 2));
+                ctrl.appendChild(makeInp(v.x, 0)); ctrl.appendChild(makeInp(v.y, 1));
+                if (type !== 'vec2') ctrl.appendChild(makeInp(v.z, 2));
+                if (type === 'vec4') ctrl.appendChild(makeInp(v.w, 3));
             }
-        } else if (type === 'array_string' || type === 'array_vec3' || type === 'array') {
+        } else if (type.indexOf('array_') === 0 || type === 'array') {
             var inp = document.createElement('textarea');
             inp.style.width = '100%';
             inp.style.resize = 'vertical';
@@ -2624,7 +3094,11 @@ UI.prototype._renderAttributeEditor = function (entity) {
             
             if (Array.isArray(val)) {
                 if (type === 'array_vec3' || (val.length > 0 && val[0] && typeof val[0].x === 'number')) {
-                    inp.value = val.map(v => v.x + ', ' + v.y + ', ' + v.z).join('\n');
+                    inp.value = val.map(function(v) {
+                        return Array.isArray(v) ? v.slice(0, 3).join(', ') : v.x + ', ' + v.y + ', ' + v.z;
+                    }).join('\n');
+                } else if (type === 'array_number') {
+                    inp.value = val.join(', ');
                 } else {
                     inp.value = val.join('\n');
                 }
@@ -2634,7 +3108,10 @@ UI.prototype._renderAttributeEditor = function (entity) {
             
             inp.onchange = function(e) { 
                 var lines = e.target.value.split('\n').map(s=>s.trim()).filter(s=>s.length>0);
-                if (type === 'array_vec3' || (val && val.length > 0 && typeof val[0].x === 'number')) {
+                if (type === 'array_number') {
+                    var numbers = e.target.value.split(/[\s,;]+/).filter(Boolean).map(Number).filter(Number.isFinite);
+                    onChange(numbers);
+                } else if (type === 'array_vec3' || (val && val.length > 0 && val[0] && typeof val[0].x === 'number')) {
                     var vecs = lines.map(function(line) {
                         var parts = line.split(',').map(s=>parseFloat(s.trim()));
                         return new pc.Vec3(parts[0]||0, parts[1]||0, parts[2]||0);
@@ -2646,19 +3123,43 @@ UI.prototype._renderAttributeEditor = function (entity) {
             };
             ctrl.appendChild(inp);
         } else if (type === 'entity') {
-            var inp = document.createElement('input');
-            inp.type = 'text';
-            inp.value = val ? (val.getGuid ? val.getGuid() : val) : '';
-            inp.placeholder = 'Entity GUID';
-            inp.onchange = function(e) { 
-                var v = e.target.value.trim();
-                onChange(v === '' ? null : v); 
+            var entitySelect = document.createElement('select');
+            entitySelect.className = 'ed-select';
+            var noneOption = document.createElement('option');
+            noneOption.value = '';
+            noneOption.innerText = '-- None --';
+            entitySelect.appendChild(noneOption);
+            var appendEntity = function(candidate, depth) {
+                var option = document.createElement('option');
+                option.value = candidate.getGuid();
+                option.innerText = new Array(depth + 1).join('  ') + candidate.name;
+                option.selected = !!val && ((val.getGuid && val.getGuid() === candidate.getGuid()) || val === candidate.getGuid());
+                entitySelect.appendChild(option);
+                candidate.children.forEach(function(child) { appendEntity(child, depth + 1); });
             };
-            ctrl.appendChild(inp);
+            appendEntity(self.app.root, 0);
+            entitySelect.onchange = function () {
+                onChange(entitySelect.value ? self.app.root.findByGuid(entitySelect.value) : null);
+            };
+            ctrl.appendChild(entitySelect);
+        } else if (type === 'asset') {
+            var assetInput = document.createElement('input');
+            assetInput.type = 'number';
+            assetInput.value = val && val.id !== undefined ? val.id : (val || '');
+            assetInput.placeholder = 'Asset ID';
+            assetInput.onchange = function () {
+                onChange(assetInput.value ? self.app.assets.get(Number(assetInput.value)) : null);
+            };
+            ctrl.appendChild(assetInput);
         } else {
-            var p = document.createElement('span');
-            p.innerText = 'Unk type: ' + type;
-            ctrl.appendChild(p);
+            var jsonInput = document.createElement('textarea');
+            jsonInput.rows = 3;
+            jsonInput.style.width = '100%';
+            try { jsonInput.value = JSON.stringify(val, null, 2); } catch (e) { jsonInput.value = String(val ?? ''); }
+            jsonInput.onchange = function () {
+                try { onChange(JSON.parse(jsonInput.value)); } catch (e) { jsonInput.style.borderColor = '#ff5555'; }
+            };
+            ctrl.appendChild(jsonInput);
         }
         wrap.appendChild(ctrl);
         return wrap;
@@ -2673,7 +3174,7 @@ UI.prototype._renderAttributeEditor = function (entity) {
         wrap1.className = 'ed-ins-row';
         var b1 = document.createElement('button');
         b1.innerText = 'Export JSON';
-        b1.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.exportConfig(); };
+        b1.onclick = function() { self.app.fire('level:downloadConfig'); };
         wrap1.appendChild(b1);
         container.appendChild(wrap1);
 
@@ -2681,7 +3182,7 @@ UI.prototype._renderAttributeEditor = function (entity) {
         wrap2.className = 'ed-ins-row';
         var b2 = document.createElement('button');
         b2.innerText = 'Local Save';
-        b2.onclick = function() { var lm = self.app.root.findByName('LevelManager'); if (lm) lm.script.levelManager.saveToLocal(); };
+        b2.onclick = function() { self.app.fire('level:saveConfig'); };
         wrap2.appendChild(b2);
         container.appendChild(wrap2);
         return;
@@ -2696,6 +3197,187 @@ UI.prototype._renderAttributeEditor = function (entity) {
             container.appendChild(renderField('Level ID', 'string', entity.config.id, function(v) { entity.config.id = v; }));
             container.appendChild(renderField('URL', 'string', entity.config.url, function(v) { entity.config.url = v; }));
             container.appendChild(renderField('Mode', 'string', entity.config.mode, function(v) { entity.config.mode = v; }));
+            if (entity.config.cullingEnabled === undefined) entity.config.cullingEnabled = entity.config.mode !== 'orbit';
+            if (entity.config.cullDistance === undefined) entity.config.cullDistance = 70;
+            var updateLevelCulling = function () {
+                var cullManagerEntity = self.app.root.findByName('LevelManager');
+                var cullManager = cullManagerEntity && cullManagerEntity.script && cullManagerEntity.script.levelManager;
+                if (cullManager && cullManager.currentLevelId === entity.config.id) {
+                    cullManager._cullingEnabled = entity.config.cullingEnabled === true;
+                    cullManager._cullDistance = entity.config.cullDistance;
+                    cullManager._updateCulling();
+                    self.app.fire('culling:state', cullManager._cullingEnabled, cullManager._cullDistance);
+                }
+            };
+            container.appendChild(renderField('Enable camera culling', 'boolean', entity.config.cullingEnabled, function(value) {
+                entity.config.cullingEnabled = value;
+                updateLevelCulling();
+            }));
+            container.appendChild(renderField('Splat cull distance', 'number', entity.config.cullDistance, function(value) {
+                entity.config.cullDistance = Math.max(1, value);
+                updateLevelCulling();
+            }));
+
+            var renderedConfigKeys = {
+                id: true,
+                url: true,
+                mode: true,
+                cullingEnabled: true,
+                cullDistance: true,
+                privacyZones: true,
+                entityOverrides: true
+            };
+            var inferConfigType = function (value) {
+                if (typeof value === 'boolean') return 'boolean';
+                if (typeof value === 'number') return 'number';
+                if (typeof value === 'string' || value === null || value === undefined) return 'string';
+                if (Array.isArray(value) && value.every(function (item) { return typeof item === 'number'; })) return 'array_number';
+                if (Array.isArray(value) && value.every(function (item) { return typeof item === 'string'; })) return 'array_string';
+                return 'json';
+            };
+            var renderConfigSection = function (sectionTitle, keys) {
+                var available = keys.filter(function (key) {
+                    return Object.prototype.hasOwnProperty.call(entity.config, key);
+                });
+                if (!available.length) return;
+                var sectionHeading = document.createElement('h3');
+                sectionHeading.innerText = sectionTitle;
+                container.appendChild(sectionHeading);
+                available.forEach(function (key) {
+                    renderedConfigKeys[key] = true;
+                    container.appendChild(renderField(key, inferConfigType(entity.config[key]), entity.config[key], function (value) {
+                        entity.config[key] = value;
+                    }));
+                });
+            };
+            renderConfigSection('Streaming', ['envUrl', 'lodRangeMin', 'lodRangeMax', 'lodMultiplier', 'lodBaseDistance']);
+            renderConfigSection('Splat transform', ['splatPos', 'pos', 'splatRot', 'rotation', 'splatScale']);
+            renderConfigSection('Camera and movement', ['cameraStart', 'cameraStartRot', 'bounds', 'spawnpoints', 'speed', 'fastSpeed', 'minHeight', 'maxHeight']);
+            renderConfigSection('Collision', ['collider', 'colliderPos', 'colliderRot', 'colliderScale', 'colliderUrl']);
+            var advancedKeys = Object.keys(entity.config).filter(function (key) { return !renderedConfigKeys[key]; });
+            renderConfigSection('Advanced level properties', advancedKeys);
+            var reloadLevelButton = document.createElement('button');
+            reloadLevelButton.className = 'unified-btn small';
+            reloadLevelButton.innerText = 'Apply and reload this level';
+            reloadLevelButton.onclick = function () {
+                self.app.fire('level:switch', entity.config.id);
+            };
+            container.appendChild(reloadLevelButton);
+            if (entity.config.id === 'lemgo') {
+                var config = entity.config;
+                if (!Array.isArray(config.privacyZones)) config.privacyZones = [];
+                if (config.cullDistance === undefined) config.cullDistance = 70;
+                var managerEntity = self.app.root.findByName('LevelManager');
+                var manager = managerEntity && managerEntity.script && managerEntity.script.levelManager;
+                var applyPrivacy = function() {
+                    if (manager && manager._updateCulling) manager._updateCulling();
+                };
+                if (false) container.appendChild(renderField('Splat cull distance', 'number', config.cullDistance, function(value) {
+                    config.cullDistance = value;
+                    applyPrivacy();
+                }));
+
+                var entityPrivacyHelp = document.createElement('p');
+                entityPrivacyHelp.style.fontSize = '11px';
+                entityPrivacyHelp.style.opacity = '0.8';
+                entityPrivacyHelp.innerText = 'Create a Privacy Blur / Crop entity from the hierarchy menu, then draw its points directly on the outdoor scan.';
+                container.appendChild(entityPrivacyHelp);
+                return;
+
+                var privacyTitle = document.createElement('h3');
+                privacyTitle.innerText = 'Lemgo Privacy Zones';
+                container.appendChild(privacyTitle);
+                var privacyHelp = document.createElement('p');
+                privacyHelp.innerText = 'World-space boxes. Crop removes splats; Blur makes the selected scan area unreadable. Only administrators can edit these masks.';
+                privacyHelp.style.fontSize = '10px';
+                privacyHelp.style.opacity = '0.75';
+                container.appendChild(privacyHelp);
+
+                var zonesHost = document.createElement('div');
+                container.appendChild(zonesHost);
+                var renderZones = function() {
+                    zonesHost.innerHTML = '';
+                    config.privacyZones.forEach(function(zone, zoneIndex) {
+                        var zoneBox = document.createElement('div');
+                        zoneBox.style.border = '1px solid rgba(255,255,255,0.2)';
+                        zoneBox.style.padding = '8px';
+                        zoneBox.style.marginBottom = '8px';
+                        zoneBox.style.borderRadius = '8px';
+                        zoneBox.appendChild(renderField('Name', 'string', zone.name || '', function(value) { zone.name = value; applyPrivacy(); }));
+                        zoneBox.appendChild(renderField('Enabled', 'boolean', zone.enabled !== false, function(value) { zone.enabled = value; applyPrivacy(); }));
+                        zoneBox.appendChild(renderField('Mode: blur/crop', 'string', zone.mode || 'blur', function(value) {
+                            zone.mode = value === 'crop' ? 'crop' : 'blur';
+                            applyPrivacy();
+                        }));
+                        var addVector = function(label, key, fallback) {
+                            var row = document.createElement('div');
+                            row.className = 'ed-ins-row';
+                            var title = document.createElement('div');
+                            title.className = 'ed-ins-lbl';
+                            title.innerText = label;
+                            row.appendChild(title);
+                            var controls = document.createElement('div');
+                            controls.className = 'ed-ins-ctrl';
+                            var values = Array.isArray(zone[key]) ? zone[key] : fallback.slice();
+                            zone[key] = values;
+                            for (var axis = 0; axis < 3; axis++) {
+                                (function(axisIndex) {
+                                    var input = document.createElement('input');
+                                    input.type = 'number';
+                                    input.step = '0.1';
+                                    input.style.width = '32%';
+                                    input.value = values[axisIndex];
+                                    input.onchange = function() {
+                                        values[axisIndex] = Number(input.value);
+                                        applyPrivacy();
+                                    };
+                                    controls.appendChild(input);
+                                })(axis);
+                            }
+                            row.appendChild(controls);
+                            zoneBox.appendChild(row);
+                        };
+                        addVector('Minimum XYZ', 'min', [0, 0, 0]);
+                        addVector('Maximum XYZ', 'max', [1, 1, 1]);
+                        zoneBox.appendChild(renderField('Blur Strength', 'number', zone.strength || 8, function(value) { zone.strength = Math.max(1, value); applyPrivacy(); }));
+                        var remove = document.createElement('button');
+                        remove.className = 'unified-btn small';
+                        remove.innerText = 'Remove Privacy Zone';
+                        remove.onclick = function() {
+                            config.privacyZones.splice(zoneIndex, 1);
+                            applyPrivacy();
+                            renderZones();
+                        };
+                        zoneBox.appendChild(remove);
+                        zonesHost.appendChild(zoneBox);
+                    });
+                };
+                var addZone = function(mode) {
+                    var camera = self.app.root.findByName('Camera');
+                    var position = camera ? camera.getPosition() : new pc.Vec3();
+                    config.privacyZones.push({
+                        name: mode + ' area',
+                        enabled: true,
+                        mode: mode,
+                        min: [position.x - 10, position.y - 10, position.z - 10],
+                        max: [position.x + 10, position.y + 10, position.z + 10],
+                        strength: 8
+                    });
+                    applyPrivacy();
+                    renderZones();
+                };
+                var addBlur = document.createElement('button');
+                addBlur.className = 'unified-btn small';
+                addBlur.innerText = 'Add Blur Zone At Camera';
+                addBlur.onclick = function() { addZone('blur'); };
+                container.appendChild(addBlur);
+                var addCrop = document.createElement('button');
+                addCrop.className = 'unified-btn small';
+                addCrop.innerText = 'Add Crop Zone At Camera';
+                addCrop.onclick = function() { addZone('crop'); };
+                container.appendChild(addCrop);
+                renderZones();
+            }
         } else if (entity._isSpawnNode && entity.sp) {
             container.appendChild(renderField('Name', 'string', entity.sp.name, function(v) { entity.sp.name = v; }));
             container.appendChild(renderField('Position', 'vec3', entity.sp.pos, function(v) { entity.sp.pos = v; }));
@@ -2704,18 +3386,248 @@ UI.prototype._renderAttributeEditor = function (entity) {
         return;
     }
 
+    var editableWorldEntity = entity.tags && entity.tags.has('custom-editor-object');
+    editableWorldEntity = editableWorldEntity || (entity.script && (
+        entity.script.infoHotspot || entity.script.pathVisualizer || entity.script.constructionZone || entity.script.videoTexture
+    ));
+    if (editableWorldEntity) {
+        var organizationTitle = document.createElement('h3');
+        organizationTitle.innerText = 'Organization';
+        container.appendChild(organizationTitle);
+        var organizationRow = document.createElement('div');
+        organizationRow.className = 'ed-ins-row';
+        var organizationLabel = document.createElement('div');
+        organizationLabel.className = 'ed-ins-lbl';
+        organizationLabel.innerText = 'Assigned level';
+        var organizationControl = document.createElement('div');
+        organizationControl.className = 'ed-ins-ctrl';
+        var levelSelect = document.createElement('select');
+        levelSelect.className = 'ed-select';
+        var levelManager = self._getLevelManager();
+        var currentOwner = self._getEntityLevelId(entity) || self._currentLevelId;
+        (levelManager ? levelManager.levelConfig : []).forEach(function (config) {
+            var option = document.createElement('option');
+            option.value = config.id;
+            option.innerText = config.name || config.id;
+            option.selected = config.id === currentOwner;
+            levelSelect.appendChild(option);
+        });
+        levelSelect.onchange = function () {
+            self._assignEntityToLevel(entity, levelSelect.value);
+            self._editorTargetLevelId = levelSelect.value;
+            self._refreshOutlinerTree();
+        };
+        organizationControl.appendChild(levelSelect);
+        organizationRow.appendChild(organizationLabel);
+        organizationRow.appendChild(organizationControl);
+        container.appendChild(organizationRow);
+        var duplicateButton = document.createElement('button');
+        duplicateButton.className = 'unified-btn small';
+        duplicateButton.innerText = 'Duplicate entity';
+        duplicateButton.onclick = function () { self._duplicateEditorEntity(entity); };
+        container.appendChild(duplicateButton);
+    }
+
+    var componentHeadingAdded = false;
+    var addComponentHeading = function () {
+        if (componentHeadingAdded) return;
+        var heading = document.createElement('h3');
+        heading.innerText = 'Components';
+        container.appendChild(heading);
+        componentHeadingAdded = true;
+    };
+    if (entity.render) {
+        addComponentHeading();
+        container.appendChild(renderField('Render enabled', 'boolean', entity.render.enabled, function(value) {
+            entity.render.enabled = value;
+        }));
+        container.appendChild(renderField('Cast shadows', 'boolean', entity.render.castShadows, function(value) {
+            entity.render.castShadows = value;
+        }));
+        container.appendChild(renderField('Receive shadows', 'boolean', entity.render.receiveShadows, function(value) {
+            entity.render.receiveShadows = value;
+        }));
+    }
+    if (entity.light) {
+        addComponentHeading();
+        container.appendChild(renderField('Light enabled', 'boolean', entity.light.enabled, function(value) { entity.light.enabled = value; }));
+        container.appendChild(renderField('Light color', 'rgb', entity.light.color, function(value) { entity.light.color = value; }));
+        container.appendChild(renderField('Light intensity', 'number', entity.light.intensity, function(value) { entity.light.intensity = value; }));
+        container.appendChild(renderField('Light range', 'number', entity.light.range, function(value) { entity.light.range = value; }));
+        container.appendChild(renderField('Cast shadows', 'boolean', entity.light.castShadows, function(value) { entity.light.castShadows = value; }));
+    }
+    if (entity.camera) {
+        addComponentHeading();
+        container.appendChild(renderField('Camera enabled', 'boolean', entity.camera.enabled, function(value) { entity.camera.enabled = value; }));
+        container.appendChild(renderField('Field of view', 'number', entity.camera.fov, function(value) { entity.camera.fov = value; }));
+        container.appendChild(renderField('Near clip', 'number', entity.camera.nearClip, function(value) { entity.camera.nearClip = value; }));
+        container.appendChild(renderField('Far clip', 'number', entity.camera.farClip, function(value) { entity.camera.farClip = value; }));
+    }
+
+    if (entity.tags && entity.tags.has('custom-editor-privacy') && entity._privacyZone) {
+        var zone = entity._privacyZone;
+        var title = document.createElement('h3');
+        title.innerText = 'Privacy Mask';
+        container.appendChild(title);
+        var help = document.createElement('p');
+        help.style.fontSize = '11px';
+        help.style.opacity = '0.8';
+        help.innerText = 'Start drawing, then click points on the Lemgo scan. Three or more points form a closed privacy polygon.';
+        container.appendChild(help);
+
+        container.appendChild(renderField('Enabled', 'boolean', zone.enabled !== false, function (value) {
+            zone.enabled = value;
+            self._syncPrivacyZones();
+        }));
+
+        var modeRow = document.createElement('div');
+        modeRow.className = 'ed-ins-row';
+        var modeLabel = document.createElement('div');
+        modeLabel.className = 'ed-ins-lbl';
+        modeLabel.innerText = 'Mode';
+        var modeControl = document.createElement('div');
+        modeControl.className = 'ed-ins-ctrl';
+        var modeSelect = document.createElement('select');
+        modeSelect.className = 'ed-select';
+        ['blur', 'crop'].forEach(function (mode) {
+            var option = document.createElement('option');
+            option.value = mode;
+            option.innerText = mode === 'blur' ? 'Blur' : 'Crop / remove';
+            option.selected = zone.mode === mode;
+            modeSelect.appendChild(option);
+        });
+        modeSelect.onchange = function () {
+            zone.mode = modeSelect.value;
+            self._syncPrivacyZones();
+        };
+        modeControl.appendChild(modeSelect);
+        modeRow.appendChild(modeLabel);
+        modeRow.appendChild(modeControl);
+        container.appendChild(modeRow);
+
+        container.appendChild(renderField('Minimum height', 'number', zone.minY, function (value) {
+            zone.minY = value;
+            self._syncPrivacyZones();
+        }));
+        container.appendChild(renderField('Maximum height', 'number', zone.maxY, function (value) {
+            zone.maxY = value;
+            self._syncPrivacyZones();
+        }));
+        container.appendChild(renderField('Blur strength', 'number', zone.strength, function (value) {
+            zone.strength = Math.max(1, value);
+            self._syncPrivacyZones();
+        }));
+        container.appendChild(renderField('Fallback drawing height (Y)', 'number', zone.drawY || 0, function (value) {
+            zone.drawY = value;
+            self._syncPrivacyZones();
+        }));
+
+        var coordinatesLabel = document.createElement('div');
+        coordinatesLabel.className = 'ed-ins-lbl';
+        coordinatesLabel.innerText = 'Polygon coordinates (X, Y, Z)';
+        container.appendChild(coordinatesLabel);
+        var coordinatesInput = document.createElement('textarea');
+        coordinatesInput.rows = 7;
+        coordinatesInput.style.width = '100%';
+        coordinatesInput.style.resize = 'vertical';
+        coordinatesInput.placeholder = '10, 0, 20\n20, 0, 20\n20, 0, 30';
+        coordinatesInput.value = (zone.points || []).map(function (point) {
+            return point.map(function (value) { return Number(value).toFixed(3); }).join(', ');
+        }).join('\n');
+        coordinatesInput.onchange = function () {
+            var parsedPoints = coordinatesInput.value.split(/\r?\n/).map(function (line) {
+                return line.split(/[ ,;]+/).filter(Boolean).map(Number);
+            }).filter(function (point) {
+                return point.length >= 3 && point.slice(0, 3).every(Number.isFinite);
+            }).slice(0, 16).map(function (point) {
+                return point.slice(0, 3);
+            });
+            zone.points = parsedPoints;
+            self._refreshPrivacyZoneVisual(entity);
+            self._syncPrivacyZones();
+            self._renderAttributeEditor(entity);
+        };
+        container.appendChild(coordinatesInput);
+        var testSquareButton = document.createElement('button');
+        testSquareButton.className = 'unified-btn small';
+        testSquareButton.innerText = 'Create 10m test square at camera';
+        testSquareButton.onclick = function () {
+            var camera = self.app.root.findByName('Camera');
+            var position = camera ? camera.getPosition() : new pc.Vec3();
+            var y = Number(zone.drawY);
+            if (!Number.isFinite(y)) y = position.y;
+            zone.points = [
+                [position.x - 5, y, position.z - 5],
+                [position.x + 5, y, position.z - 5],
+                [position.x + 5, y, position.z + 5],
+                [position.x - 5, y, position.z + 5]
+            ];
+            self._refreshPrivacyZoneVisual(entity);
+            self._syncPrivacyZones();
+            self._renderAttributeEditor(entity);
+        };
+        container.appendChild(testSquareButton);
+
+        var pointStatus = document.createElement('p');
+        pointStatus.innerText = (zone.points || []).length + ' / 16 points';
+        pointStatus.style.fontSize = '11px';
+        container.appendChild(pointStatus);
+
+        var drawButton = document.createElement('button');
+        drawButton.className = 'unified-btn small';
+        drawButton.innerText = self._privacyDrawEntity === entity ? 'Finish drawing' : 'Draw points on scan';
+        drawButton.onclick = function () {
+            self._privacyDrawEntity = self._privacyDrawEntity === entity ? null : entity;
+            self.app._privacyDrawing = !!self._privacyDrawEntity;
+            self._renderAttributeEditor(entity);
+        };
+        container.appendChild(drawButton);
+
+        var undoButton = document.createElement('button');
+        undoButton.className = 'unified-btn small';
+        undoButton.innerText = 'Undo last point';
+        undoButton.disabled = !zone.points || zone.points.length === 0;
+        undoButton.onclick = function () {
+            zone.points.pop();
+            self._refreshPrivacyZoneVisual(entity);
+            self._syncPrivacyZones();
+            self._renderAttributeEditor(entity);
+        };
+        container.appendChild(undoButton);
+
+        var clearButton = document.createElement('button');
+        clearButton.className = 'unified-btn small';
+        clearButton.innerText = 'Clear points';
+        clearButton.disabled = !zone.points || zone.points.length === 0;
+        clearButton.onclick = function () {
+            zone.points = [];
+            self._refreshPrivacyZoneVisual(entity);
+            self._syncPrivacyZones();
+            self._renderAttributeEditor(entity);
+        };
+        container.appendChild(clearButton);
+        return;
+    }
+
     if (entity.script && entity.script.scripts) {
         var scripts = entity.script.scripts;
         scripts.forEach(function(scriptObj) {
-            var scriptName = scriptObj.__scriptType.name;
+            var scriptType = scriptObj.__scriptType || scriptObj.constructor;
+            var scriptName = (scriptType && (scriptType.__name || scriptType.scriptName || scriptType.name)) || scriptObj.__scriptName;
+            if (!scriptName || !entity.script[scriptName]) {
+                scriptName = Object.keys(entity.script).find(function (key) { return entity.script[key] === scriptObj; }) || scriptName;
+            }
             var h3 = document.createElement('h3');
             h3.innerText = 'Script: ' + scriptName;
             container.appendChild(h3);
             
             var scriptInst = entity.script[scriptName];
             if (!scriptInst) return;
+            container.appendChild(renderField('Script enabled', 'boolean', scriptInst.enabled !== false, function(newValue) {
+                scriptInst.enabled = newValue;
+            }));
             
-            var attributes = scriptObj.__scriptType.attributes;
+            var attributes = scriptType && scriptType.attributes;
             if (attributes && attributes.index) {
                 var attrs = Object.keys(attributes.index);
                 attrs.forEach(function(attrName) {
@@ -2946,7 +3858,14 @@ UI.prototype._refreshPathPointsUI = function (points) {
     var list = document.getElementById('ed-path-points-list');
     if (!list) return;
     list.innerHTML = '';
-    points.forEach(function (pt, idx) {
+    var normalized = [];
+    if (points.length && Array.isArray(points[0])) normalized = points;
+    else {
+        for (var pointIndex = 0; pointIndex + 2 < points.length; pointIndex += 3) {
+            normalized.push(points.slice(pointIndex, pointIndex + 3));
+        }
+    }
+    normalized.forEach(function (pt, idx) {
         var row = document.createElement('div');
         row.className = 'ed-item-row';
         row.style.fontSize = '10px';
@@ -3152,10 +4071,22 @@ UI.prototype._onLevelSwitchEvent = function (levelId) {
         this.updateJumpBackButton();
     }
     this._currentLevelId = levelId;
+    this._applyDefaultPresetForLevel(levelId);
+    this._privacyDrawEntity = null;
+    this.app._privacyDrawing = false;
+    this._setPrivacyVisualsVisible(!!this._editorPanelOpen && levelId === 'lemgo');
     var self = this;
     setTimeout(function () {
         self._updateContent(levelId);
     }, 800);
+};
+UI.prototype._applyDefaultPresetForLevel = function (levelId) {
+    var mobile = this._isMobileUi || window.innerWidth <= 600;
+    var preset = levelId === 'lemgo'
+        ? (mobile ? 'mob-ultra' : 'ultra')
+        : (mobile ? 'mob-med' : 'medium');
+    this.app.fire('preset:' + preset);
+    this._onPresetChanged(preset);
 };
 UI.prototype.goBack = function () {
     if (this.history.length === 0) return;

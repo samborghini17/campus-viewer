@@ -8,7 +8,30 @@ const LevelSavePlugin = () => {
         name: 'level-save-plugin',
         configureServer(server) {
             server.middlewares.use(async (req, res, next) => {
-                if (req.url === '/__save-level' && req.method === 'POST') {
+                if (req.url === '/__upload-editor-media' && req.method === 'POST') {
+                    let body = '';
+                    req.on('data', chunk => { body += chunk.toString(); });
+                    req.on('end', () => {
+                        try {
+                            const data = JSON.parse(body);
+                            const safeName = path.basename(String(data.name || 'upload.bin'))
+                                .replace(/[^a-zA-Z0-9._-]/g, '-');
+                            const match = String(data.dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
+                            if (!match) throw new Error('Invalid uploaded media');
+                            const uploadDir = path.resolve(__dirname, 'public', 'editor-uploads');
+                            fs.mkdirSync(uploadDir, { recursive: true });
+                            const uniqueName = Date.now() + '-' + safeName;
+                            fs.writeFileSync(path.join(uploadDir, uniqueName), Buffer.from(match[2], 'base64'));
+                            res.statusCode = 200;
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ success: true, url: '/editor-uploads/' + uniqueName }));
+                        } catch (err) {
+                            res.statusCode = 500;
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify({ error: err.message }));
+                        }
+                    });
+                } else if (req.url === '/__save-level' && req.method === 'POST') {
                     let body = '';
                     req.on('data', chunk => { body += chunk.toString(); });
                     req.on('end', () => {
@@ -48,10 +71,24 @@ const LevelSavePlugin = () => {
             colliderRot: [${(data.colliderRot || [0,0,0]).join(', ')}],
             colliderScale: [${(data.colliderScale || [1,1,1]).join(', ')}],
             mode: '${data.mode || 'fly'}', 
+            cullingEnabled: ${data.cullingEnabled === true},
+            cullDistance: ${Number(data.cullDistance) || 70},
+            privacyZones: ${JSON.stringify(data.privacyZones || [])},
+            entityOverrides: ${JSON.stringify(data.entityOverrides || [])},
             collider: null 
         },`;
 
-                            content = content.replace(regex, replacement);
+                            // Preserve every editor-exposed property. Keep collider last
+                            // and emit unquoted object keys so subsequent saves remain
+                            // compatible with the level-object locator above.
+                            const diskData = Object.assign({}, data);
+                            const diskCollider = diskData.collider;
+                            delete diskData.collider;
+                            diskData.collider = diskCollider ?? null;
+                            const serializedData = JSON.stringify(diskData, null, 12)
+                                .replace(/^(\s*)\x22([A-Za-z_$][\w$]*)\x22:/gm, '$1$2:')
+                                .replace(/collider:\s*\x22([^\x22]*)\x22/, 'collider: \x27$1\x27');
+                            content = content.replace(regex, serializedData + ',');
                             fs.writeFileSync(filepath, content, 'utf8');
 
                             res.statusCode = 200;

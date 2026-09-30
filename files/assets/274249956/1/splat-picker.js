@@ -40,6 +40,7 @@ SplatPicker.prototype.onTouchStart = function(event) {
 };
 
 SplatPicker.prototype.checkDoubleClick = function(x, y) {
+    if (this.app._privacyDrawing) return;
     var now = Date.now();
     if (now - this.lastClickTime < this.doubleClickThreshold) {
         this.setOrbitPoint(x, y);

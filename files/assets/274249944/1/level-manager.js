@@ -81,7 +81,7 @@ LevelManager.prototype.initialize = function() {
 
     this._debugMode = false;
 
-    // Distance culling for indoor levels (DISABLED by default - enable via menu or K key)
+    // Indoor distance culling defaults on. Outdoor orbit levels always keep it off.
     this._cullingEnabled = false;
     this._cullDistance = this.defaultCullDistance || 70;
     this._culledEntities = [];
@@ -97,7 +97,8 @@ LevelManager.prototype.initialize = function() {
             cameraStart: [-52.89, 0.50, -101.36], 
             cameraStartRot: [-180, -28, -180], 
             mode: 'orbit', 
-            collider: 'col_lemgo' 
+            collider: 'col_lemgo',
+            privacyZones: []
         },
         { 
             id: 'detmold', 
@@ -757,6 +758,8 @@ LevelManager.prototype.initialize = function() {
                 // Show everything when culling is disabled
                 this._showAllCulled();
             }
+            this._updateCulling();
+            this.app.fire('culling:state', this._cullingEnabled, this._cullDistance);
         }
 
         // Screenshot with F2
@@ -802,9 +805,15 @@ LevelManager.prototype.initialize = function() {
     this.app.on('culling:toggle', function(enabled) {
         this._cullingEnabled = enabled;
         if (!enabled) this._showAllCulled();
+        this._updateCulling();
+        this.app.fire('culling:state', this._cullingEnabled, this._cullDistance);
     }, this);
     this.app.on('culling:setDistance', function(dist) {
         this._cullDistance = dist;
+        var config = this.getConfigById(this.currentLevelId);
+        if (config) config.cullDistance = dist;
+        this._updateCulling();
+        this.app.fire('culling:state', this._cullingEnabled, this._cullDistance);
     }, this);
 
     // Screenshot event from UI
@@ -864,6 +873,24 @@ LevelManager.prototype.initialize = function() {
         if (savedOverrides) {
             var parsed = JSON.parse(savedOverrides);
             if (Array.isArray(parsed)) {
+                // Earlier burger-menu toggles accidentally became persistent
+                // level defaults. Reset that legacy state once; only the
+                // editor checkbox may define a persistent per-level default.
+                var cullingMigrationKey = 'thowl_culling_defaults_v1';
+                if (localStorage.getItem(cullingMigrationKey) !== 'done') {
+                    parsed.forEach(function(customLvl) { customLvl.cullingEnabled = false; });
+                    localStorage.setItem('thowl_custom_levels', JSON.stringify(parsed));
+                    localStorage.setItem(cullingMigrationKey, 'done');
+                }
+                var indoorCullingMigrationKey = 'thowl_indoor_culling_defaults_v2';
+                if (localStorage.getItem(indoorCullingMigrationKey) !== 'done') {
+                    parsed.forEach(function(customLvl) {
+                        if (customLvl.mode === 'orbit') customLvl.cullingEnabled = false;
+                        else delete customLvl.cullingEnabled;
+                    });
+                    localStorage.setItem('thowl_custom_levels', JSON.stringify(parsed));
+                    localStorage.setItem(indoorCullingMigrationKey, 'done');
+                }
                 parsed.forEach(function(customLvl) {
                     var idx = this.levelConfig.findIndex(function(l) { return l.id === customLvl.id; });
                     if (idx !== -1) {
@@ -1030,7 +1057,7 @@ LevelManager.prototype.initialize = function() {
         var colScale = this._dynamicColliderEntity ? this._dynamicColliderEntity.getLocalScale() : pc.Vec3.ONE;
 
         var currentConfig = this.levelConfig.find(function(l) { return l.id === this.currentLevelId; }.bind(this));
-        var data = {
+        var data = Object.assign({}, currentConfig || {}, {
             id: this.currentLevelId,
             url: currentConfig ? currentConfig.url : '',
             envUrl: currentConfig ? currentConfig.envUrl : '',
@@ -1041,8 +1068,9 @@ LevelManager.prototype.initialize = function() {
             colliderPos: [parseFloat(colPos.x.toFixed(2)), parseFloat(colPos.y.toFixed(2)), parseFloat(colPos.z.toFixed(2))],
             colliderRot: [parseFloat(colRot.x.toFixed(1)), parseFloat(colRot.y.toFixed(1)), parseFloat(colRot.z.toFixed(1))],
             colliderScale: [parseFloat(colScale.x.toFixed(3)), parseFloat(colScale.y.toFixed(3)), parseFloat(colScale.z.toFixed(3))],
-            mode: 'fly'
-        };
+            mode: currentConfig && currentConfig.mode ? currentConfig.mode : 'fly'
+        });
+        data.entityOverrides = this._collectEntityOverrides(this.currentLevelId);
 
         // 1. Update in-memory levelConfig
         var idx = this.levelConfig.findIndex(function(l) { return l.id === data.id; });
@@ -1052,12 +1080,11 @@ LevelManager.prototype.initialize = function() {
 
         // 2. Persist to LocalStorage
         try {
-            var allSaved = [];
-            var existing = localStorage.getItem('thowl_custom_levels');
-            if (existing) allSaved = JSON.parse(existing);
-            var saveIdx = allSaved.findIndex(function(l) { return l.id === data.id; });
-            if (saveIdx !== -1) allSaved[saveIdx] = data;
-            else allSaved.push(data);
+            var allSaved = this.levelConfig.map(function(config) {
+                var savedConfig = Object.assign({}, config);
+                savedConfig.entityOverrides = this._collectEntityOverrides(config.id);
+                return savedConfig;
+            }.bind(this));
             localStorage.setItem('thowl_custom_levels', JSON.stringify(allSaved));
             console.log('✅ Level saved to LocalStorage:', data.id);
         } catch(e) {
@@ -1126,6 +1153,138 @@ LevelManager.prototype.getColliderByName = function(name) {
 
 LevelManager.prototype.getConfigById = function(id) {
     return this.levelConfig.find(function(level) { return level.id === id; });
+};
+
+LevelManager.prototype._serializeEditorValue = function(value) {
+    if (value === null || value === undefined || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+    if (Array.isArray(value)) return value.map(this._serializeEditorValue.bind(this));
+    if (value instanceof pc.Color) return { __type: 'color', value: [value.r, value.g, value.b, value.a] };
+    if (value instanceof pc.Vec2) return { __type: 'vec2', value: [value.x, value.y] };
+    if (value instanceof pc.Vec3) return { __type: 'vec3', value: [value.x, value.y, value.z] };
+    if (value instanceof pc.Vec4) return { __type: 'vec4', value: [value.x, value.y, value.z, value.w] };
+    if (value instanceof pc.Entity) return { __type: 'entity', name: value.name };
+    return null;
+};
+
+LevelManager.prototype._deserializeEditorValue = function(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    if (value.__type === 'color') return new pc.Color(value.value[0], value.value[1], value.value[2], value.value[3]);
+    if (value.__type === 'vec2') return new pc.Vec2(value.value[0], value.value[1]);
+    if (value.__type === 'vec3') return new pc.Vec3(value.value[0], value.value[1], value.value[2]);
+    if (value.__type === 'vec4') return new pc.Vec4(value.value[0], value.value[1], value.value[2], value.value[3]);
+    if (value.__type === 'entity') return this.app.root.findByName(value.name);
+    return value;
+};
+
+LevelManager.prototype._collectEntityOverrides = function(levelId) {
+    var folder = this.getEntityByName(this.levelFolders, levelId);
+    if (!folder) return [];
+    var self = this;
+    var result = [];
+    var visit = function(entity, path) {
+        if (entity.tags && entity.tags.has('editor-helper')) return;
+        if (entity.tags && entity.tags.has('custom-editor-privacy')) return;
+        var scripts = {};
+        if (entity.script && entity.script.scripts) {
+            entity.script.scripts.forEach(function(instance) {
+                var type = instance.__scriptType || instance.constructor;
+                var name = (type && (type.__name || type.scriptName || type.name)) || '';
+                if (!name || !type.attributes || !type.attributes.index) return;
+                var attributes = {};
+                Object.keys(type.attributes.index).forEach(function(attributeName) {
+                    attributes[attributeName] = self._serializeEditorValue(instance[attributeName]);
+                });
+                scripts[name] = { enabled: instance.enabled !== false, attributes: attributes };
+            });
+        }
+        var editable = (entity.tags && entity.tags.has('custom-editor-object')) || Object.keys(scripts).length > 0;
+        if (editable) {
+            var position = entity.getLocalPosition();
+            var rotation = entity.getLocalEulerAngles();
+            var scale = entity.getLocalScale();
+            result.push({
+                guid: entity.getGuid(),
+                path: path,
+                name: entity.name,
+                custom: !!(entity.tags && entity.tags.has('custom-editor-object')),
+                enabled: entity.enabled,
+                position: [position.x, position.y, position.z],
+                rotation: [rotation.x, rotation.y, rotation.z],
+                scale: [scale.x, scale.y, scale.z],
+                scripts: scripts,
+                renderType: entity.render ? entity.render.type : null,
+                light: entity.light ? {
+                    type: entity.light.type,
+                    color: [entity.light.color.r, entity.light.color.g, entity.light.color.b],
+                    intensity: entity.light.intensity,
+                    range: entity.light.range
+                } : null
+            });
+        }
+        entity.children.forEach(function(child) { visit(child, path + '/' + child.name); });
+    };
+    folder.children.forEach(function(child) { visit(child, child.name); });
+    return result;
+};
+
+LevelManager.prototype._applyEntityOverrides = function(data) {
+    if (!data || !Array.isArray(data.entityOverrides)) return;
+    var folder = this.getEntityByName(this.levelFolders, data.id);
+    if (!folder) return;
+    var self = this;
+    var findByPath = function(path) {
+        var current = folder;
+        var names = path.split('/');
+        for (var index = 0; index < names.length; index++) {
+            current = current.children.find(function(child) { return child.name === names[index]; });
+            if (!current) return null;
+        }
+        return current;
+    };
+    data.entityOverrides.forEach(function(saved) {
+        var entity = saved.guid ? self.app.root.findByGuid(saved.guid) : null;
+        if (!entity) entity = findByPath(saved.path);
+        if (!entity && saved.custom) {
+            entity = new pc.Entity(saved.name);
+            entity.tags.add('custom-editor-object');
+            folder.addChild(entity);
+            if (saved.renderType) entity.addComponent('render', { type: saved.renderType });
+            if (saved.light) {
+                entity.addComponent('light', {
+                    type: saved.light.type || 'omni',
+                    color: new pc.Color(saved.light.color[0], saved.light.color[1], saved.light.color[2]),
+                    intensity: saved.light.intensity,
+                    range: saved.light.range
+                });
+            }
+        }
+        if (!entity) return;
+        entity.name = saved.name || entity.name;
+        entity.enabled = saved.enabled !== false;
+        if (saved.position) entity.setLocalPosition(saved.position[0], saved.position[1], saved.position[2]);
+        if (saved.rotation) entity.setLocalEulerAngles(saved.rotation[0], saved.rotation[1], saved.rotation[2]);
+        if (saved.scale) entity.setLocalScale(saved.scale[0], saved.scale[1], saved.scale[2]);
+        Object.keys(saved.scripts || {}).forEach(function(scriptName) {
+            if (!entity.script) entity.addComponent('script');
+            var instance = entity.script[scriptName];
+            var scriptData = saved.scripts[scriptName];
+            var attributes = {};
+            Object.keys(scriptData.attributes || {}).forEach(function(attributeName) {
+                attributes[attributeName] = self._deserializeEditorValue(scriptData.attributes[attributeName]);
+            });
+            if (!instance) {
+                try { instance = entity.script.create(scriptName, { attributes: attributes }); } catch (error) {
+                    console.warn('[Editor] Could not restore script', scriptName, error);
+                }
+            } else {
+                Object.keys(attributes).forEach(function(attributeName) { instance[attributeName] = attributes[attributeName]; });
+            }
+            if (instance) instance.enabled = scriptData.enabled !== false;
+            if (scriptName === 'infoHotspot' || scriptName === 'constructionZone') entity.tags.add('custom-editor-poi');
+            if (scriptName === 'pathVisualizer') entity.tags.add('custom-editor-path');
+            if (scriptName === 'videoTexture') entity.tags.add('custom-editor-media');
+        });
+    });
 };
 
 LevelManager.prototype.jumpToSpawnpoint = function(pos, rot) {
@@ -1361,6 +1520,11 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     if(!data) return;
 
     this.currentLevelId = id; 
+    // Indoor levels default to culling unless explicitly disabled in the
+    // editor. Outdoor/orbit levels never distance-cull.
+    this._cullingEnabled = data.mode !== 'orbit' && data.cullingEnabled !== false;
+    this._cullDistance = Number(data.cullDistance) || this.defaultCullDistance || 70;
+    this.app.fire('culling:state', this._cullingEnabled, this._cullDistance);
 
     
     // --- Laufwege Auto-Inheritance ---
@@ -1447,6 +1611,7 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     var contentFolder = this.getEntityByName(this.levelFolders, id);
     if (this.currentContent) this.currentContent.enabled = false; 
     this.currentContent = contentFolder;
+    this._applyEntityOverrides(data);
 
     // Immediately refresh the POI list so it reflects the new level
     this.app.fire('poi:refresh');
@@ -1481,22 +1646,9 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     if (sp) this.mainSplatEntity.setLocalPosition(sp[0], sp[1], sp[2]);
     this.mainSplatEntity.syncHierarchy(); 
     
-    // Attach culling script dynamically if it does not exist
-    if (!this.mainSplatEntity.script) this.mainSplatEntity.addComponent('script');
-    if (!this.mainSplatEntity.script.splatCulling) {
-        this.mainSplatEntity.script.create('splatCulling');
-    }
-    
-    var cullingConfig = data;
-    if (this.mainSplatEntity.script.splatCulling) {
-        var sc = this.mainSplatEntity.script.splatCulling;
-        sc.enableCrop = !!cullingConfig.clipBoxMin;
-        if (cullingConfig.clipBoxMin) sc.cropBoxMin = new pc.Vec3(cullingConfig.clipBoxMin[0], cullingConfig.clipBoxMin[1], cullingConfig.clipBoxMin[2]);
-        if (cullingConfig.clipBoxMax) sc.cropBoxMax = new pc.Vec3(cullingConfig.clipBoxMax[0], cullingConfig.clipBoxMax[1], cullingConfig.clipBoxMax[2]);
-        sc.enableDistanceCulling = this._cullingEnabled && !this._isOutdoorLevel(this.currentLevelId);
-        sc.cullDistance = this._cullDistance;
-        sc._updateUniforms();
-    }
+    // Use the supported GSplat shader hook for both indoor culling and privacy masks.
+    // This avoids two scripts competing for the same gsplatModifyVS shader chunk.
+    this._updateCulling();
 
     if (this.envSplatEntity && this.envSplatEntity.script && this.envSplatEntity.script.streamedGsplat) {
         if (data.envUrl) {
@@ -1528,8 +1680,15 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     }
 
     if (revealScript) {
-        // Start the reveal effect from the middle of the splat
-        revealScript.restart(new pc.Vec3(0, 0, 0));
+        // The reveal shader works in splat-local coordinates. Convert the
+        // configured camera spawn so the wave begins where the user enters.
+        var revealWorldCenter = data.cameraStart
+            ? new pc.Vec3(data.cameraStart[0], data.cameraStart[1], data.cameraStart[2])
+            : this.cameraEntity.getPosition().clone();
+        var inverseSplatWorld = this.mainSplatEntity.getWorldTransform().clone().invert();
+        var revealLocalCenter = new pc.Vec3();
+        inverseSplatWorld.transformPoint(revealWorldCenter, revealLocalCenter);
+        revealScript.restart(revealLocalCenter);
     }
 
     // --- Dynamic collision loading ---
@@ -1607,6 +1766,8 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
 
     window.appSettings = window.appSettings || { indoorMouseOnly: false };
 
+    var indoorMouseOnly = mode !== 'orbit' && window.innerWidth > 600 && window.appSettings.indoorMouseOnly === true;
+
     if (mode === 'orbit') {
         // ORBIT (OUTDOOR) MODE
         console.log('[LevelMgr] Mode: ORBIT (outdoor)');
@@ -1616,6 +1777,7 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
 
         if (controls) { 
             controls.enabled = true; 
+            controls.outdoorOrbit = true;
             controls.enableOrbit = true; 
             controls.enableFly = true; 
             controls.moveSpeed = this.outdoorSpeed;
@@ -1627,14 +1789,55 @@ LevelManager.prototype.setCameraMode = function(mode, bounds, hasCollider) {
         this._setCharControllerActive(playerRig, false);
         if (playerRig && playerRig.rigidbody) playerRig.rigidbody.enabled = false;
         if (playerRig && playerRig.collision) playerRig.collision.enabled = false;
+    } else if (indoorMouseOnly) {
+        // Optional desktop navigation using the existing mouse mappings:
+        // left orbit, wheel zoom and right-button look.
+        console.log('[LevelMgr] Mode: INDOOR MOUSE ONLY');
+        canvas.style.cursor = 'grab';
+        this.app.systems.rigidbody.gravity.set(0, 0, 0);
+
+        if (flyCam) flyCam.enabled = false;
+        this._setCharControllerActive(playerRig, false);
+        if (playerRig && playerRig.rigidbody) playerRig.rigidbody.enabled = false;
+        if (playerRig && playerRig.collision) playerRig.collision.enabled = false;
+
+        if (controls) {
+            var cameraPosition = this.cameraEntity.getPosition().clone();
+            var cameraRotation = this.cameraEntity.getEulerAngles().clone();
+            controls.enabled = true;
+            controls.outdoorOrbit = false;
+            controls.enableOrbit = true;
+            controls.enableFly = true;
+            controls.moveSpeed = this.indoorSpeed;
+            controls.moveFastSpeed = this.indoorFastSpeed;
+            controls.maxOrbitDistance = 2000;
+            controls.zoomSpeed = 0.05;
+            controls._pose.position.copy(cameraPosition);
+            controls._pose.angles.copy(cameraRotation);
+            controls._pose.distance = Math.max(3, controls._pose.distance || 8);
+            controls._setMode('orbit');
+            controls._controller.detach();
+            controls._controller.attach(controls._pose, false);
+        }
     } else {
         if (flyCam) flyCam.enabled = false; 
 
         // INDOOR: Always use Character Controller (shooter mode)
         console.log('[LevelMgr] Mode: WALK/FLY (indoor, collider: ' + hasCollider + ')');
         canvas.style.cursor = 'default';
-        if (controls) controls.enabled = false; 
+        if (controls) {
+            controls.outdoorOrbit = false;
+            controls.enabled = false;
+        }
         
+        // Continue at the current mouse-camera position when switching back.
+        if (controls && controls.enabled && playerRig) {
+            var currentCameraPosition = this.cameraEntity.getPosition().clone();
+            var characterController = playerRig.script && playerRig.script['character-controller'];
+            var cameraHeight = characterController ? characterController.cameraHeight : 1.2;
+            playerRig.setPosition(currentCameraPosition.x, currentCameraPosition.y - cameraHeight, currentCameraPosition.z);
+            this.cameraEntity.setLocalPosition(0, cameraHeight, 0);
+        }
         this._setCharControllerActive(playerRig, true);
         if (playerRig && playerRig.rigidbody) {
             playerRig.rigidbody.enabled = true;
@@ -1768,20 +1971,27 @@ LevelManager.prototype.update = function(dt) {
 };
 
 LevelManager.prototype._updateCulling = function() {
-    if (!this.mainSplatEntity) return;
-    
+    if (!this.mainSplatEntity || !this.mainSplatEntity.script) return;
     var data = this.getConfigById(this.currentLevelId);
     if (!data) return;
-    
-    // Distance culling - only for indoor levels, disabled by default
-    var doDistanceCull = this._cullingEnabled && !this._isOutdoorLevel(this.currentLevelId);
-    if (data.mode === 'orbit') doDistanceCull = false;
-
-    if (this.mainSplatEntity.script && this.mainSplatEntity.script.splatCulling) {
-        var sc = this.mainSplatEntity.script.splatCulling;
-        sc.enableDistanceCulling = doDistanceCull;
-        sc.cullDistance = this._cullDistance;
-        sc._updateUniforms();
+    var reveal = this.mainSplatEntity.script.gsplatRevealRadial;
+    if (reveal) {
+        var doDistanceCull = this._cullingEnabled && data.mode !== 'orbit';
+        if (this.app.scene.gsplat) {
+            this.app.scene.gsplat.radialSorting = true;
+            // Strongly demote streamed octree nodes behind the indoor camera.
+            // PlayCanvas performs normal camera-frustum rejection; this setting
+            // also keeps the LOD streamer from spending its budget behind us.
+            this.app.scene.gsplat.lodBehindPenalty = doDistanceCull ? 10 : 1;
+        }
+        // getPosition() is world-space, so the culling sphere follows the
+        // actual user camera even when it is parented to the player rig.
+        var activeCamera = this.cameraEntity;
+        if ((!activeCamera || !activeCamera.camera) && this.app.systems.camera.cameras.length) {
+            activeCamera = this.app.systems.camera.cameras[0].entity;
+        }
+        reveal.setDistanceCulling(doDistanceCull, this._cullDistance, activeCamera);
+        reveal.setPrivacyZones(data.privacyZones || []);
     }
 };
 

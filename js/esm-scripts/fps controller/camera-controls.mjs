@@ -379,6 +379,9 @@ class CameraControls extends Script {
         this._state.shift += key[keyCode.SHIFT];
         this._state.ctrl += key[keyCode.CTRL];
         this._state.touches += count[0];
+        if (this.outdoorOrbit && count[0] > 0 && this._mode !== 'orbit') {
+            this._setMode('orbit');
+        }
         if (button[0] === 1 || button[1] === 1 || wheel[0] !== 0) {
             // left mouse button, middle mouse button, mouse wheel
             this._setMode('orbit');
@@ -434,19 +437,21 @@ class CameraControls extends Script {
         ]);
         // mobile move
         v.set(0, 0, 0);
-        const joyMult = orbit ? (moveMult * 0.15) : (moveMult * 1.5); // Indoor (fly) movement slightly faster
+        const joyMult = orbit ? moveMult : (moveMult * 1.5); // Equal X/Z speed outdoors; indoor fly remains faster
 
         if (orbit) {
-            // X pans left/right
-            const joyPanX = -(this._uiJoyX || 0) * 5;
-            if (joyPanX !== 0) {
-                const joyPanMove = screenToWorld(this._camera, joyPanX, 0, this._pose.distance);
-                v.add(joyPanMove.mulScalar(+this.enablePan));
-            }
-            // Y moves forward/backward
-            const activeJoyY = -(this._uiJoyY || 0);
-            const flyMove = tmpV2.set(0, 0, activeJoyY);
-            v.add(flyMove.mulScalar(joyMult));
+            // Use one camera-local movement vector for both axes. The old
+            // screen-space pan scaled sideways movement by orbit distance,
+            // which made the camera feel frozen near buildings/focus points.
+            // Compensate for the orbit controller's stronger forward axis so
+            // the perceived ground speed is equal in every joystick direction.
+            const activeJoyX = (this._uiJoyX || 0) * 2;
+            const activeJoyY = -(this._uiJoyY || 0) * 0.65;
+            const orbitJoyMove = tmpV2.set(activeJoyX, 0, activeJoyY);
+            if (orbitJoyMove.length() > 1) orbitJoyMove.normalize();
+            // Joystick translation is independent of the optional drag-pan
+            // gesture, so horizontal input must not be gated by enablePan.
+            v.add(orbitJoyMove.mulScalar(joyMult));
         } else {
             const activeJoyX = leftInput[0] + (this._uiJoyX || 0);
             const activeJoyY = -leftInput[1] - (this._uiJoyY || 0);
@@ -705,6 +710,9 @@ class CameraControls extends Script {
         this.app.on('joystick:move', (x, y) => {
             this._uiJoyX = x;
             this._uiJoyY = y;
+            if (this.outdoorOrbit && this._mode !== 'orbit' && (x !== 0 || y !== 0)) {
+                this._setMode('orbit');
+            }
         });
         this._flyMobileInput.on('joystick:position:left', ([bx, by, sx, sy]) => {
             if (this._mode !== 'fly') {
