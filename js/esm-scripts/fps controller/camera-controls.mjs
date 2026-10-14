@@ -22,6 +22,8 @@ function _define_property(obj, key, value) {
  * @property {number} touches - The touches.
  */ const tmpV1 = new Vec3();
 const tmpV2 = new Vec3();
+const tmpV3 = new Vec3();
+const tmpV4 = new Vec3();
 const pose = new Pose();
 const frame = new InputFrame({
     move: [
@@ -440,18 +442,23 @@ class CameraControls extends Script {
         const joyMult = orbit ? moveMult : (moveMult * 1.5); // Equal X/Z speed outdoors; indoor fly remains faster
 
         if (orbit) {
-            // Use one camera-local movement vector for both axes. The old
-            // screen-space pan scaled sideways movement by orbit distance,
-            // which made the camera feel frozen near buildings/focus points.
-            // Compensate for the orbit controller's stronger forward axis so
-            // the perceived ground speed is equal in every joystick direction.
-            const activeJoyX = (this._uiJoyX || 0) * 2;
-            const activeJoyY = -(this._uiJoyY || 0) * 0.65;
-            const orbitJoyMove = tmpV2.set(activeJoyX, 0, activeJoyY);
-            if (orbitJoyMove.length() > 1) orbitJoyMove.normalize();
-            // Joystick translation is independent of the optional drag-pan
-            // gesture, so horizontal input must not be gated by enablePan.
-            v.add(orbitJoyMove.mulScalar(joyMult));
+            const activeJoyX = this._uiJoyX || 0;
+            const activeJoyY = this._uiJoyY || 0;
+            if ((activeJoyX !== 0 || activeJoyY !== 0) && this._controller === this._orbitController) {
+                // OrbitController reserves move.z for zoom. Translate its
+                // focus directly on the horizontal camera plane instead.
+                const right = tmpV3.copy(this._camera.entity.right);
+                const forward = tmpV4.copy(this._camera.entity.forward);
+                right.y = 0;
+                forward.y = 0;
+                if (right.lengthSq() > 0) right.normalize();
+                if (forward.lengthSq() > 0) forward.normalize();
+                const joyWorld = right.mulScalar(activeJoyX).add(forward.mulScalar(activeJoyY));
+                if (joyWorld.lengthSq() > 1) joyWorld.normalize();
+                joyWorld.mulScalar(joyMult);
+                this._orbitController._targetRootPose.position.add(joyWorld);
+                this._orbitController._rootPose.position.add(joyWorld);
+            }
         } else {
             const activeJoyX = leftInput[0] + (this._uiJoyX || 0);
             const activeJoyY = -leftInput[1] - (this._uiJoyY || 0);

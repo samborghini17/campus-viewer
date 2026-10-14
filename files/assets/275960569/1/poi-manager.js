@@ -602,6 +602,7 @@ PoiManager.prototype.toggleSidebar = function() {
     var el = document.getElementById('poi-sidebar');
     if (el) {
         if(this.isSidebarOpen) {
+            if (this.syncSidebarToBurger) this.syncSidebarToBurger();
             el.classList.remove('collapsed');
             if (window.innerWidth <= 600) this.app.fire('ui:closeMenu');
         }
@@ -641,6 +642,48 @@ PoiManager.prototype.createUI = function() {
     document.body.appendChild(this.listContainer);
 
     document.getElementById('poi-sidebar-toggle').onclick = () => this.toggleSidebar();
+    this.syncSidebarToBurger = function() {
+        if (window.innerWidth <= 600) {
+            this.listContainer.style.height = '';
+            this.listContainer.style.width = '';
+            return;
+        }
+        var menu = document.getElementById('burger-dropdown');
+        if (!menu) return;
+
+        // The dropdown normally has display:none until its button is opened.
+        // Measure it invisibly in that state so the POI panel does not depend
+        // on the burger menu having been opened first.
+        var computed = window.getComputedStyle(menu);
+        var restore = null;
+        if (computed.display === 'none') {
+            restore = {
+                display: menu.style.display,
+                visibility: menu.style.visibility,
+                pointerEvents: menu.style.pointerEvents
+            };
+            menu.style.display = 'flex';
+            menu.style.visibility = 'hidden';
+            menu.style.pointerEvents = 'none';
+        }
+
+        var menuRect = menu.getBoundingClientRect();
+        if (menuRect.height > 0) this.listContainer.style.height = menuRect.height + 'px';
+        if (menuRect.width > 0) this.listContainer.style.width = menuRect.width + 'px';
+
+        if (restore) {
+            menu.style.display = restore.display;
+            menu.style.visibility = restore.visibility;
+            menu.style.pointerEvents = restore.pointerEvents;
+        }
+    }.bind(this);
+    var burgerContainer = document.getElementById('burger-menu-container');
+    if (burgerContainer && window.MutationObserver) {
+        this._burgerSizeObserver = new MutationObserver(this.syncSidebarToBurger);
+        this._burgerSizeObserver.observe(burgerContainer, { attributes: true, attributeFilter: ['class'] });
+    }
+    window.addEventListener('resize', this.syncSidebarToBurger);
+    setTimeout(this.syncSidebarToBurger, 0);
 
     this.navBar = document.createElement('div');
     this.navBar.id = 'poi-navbar';

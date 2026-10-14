@@ -1191,11 +1191,8 @@ details.sublevel-accordion[open] .arrow-icon {
 
 /* Hide joystick and mobile map on desktop */
 @media (min-width: 601px) {
-    #poi-sidebar,
-    #burger-dropdown {
+    #poi-sidebar {
         width: 260px;
-        height: calc(100vh - var(--safe-top) - 140px);
-        max-height: calc(100vh - var(--safe-top) - 140px);
         box-sizing: border-box;
     }
 

@@ -1680,15 +1680,8 @@ LevelManager.prototype.loadLevel = function(id, isStart) {
     }
 
     if (revealScript) {
-        // The reveal shader works in splat-local coordinates. Convert the
-        // configured camera spawn so the wave begins where the user enters.
-        var revealWorldCenter = data.cameraStart
-            ? new pc.Vec3(data.cameraStart[0], data.cameraStart[1], data.cameraStart[2])
-            : this.cameraEntity.getPosition().clone();
-        var inverseSplatWorld = this.mainSplatEntity.getWorldTransform().clone().invert();
-        var revealLocalCenter = new pc.Vec3();
-        inverseSplatWorld.transformPoint(revealWorldCenter, revealLocalCenter);
-        revealScript.restart(revealLocalCenter);
+        // Restore the original, stable reveal origin in splat-local space.
+        revealScript.restart(new pc.Vec3(0, 0, 0));
     }
 
     // --- Dynamic collision loading ---
@@ -1984,13 +1977,17 @@ LevelManager.prototype._updateCulling = function() {
             // also keeps the LOD streamer from spending its budget behind us.
             this.app.scene.gsplat.lodBehindPenalty = doDistanceCull ? 10 : 1;
         }
-        // getPosition() is world-space, so the culling sphere follows the
-        // actual user camera even when it is parented to the player rig.
-        var activeCamera = this.cameraEntity;
-        if ((!activeCamera || !activeCamera.camera) && this.app.systems.camera.cameras.length) {
-            activeCamera = this.app.systems.camera.cameras[0].entity;
+        // Indoor navigation moves the Character_Controller rig. Use that live
+        // player position as the distance-culling origin instead of a camera
+        // transform that may be offset, parented or left at an earlier pose.
+        var activeCullOrigin = this.app.root.findByName('Character_Controller');
+        if (!activeCullOrigin || !activeCullOrigin.enabled) {
+            activeCullOrigin = this.cameraEntity;
         }
-        reveal.setDistanceCulling(doDistanceCull, this._cullDistance, activeCamera);
+        if (!activeCullOrigin && this.app.systems.camera.cameras.length) {
+            activeCullOrigin = this.app.systems.camera.cameras[0].entity;
+        }
+        reveal.setDistanceCulling(doDistanceCull, this._cullDistance, activeCullOrigin);
         reveal.setPrivacyZones(data.privacyZones || []);
     }
 };

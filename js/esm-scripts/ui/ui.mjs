@@ -21,6 +21,14 @@ UI.prototype.initialize = function () {
     this._isMobileUi = platform.mobile || window.innerWidth <= 600;
     this._currentPreset = this._isMobileUi ? 'mob-ultra' : 'ultra';
     this.uiContainer = document.createElement('div');
+    // Do not paint partially styled UI. The CSS asset can arrive through an
+    // asynchronous Vite link wrapper, so reveal the complete mobile UI only
+    // after that stylesheet is ready.
+    this.uiContainer.style.visibility = 'hidden';
+    var cssPending = false;
+    var revealUi = function () {
+        this.uiContainer.style.visibility = 'visible';
+    }.bind(this);
     this._currentLevelId = 'lemgo';
     this._uiVisible = true;
     this._tourVisible = false;
@@ -465,6 +473,8 @@ UI.prototype.initialize = function () {
                 link.rel = 'stylesheet';
                 link.type = 'text/css';
                 link.href = this.cssAsset.getFileUrl();
+                cssPending = true;
+                link.addEventListener('load', revealUi, { once: true });
                 document.head.appendChild(link);
             } else {
                 console.log('UI: CSS resource is string. Adding style tag.');
@@ -482,6 +492,8 @@ UI.prototype.initialize = function () {
             link.rel = 'stylesheet';
             link.type = 'text/css';
             link.href = url;
+            cssPending = true;
+            link.addEventListener('load', revealUi, { once: true });
             document.head.appendChild(link);
         } else {
             console.log('UI: CSS asset missing resource and getFileUrl:', this.cssAsset);
@@ -500,6 +512,8 @@ UI.prototype.initialize = function () {
         this._updateButtonStates();
         this._loadTranslations(this.currentLang);
     }
+    if (!cssPending) revealUi();
+    else setTimeout(revealUi, 2000);
     setInterval(() => {
         var vrBtn = document.querySelector('.webxr-button, .pc-webxr-button, #webxr-button, button[title*="VR"]');
         if (vrBtn) vrBtn.innerText = this.currentLang === 'de' ? 'VR STARTEN' : 'ENTER VR';
@@ -647,16 +661,13 @@ UI.prototype._initBurgerMenu = function () {
 
     var controlsCard = document.getElementById('controls-card');
     if (controlsCard) {
-        if (window.innerWidth <= 600) {
-            controlsCard.style.display = 'none';
-        } else {
-            controlsCard.classList.add('collapsed');
-        }
+        controlsCard.style.display = self._isMobileUi ? 'none' : 'block';
+        controlsCard.classList.add('collapsed');
     }
 
-    var currentPreset = self._isMobileUi ? 'btn-mob-ultra' : 'btn-ultra';
-    var activeBtn = document.getElementById(currentPreset);
-    if (activeBtn) activeBtn.classList.add('active');
+    // Keep the visual selection in sync with the preset that is actually
+    // applied at startup (Lemgo defaults to Ultra on mobile and desktop).
+    self._updateButtonStates();
 
     // TRUE Bulletproof menu handler with Capture Phase
     var toggleMenu = function (e) {
