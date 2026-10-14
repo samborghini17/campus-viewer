@@ -14583,7 +14583,17 @@ class WebglGraphicsDevice extends GraphicsDevice {
         const impl = texture.impl;
         const textureTarget = impl._glTarget;
         const textureObject = impl._glTexture;
-        const textureUnit = this.textureUnit;
+        // Mobile Safari can request a texture bind while its WebGL cache is
+        // still sized with the constructor default. Keep the cache aligned
+        // with the actual active unit instead of crashing during app startup.
+        const textureUnit = Number.isInteger(this.textureUnit) && this.textureUnit >= 0 ? this.textureUnit : 0;
+        if (!this.textureUnits[textureUnit]) {
+            this.textureUnits[textureUnit] = [
+                null,
+                null,
+                null
+            ];
+        }
         const slot = this.targetToSlot[textureTarget];
         if (this.textureUnits[textureUnit][slot] !== textureObject) {
             this.gl.bindTexture(textureTarget, textureObject);
@@ -14594,6 +14604,14 @@ class WebglGraphicsDevice extends GraphicsDevice {
         const impl = texture.impl;
         const textureTarget = impl._glTarget;
         const textureObject = impl._glTexture;
+        textureUnit = Number.isInteger(textureUnit) && textureUnit >= 0 ? textureUnit : 0;
+        if (!this.textureUnits[textureUnit]) {
+            this.textureUnits[textureUnit] = [
+                null,
+                null,
+                null
+            ];
+        }
         const slot = this.targetToSlot[textureTarget];
         if (this.textureUnits[textureUnit][slot] !== textureObject) {
             this.activeTexture(textureUnit);
